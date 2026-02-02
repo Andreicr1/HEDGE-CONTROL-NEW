@@ -1,3 +1,0 @@
-<c:FragmentDefinition xmlns="sap.m" xmlns:c="sap.ui.core">
-  <Button type="Transparent" icon="sap-icon://nav-back" class="sapUiSmallMarginEnd" press=".navTo('overview')"/>
-</c:FragmentDefinition>
