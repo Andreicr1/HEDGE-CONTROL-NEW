@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CashFlow API Schemas",
+  "description": "JSON Schemas for implemented CashFlow endpoints: /cashflow/analytic, /cashflow/baseline/snapshots, /cashflow/contracts/{contract_id}/settle, and /cashflow/ledger*. Note: legacy /cashflows CRUD endpoints are currently NOT IMPLEMENTED (HTTP 501) and are not modeled here.",
+  "oneOf": [
+    { "$ref": "#/definitions/CashFlowAnalyticResponse" },
+    { "$ref": "#/definitions/CashFlowBaselineSnapshotResponse" },
+    { "$ref": "#/definitions/LedgerSettlementRequest" },
+    { "$ref": "#/definitions/HedgeContractSettlementEvent" },
+    { "$ref": "#/definitions/LedgerEntry" },
+    { "$ref": "#/definitions/HedgeContractSettlementResponse" }
+  ],
+  "definitions": {
+    "CashFlowItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "object_type": { "type": "string" },
+        "object_id": { "type": "string" },
+        "settlement_date": { "type": "string", "format": "date" },
+        "amount_usd": { "type": "number" },
+        "mtm_value": { "type": "number" }
+      },
+      "required": ["object_type", "object_id", "settlement_date", "amount_usd", "mtm_value"]
+    },
+    "CashFlowAnalyticResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "as_of_date": { "type": "string", "format": "date" },
+        "cashflow_items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CashFlowItem" }
+        },
+        "total_net_cashflow": { "type": "number" }
+      },
+      "required": ["as_of_date", "cashflow_items", "total_net_cashflow"]
+    },
+    "CashFlowBaselineSnapshotResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "as_of_date": { "type": "string", "format": "date" },
+        "snapshot_data": { "type": "object" },
+        "total_net_cashflow": { "type": "number" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "correlation_id": { "type": "string" }
+      },
+      "required": ["id", "as_of_date", "snapshot_data", "total_net_cashflow", "created_at", "correlation_id"]
+    },
+    "LedgerSettlementRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_event_id": { "type": "string", "format": "uuid" },
+        "cashflow_date": { "type": "string", "format": "date" },
+        "currency": { "type": "string", "enum": ["USD"] },
+        "legs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "leg_id": { "type": "string", "enum": ["FIXED", "FLOAT"] },
+              "direction": { "type": "string", "enum": ["IN", "OUT"] },
+              "amount": { "type": "number", "exclusiveMinimum": 0 }
+            },
+            "required": ["leg_id", "direction", "amount"]
+          }
+        }
+      },
+      "required": ["source_event_id", "cashflow_date", "legs"]
+    },
+    "HedgeContractSettlementEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "hedge_contract_id": { "type": "string", "format": "uuid" },
+        "cashflow_date": { "type": "string", "format": "date" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "hedge_contract_id", "cashflow_date", "created_at"]
+    },
+    "LedgerEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "hedge_contract_id": { "type": "string", "format": "uuid" },
+        "source_event_type": { "type": "string", "enum": ["HEDGE_CONTRACT_SETTLED"] },
+        "source_event_id": { "type": ["string", "null"], "format": "uuid" },
+        "leg_id": { "type": "string", "enum": ["FIXED", "FLOAT"] },
+        "cashflow_date": { "type": "string", "format": "date" },
+        "currency": { "type": "string", "enum": ["USD"] },
+        "direction": { "type": "string", "enum": ["IN", "OUT"] },
+        "amount": { "type": "number" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "hedge_contract_id", "source_event_type", "source_event_id", "leg_id", "cashflow_date", "currency", "direction", "amount", "created_at"]
+    },
+    "HedgeContractSettlementResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event": { "$ref": "#/definitions/HedgeContractSettlementEvent" },
+        "ledger_entries": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LedgerEntry" }
+        }
+      },
+      "required": ["event", "ledger_entries"]
+    }
+  }
+}

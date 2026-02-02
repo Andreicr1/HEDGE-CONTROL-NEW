@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PLSnapshot",
+  "description": "Persisted P&L snapshot. Current backend behavior supports snapshots only for entity_type=hedge_contract. Requests with entity_type=order hard-fail (HTTP 424) because realized cashflow ledger is not implemented for orders.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "entity_type": { "type": "string", "enum": ["hedge_contract"] },
+    "entity_id": { "type": "string", "format": "uuid" },
+    "period_start": { "type": "string", "format": "date" },
+    "period_end": { "type": "string", "format": "date" },
+    "realized_pl": { "type": "number" },
+    "unrealized_mtm": { "type": "number" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "correlation_id": { "type": ["string", "null"], "format": "uuid" }
+  },
+  "required": ["id", "entity_type", "entity_id", "period_start", "period_end", "realized_pl", "unrealized_mtm", "created_at"]
+}

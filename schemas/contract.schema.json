@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HedgeContract",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "commodity": { "type": "string" },
+    "quantity_mt": { "type": "number", "exclusiveMinimum": 0 },
+    "fixed_leg_side": { "type": "string", "enum": ["buy", "sell"] },
+    "variable_leg_side": { "type": "string", "enum": ["buy", "sell"] },
+    "classification": { "type": "string", "enum": ["long", "short"] },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["commodity", "quantity_mt", "fixed_leg_side", "variable_leg_side", "classification"]
+}

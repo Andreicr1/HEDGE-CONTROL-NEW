@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RFQ",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "rfq_number": { "type": "string" },
+    "intent": { "type": "string", "enum": ["COMMERCIAL_HEDGE", "GLOBAL_POSITION"] },
+    "commodity": { "type": "string" },
+    "quantity_mt": { "type": "number", "exclusiveMinimum": 0 },
+    "delivery_window_start": { "type": "string", "format": "date" },
+    "delivery_window_end": { "type": "string", "format": "date" },
+    "direction": { "type": "string", "enum": ["BUY", "SELL"] },
+    "order_id": { "type": ["string", "null"], "format": "uuid" },
+    "commercial_active_mt": { "type": "number" },
+    "commercial_passive_mt": { "type": "number" },
+    "commercial_net_mt": { "type": "number" },
+    "commercial_reduction_applied_mt": { "type": "number" },
+    "exposure_snapshot_timestamp": { "type": "string", "format": "date-time" },
+    "state": { "type": "string", "enum": ["CREATED", "SENT", "QUOTED"] },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "rfq_number",
+    "intent",
+    "commodity",
+    "quantity_mt",
+    "delivery_window_start",
+    "delivery_window_end",
+    "direction",
+    "commercial_active_mt",
+    "commercial_passive_mt",
+    "commercial_net_mt",
+    "commercial_reduction_applied_mt",
+    "exposure_snapshot_timestamp",
+    "state"
+  ]
+}

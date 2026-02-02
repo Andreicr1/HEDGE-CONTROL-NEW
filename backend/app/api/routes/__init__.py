@@ -1,0 +1,31 @@
+from app.api.routes import (
+    audit,
+    cashflow,
+    cashflow_ledger,
+    cashflows,
+    contracts,
+    exposures,
+    linkages,
+    mtm,
+    orders,
+    pl,
+    rfqs,
+    scenario,
+    westmetall,
+)
+
+__all__ = [
+	"audit",
+	"cashflow",
+	"cashflow_ledger",
+	"cashflows",
+	"contracts",
+	"exposures",
+	"linkages",
+	"mtm",
+	"orders",
+	"pl",
+	"rfqs",
+	"scenario",
+	"westmetall",
+]

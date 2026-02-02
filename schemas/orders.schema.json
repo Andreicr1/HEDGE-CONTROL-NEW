@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Order",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "order_type": { "type": "string", "enum": ["SO", "PO"] },
+    "price_type": { "type": "string", "enum": ["fixed", "variable"] },
+    "quantity_mt": { "type": "number" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["order_type", "price_type", "quantity_mt"]
+}

@@ -1,0 +1,238 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scenario What-If",
+  "description": "Public JSON schema for Scenario What-If (Phase 6). Execution is in-memory only with no persistence or audit writes. Outputs are a closed list aligned to current backend behavior.",
+  "oneOf": [
+    { "$ref": "#/definitions/ScenarioWhatIfRunRequest" },
+    { "$ref": "#/definitions/ScenarioWhatIfRunResponse" }
+  ],
+  "definitions": {
+    "ScenarioDelta": {
+      "oneOf": [
+        { "$ref": "#/definitions/AddUnlinkedHedgeContractDelta" },
+        { "$ref": "#/definitions/AdjustOrderQuantityDelta" },
+        { "$ref": "#/definitions/AddCashSettlementPriceOverrideDelta" }
+      ]
+    },
+    "AddUnlinkedHedgeContractDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "delta_type": { "type": "string", "enum": ["add_unlinked_hedge_contract"] },
+        "contract_id": { "type": "string", "format": "uuid" },
+        "quantity_mt": { "type": ["string", "number"] },
+        "fixed_leg_side": { "type": "string", "enum": ["buy", "sell"] },
+        "variable_leg_side": { "type": "string", "enum": ["buy", "sell"] },
+        "fixed_price_value": { "type": ["string", "number"] },
+        "fixed_price_unit": { "type": "string", "enum": ["USD/MT"] },
+        "float_pricing_convention": { "type": "string" }
+      },
+      "required": [
+        "delta_type",
+        "contract_id",
+        "quantity_mt",
+        "fixed_leg_side",
+        "variable_leg_side",
+        "fixed_price_value",
+        "fixed_price_unit",
+        "float_pricing_convention"
+      ]
+    },
+    "AdjustOrderQuantityDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "delta_type": { "type": "string", "enum": ["adjust_order_quantity_mt"] },
+        "order_id": { "type": "string", "format": "uuid" },
+        "new_quantity_mt": { "type": ["string", "number"] }
+      },
+      "required": ["delta_type", "order_id", "new_quantity_mt"]
+    },
+    "AddCashSettlementPriceOverrideDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "delta_type": { "type": "string", "enum": ["add_cash_settlement_price_override"] },
+        "symbol": { "type": "string" },
+        "settlement_date": { "type": "string", "format": "date" },
+        "price_usd": { "type": ["string", "number"] }
+      },
+      "required": ["delta_type", "symbol", "settlement_date", "price_usd"]
+    },
+    "ScenarioWhatIfRunRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "period_end must be greater than or equal to period_start.",
+      "properties": {
+        "as_of_date": { "type": "string", "format": "date" },
+        "period_start": { "type": "string", "format": "date" },
+        "period_end": { "type": "string", "format": "date" },
+        "deltas": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ScenarioDelta" }
+        }
+      },
+      "required": ["as_of_date", "period_start", "period_end", "deltas"]
+    },
+    "ScenarioWhatIfRunResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commercial_exposure_snapshot": { "$ref": "#/definitions/CommercialExposureSnapshot" },
+        "global_exposure_snapshot": { "$ref": "#/definitions/GlobalExposureSnapshot" },
+        "mtm_snapshot": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/MTMResultResponse" }
+        },
+        "cashflow_snapshot": { "$ref": "#/definitions/ScenarioCashflowSnapshot" },
+        "pl_snapshot": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ScenarioPLSnapshotItem" }
+        }
+      },
+      "required": [
+        "commercial_exposure_snapshot",
+        "global_exposure_snapshot",
+        "mtm_snapshot",
+        "cashflow_snapshot",
+        "pl_snapshot"
+      ]
+    },
+    "CommercialExposureSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pre_reduction_commercial_active_mt": { "type": "number" },
+        "pre_reduction_commercial_passive_mt": { "type": "number" },
+        "reduction_applied_active_mt": { "type": "number" },
+        "reduction_applied_passive_mt": { "type": "number" },
+        "commercial_active_mt": { "type": "number" },
+        "commercial_passive_mt": { "type": "number" },
+        "commercial_net_mt": { "type": "number" },
+        "calculation_timestamp": { "type": "string", "format": "date-time" },
+        "order_count_considered": { "type": "integer" }
+      },
+      "required": [
+        "pre_reduction_commercial_active_mt",
+        "pre_reduction_commercial_passive_mt",
+        "reduction_applied_active_mt",
+        "reduction_applied_passive_mt",
+        "commercial_active_mt",
+        "commercial_passive_mt",
+        "commercial_net_mt",
+        "calculation_timestamp",
+        "order_count_considered"
+      ]
+    },
+    "GlobalExposureSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pre_reduction_global_active_mt": { "type": "number" },
+        "pre_reduction_global_passive_mt": { "type": "number" },
+        "reduction_applied_active_mt": { "type": "number" },
+        "reduction_applied_passive_mt": { "type": "number" },
+        "global_active_mt": { "type": "number" },
+        "global_passive_mt": { "type": "number" },
+        "global_net_mt": { "type": "number" },
+        "commercial_active_mt": { "type": "number" },
+        "commercial_passive_mt": { "type": "number" },
+        "hedge_long_mt": { "type": "number" },
+        "hedge_short_mt": { "type": "number" },
+        "calculation_timestamp": { "type": "string", "format": "date-time" },
+        "entities_count_considered": { "type": "integer" }
+      },
+      "required": [
+        "pre_reduction_global_active_mt",
+        "pre_reduction_global_passive_mt",
+        "reduction_applied_active_mt",
+        "reduction_applied_passive_mt",
+        "global_active_mt",
+        "global_passive_mt",
+        "global_net_mt",
+        "commercial_active_mt",
+        "commercial_passive_mt",
+        "hedge_long_mt",
+        "hedge_short_mt",
+        "calculation_timestamp",
+        "entities_count_considered"
+      ]
+    },
+    "MTMResultResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "object_type": { "type": "string", "enum": ["hedge_contract", "order"] },
+        "object_id": { "type": "string" },
+        "as_of_date": { "type": "string", "format": "date" },
+        "mtm_value": { "type": "string" },
+        "price_d1": { "type": "string" },
+        "entry_price": { "type": "string" },
+        "quantity_mt": { "type": "string" }
+      },
+      "required": [
+        "object_type",
+        "object_id",
+        "as_of_date",
+        "mtm_value",
+        "price_d1",
+        "entry_price",
+        "quantity_mt"
+      ]
+    },
+    "ScenarioCashflowSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "analytic": { "$ref": "#/definitions/CashFlowAnalyticResponse" },
+        "baseline": { "$ref": "#/definitions/CashFlowAnalyticResponse" }
+      },
+      "required": ["analytic", "baseline"]
+    },
+    "CashFlowAnalyticResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "as_of_date": { "type": "string", "format": "date" },
+        "cashflow_items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CashFlowItem" }
+        },
+        "total_net_cashflow": { "type": "string" }
+      },
+      "required": ["as_of_date", "cashflow_items", "total_net_cashflow"]
+    },
+    "CashFlowItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "object_type": { "type": "string" },
+        "object_id": { "type": "string" },
+        "settlement_date": { "type": "string", "format": "date" },
+        "amount_usd": { "type": "string" },
+        "mtm_value": { "type": "string" }
+      },
+      "required": ["object_type", "object_id", "settlement_date", "amount_usd", "mtm_value"]
+    },
+    "ScenarioPLSnapshotItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity_type": { "type": "string", "enum": ["hedge_contract"] },
+        "entity_id": { "type": "string", "format": "uuid" },
+        "period_start": { "type": "string", "format": "date" },
+        "period_end": { "type": "string", "format": "date" },
+        "realized_pl": { "type": "string" },
+        "unrealized_mtm": { "type": "string" }
+      },
+      "required": [
+        "entity_type",
+        "entity_id",
+        "period_start",
+        "period_end",
+        "realized_pl",
+        "unrealized_mtm"
+      ]
+    }
+  }
+}

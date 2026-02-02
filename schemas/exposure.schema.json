@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Exposure",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "source_order_id": { "type": "string", "format": "uuid" },
+    "exposure_type": { "type": "string", "enum": ["active", "passive"] },
+    "quantity_mt": { "type": "number" },
+    "as_of": { "type": "string", "format": "date-time" }
+  },
+  "required": ["source_order_id", "exposure_type", "quantity_mt", "as_of"]
+}

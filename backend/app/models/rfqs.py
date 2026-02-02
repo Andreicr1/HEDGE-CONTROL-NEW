@@ -1,0 +1,128 @@
+import enum
+import uuid
+
+from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import func
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models.base import Base
+
+
+class RFQIntent(enum.Enum):
+    commercial_hedge = "COMMERCIAL_HEDGE"
+    global_position = "GLOBAL_POSITION"
+    spread = "SPREAD"
+
+
+class RFQDirection(enum.Enum):
+    buy = "BUY"
+    sell = "SELL"
+
+
+class RFQState(enum.Enum):
+    created = "CREATED"
+    sent = "SENT"
+    quoted = "QUOTED"
+    awarded = "AWARDED"
+    closed = "CLOSED"
+
+
+class RFQ(Base):
+    __tablename__ = "rfqs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rfq_number: Mapped[str] = mapped_column(String(length=32), unique=True, nullable=False)
+    intent: Mapped[RFQIntent] = mapped_column(Enum(RFQIntent, name="rfq_intent"), nullable=False)
+    commodity: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    quantity_mt: Mapped[float] = mapped_column(Float, nullable=False)
+    delivery_window_start: Mapped[Date] = mapped_column(Date, nullable=False)
+    delivery_window_end: Mapped[Date] = mapped_column(Date, nullable=False)
+    direction: Mapped[RFQDirection] = mapped_column(Enum(RFQDirection, name="rfq_direction"), nullable=False)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orders.id", ondelete="RESTRICT"), nullable=True
+    )
+    buy_trade_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=True
+    )
+    sell_trade_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=True
+    )
+
+    commercial_active_mt: Mapped[float] = mapped_column(Float, nullable=False)
+    commercial_passive_mt: Mapped[float] = mapped_column(Float, nullable=False)
+    commercial_net_mt: Mapped[float] = mapped_column(Float, nullable=False)
+    commercial_reduction_applied_mt: Mapped[float] = mapped_column(Float, nullable=False)
+    exposure_snapshot_timestamp: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    state: Mapped[RFQState] = mapped_column(Enum(RFQState, name="rfq_state"), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RFQInvitationChannel(enum.Enum):
+    email = "email"
+    api = "api"
+    whatsapp = "whatsapp"
+    bank = "bank"
+    broker = "broker"
+    other = "other"
+
+
+class RFQInvitationStatus(enum.Enum):
+    queued = "queued"
+    sent = "sent"
+    failed = "failed"
+
+
+class RFQInvitation(Base):
+    __tablename__ = "rfq_invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rfq_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=False
+    )
+    rfq_number: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    recipient_id: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    recipient_name: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    channel: Mapped[RFQInvitationChannel] = mapped_column(
+        Enum(RFQInvitationChannel, name="rfq_invitation_channel"),
+        nullable=False,
+    )
+    message_body: Mapped[str] = mapped_column(Text, nullable=False)
+    provider_message_id: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    send_status: Mapped[RFQInvitationStatus] = mapped_column(
+        Enum(RFQInvitationStatus, name="rfq_invitation_status"),
+        nullable=False,
+    )
+    sent_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RFQStateEvent(Base):
+    __tablename__ = "rfq_state_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rfq_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=False
+    )
+    from_state: Mapped[RFQState] = mapped_column(Enum(RFQState, name="rfq_state"), nullable=False)
+    to_state: Mapped[RFQState] = mapped_column(Enum(RFQState, name="rfq_state"), nullable=False)
+    trigger: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
+    triggering_quote_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    triggering_counterparty_id: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
+    event_timestamp: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(length=128), nullable=True)
+    ranking_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)
+    winning_quote_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
+    winning_counterparty_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
+    award_timestamp: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_contract_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RFQSequence(Base):
+    __tablename__ = "rfq_sequences"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
