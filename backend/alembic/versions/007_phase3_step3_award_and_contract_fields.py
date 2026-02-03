@@ -34,28 +34,51 @@ def upgrade() -> None:
     op.add_column("rfq_state_events", sa.Column("award_timestamp", sa.DateTime(timezone=True), nullable=True))
     op.add_column("rfq_state_events", sa.Column("created_contract_ids", sa.Text(), nullable=True))
 
-    op.add_column("hedge_contracts", sa.Column("rfq_id", sa.Uuid(), nullable=True))
-    op.add_column("hedge_contracts", sa.Column("rfq_quote_id", sa.Uuid(), nullable=True))
-    op.add_column("hedge_contracts", sa.Column("counterparty_id", sa.String(length=64), nullable=True))
-    op.add_column("hedge_contracts", sa.Column("fixed_price_value", sa.Float(), nullable=True))
-    op.add_column("hedge_contracts", sa.Column("fixed_price_unit", sa.String(length=32), nullable=True))
-    op.add_column("hedge_contracts", sa.Column("float_pricing_convention", sa.String(length=64), nullable=True))
-    op.create_foreign_key(
-        "fk_hedge_contracts_rfq_id_rfqs",
-        "hedge_contracts",
-        "rfqs",
-        ["rfq_id"],
-        ["id"],
-        ondelete="RESTRICT",
-    )
-    op.create_foreign_key(
-        "fk_hedge_contracts_rfq_quote_id_rfq_quotes",
-        "hedge_contracts",
-        "rfq_quotes",
-        ["rfq_quote_id"],
-        ["id"],
-        ondelete="RESTRICT",
-    )
+    if bind.dialect.name == "sqlite":
+        with op.batch_alter_table("hedge_contracts") as batch:
+            batch.add_column(sa.Column("rfq_id", sa.Uuid(), nullable=True))
+            batch.add_column(sa.Column("rfq_quote_id", sa.Uuid(), nullable=True))
+            batch.add_column(sa.Column("counterparty_id", sa.String(length=64), nullable=True))
+            batch.add_column(sa.Column("fixed_price_value", sa.Float(), nullable=True))
+            batch.add_column(sa.Column("fixed_price_unit", sa.String(length=32), nullable=True))
+            batch.add_column(sa.Column("float_pricing_convention", sa.String(length=64), nullable=True))
+            batch.create_foreign_key(
+                "fk_hedge_contracts_rfq_id_rfqs",
+                "rfqs",
+                ["rfq_id"],
+                ["id"],
+                ondelete="RESTRICT",
+            )
+            batch.create_foreign_key(
+                "fk_hedge_contracts_rfq_quote_id_rfq_quotes",
+                "rfq_quotes",
+                ["rfq_quote_id"],
+                ["id"],
+                ondelete="RESTRICT",
+            )
+    else:
+        op.add_column("hedge_contracts", sa.Column("rfq_id", sa.Uuid(), nullable=True))
+        op.add_column("hedge_contracts", sa.Column("rfq_quote_id", sa.Uuid(), nullable=True))
+        op.add_column("hedge_contracts", sa.Column("counterparty_id", sa.String(length=64), nullable=True))
+        op.add_column("hedge_contracts", sa.Column("fixed_price_value", sa.Float(), nullable=True))
+        op.add_column("hedge_contracts", sa.Column("fixed_price_unit", sa.String(length=32), nullable=True))
+        op.add_column("hedge_contracts", sa.Column("float_pricing_convention", sa.String(length=64), nullable=True))
+        op.create_foreign_key(
+            "fk_hedge_contracts_rfq_id_rfqs",
+            "hedge_contracts",
+            "rfqs",
+            ["rfq_id"],
+            ["id"],
+            ondelete="RESTRICT",
+        )
+        op.create_foreign_key(
+            "fk_hedge_contracts_rfq_quote_id_rfq_quotes",
+            "hedge_contracts",
+            "rfq_quotes",
+            ["rfq_quote_id"],
+            ["id"],
+            ondelete="RESTRICT",
+        )
 
 
 def downgrade() -> None:
