@@ -25,24 +25,43 @@ def upgrade() -> None:
     if bind.dialect.name == "postgresql":
         op.execute("ALTER TYPE rfq_intent ADD VALUE IF NOT EXISTS 'SPREAD'")
 
-    op.add_column("rfqs", sa.Column("buy_trade_id", sa.Uuid(), nullable=True))
-    op.add_column("rfqs", sa.Column("sell_trade_id", sa.Uuid(), nullable=True))
-    op.create_foreign_key(
-        "fk_rfqs_buy_trade_id_rfqs",
-        "rfqs",
-        "rfqs",
-        ["buy_trade_id"],
-        ["id"],
-        ondelete="RESTRICT",
-    )
-    op.create_foreign_key(
-        "fk_rfqs_sell_trade_id_rfqs",
-        "rfqs",
-        "rfqs",
-        ["sell_trade_id"],
-        ["id"],
-        ondelete="RESTRICT",
-    )
+    if bind.dialect.name == "sqlite":
+        with op.batch_alter_table("rfqs") as batch:
+            batch.add_column(sa.Column("buy_trade_id", sa.Uuid(), nullable=True))
+            batch.add_column(sa.Column("sell_trade_id", sa.Uuid(), nullable=True))
+            batch.create_foreign_key(
+                "fk_rfqs_buy_trade_id_rfqs",
+                "rfqs",
+                ["buy_trade_id"],
+                ["id"],
+                ondelete="RESTRICT",
+            )
+            batch.create_foreign_key(
+                "fk_rfqs_sell_trade_id_rfqs",
+                "rfqs",
+                ["sell_trade_id"],
+                ["id"],
+                ondelete="RESTRICT",
+            )
+    else:
+        op.add_column("rfqs", sa.Column("buy_trade_id", sa.Uuid(), nullable=True))
+        op.add_column("rfqs", sa.Column("sell_trade_id", sa.Uuid(), nullable=True))
+        op.create_foreign_key(
+            "fk_rfqs_buy_trade_id_rfqs",
+            "rfqs",
+            "rfqs",
+            ["buy_trade_id"],
+            ["id"],
+            ondelete="RESTRICT",
+        )
+        op.create_foreign_key(
+            "fk_rfqs_sell_trade_id_rfqs",
+            "rfqs",
+            "rfqs",
+            ["sell_trade_id"],
+            ["id"],
+            ondelete="RESTRICT",
+        )
 
     op.add_column("rfq_state_events", sa.Column("trigger", sa.String(length=64), nullable=True))
     op.add_column(
