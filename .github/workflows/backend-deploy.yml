@@ -30,7 +30,10 @@ jobs:
       - name: Run tests
         env:
           DATABASE_URL: "sqlite+pysqlite:///:memory:"
-        run: pytest -q
+        run: |
+          cd backend
+          alembic upgrade head
+          pytest -q
 
   build_push_deploy:
     needs: build_test
