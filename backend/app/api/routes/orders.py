@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_role
 from app.core.database import get_session
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.orders import Order, OrderPricingConvention, OrderType, PriceType
@@ -21,6 +22,7 @@ def create_sales_order(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> OrderRead:
     if payload.price_type.value == PriceType.variable.value:
@@ -56,6 +58,7 @@ def create_purchase_order(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> OrderRead:
     if payload.price_type.value == PriceType.variable.value:

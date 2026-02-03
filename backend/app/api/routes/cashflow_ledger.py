@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_role
 from app.core.database import get_session
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.cashflow import CashFlowLedgerEntry
@@ -29,6 +30,7 @@ def settle_hedge_contract(
             event_type="settled",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> HedgeContractSettlementResponse:
     event, ledger_entries = ingest_hedge_contract_settlement(session, contract_id, payload)

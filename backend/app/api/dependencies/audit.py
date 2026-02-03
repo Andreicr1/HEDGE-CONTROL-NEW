@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_session
+from app.core.metrics import audit_events_total
 from app.services.audit_trail_service import AuditTrailService
 
 
@@ -56,6 +57,7 @@ def audit_event(
                 payload_raw=payload_text,
                 payload_obj=payload_obj,
             )
+            audit_events_total.labels(entity_type=entity_type, event_type=event_type).inc()
 
         request.state.audit_commit = _commit_audit
 

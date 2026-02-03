@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_role
 from app.core.database import get_session
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.contracts import HedgeClassification, HedgeContract, HedgeLegSide
@@ -282,6 +283,7 @@ def create_rfq(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
     snapshot = _compute_commercial_exposure_snapshot(session)
@@ -398,6 +400,7 @@ def create_quote(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQQuoteRead:
     rfq = session.get(RFQ, rfq_id)
@@ -605,6 +608,7 @@ def reject_rfq(
             event_type="rejected",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
     rfq = session.get(RFQ, rfq_id)
@@ -642,6 +646,7 @@ def refresh_rfq(
             event_type="refreshed",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
     rfq = session.get(RFQ, rfq_id)
@@ -700,6 +705,7 @@ def award_rfq(
             event_type="awarded",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
     rfq = session.get(RFQ, rfq_id)

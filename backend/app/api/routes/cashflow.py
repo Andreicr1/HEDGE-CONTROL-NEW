@@ -3,6 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.cashflow import CashFlowBaselineSnapshot
@@ -21,6 +22,7 @@ router = APIRouter()
 @router.get("/analytic", response_model=CashFlowAnalyticResponse)
 def get_cashflow_analytic(
     as_of_date: date = Query(...),
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> CashFlowAnalyticResponse:
     return compute_cashflow_analytic(session, as_of_date=as_of_date)
@@ -36,6 +38,7 @@ def create_baseline_snapshot(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> CashFlowBaselineSnapshotResponse:
     snapshot = create_cashflow_baseline_snapshot(
@@ -49,6 +52,7 @@ def create_baseline_snapshot(
 @router.get("/baseline/snapshots", response_model=CashFlowBaselineSnapshotResponse)
 def get_baseline_snapshot(
     as_of_date: date = Query(...),
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> CashFlowBaselineSnapshotResponse:
     snapshot = session.query(CashFlowBaselineSnapshot).filter(CashFlowBaselineSnapshot.as_of_date == as_of_date).first()

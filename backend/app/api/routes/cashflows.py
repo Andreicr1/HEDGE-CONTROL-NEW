@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.schemas.cashflow import CashFlowCreate, CashFlowRead
 from app.api.dependencies.audit import audit_event
+from app.core.auth import require_role
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ def create_cashflow(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
 ) -> CashFlowRead:
     del payload
     del request

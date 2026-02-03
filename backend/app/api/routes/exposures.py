@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.models.contracts import HedgeClassification, HedgeContract
 from app.models.linkages import HedgeOrderLinkage
@@ -14,7 +15,10 @@ router = APIRouter()
 
 
 @router.get("/commercial", response_model=CommercialExposureRead)
-def get_commercial_exposure(session: Session = Depends(get_session)) -> CommercialExposureRead:
+def get_commercial_exposure(
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> CommercialExposureRead:
     pre_reduction_active = (
         session.query(func.coalesce(func.sum(Order.quantity_mt), 0.0))
         .filter(Order.order_type == OrderType.sales, Order.price_type == PriceType.variable)
@@ -104,7 +108,10 @@ def get_commercial_exposure(session: Session = Depends(get_session)) -> Commerci
 
 
 @router.get("/global", response_model=GlobalExposureRead)
-def get_global_exposure(session: Session = Depends(get_session)) -> GlobalExposureRead:
+def get_global_exposure(
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> GlobalExposureRead:
     pre_reduction_active = (
         session.query(func.coalesce(func.sum(Order.quantity_mt), 0.0))
         .filter(Order.order_type == OrderType.sales, Order.price_type == PriceType.variable)

@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.pl import PLSnapshot
@@ -23,6 +24,7 @@ def get_pl(
     entity_id: UUID,
     period_start: date = Query(...),
     period_end: date = Query(...),
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> PLResultResponse:
     return compute_pl(session, entity_type, entity_id, period_start, period_end)
@@ -38,6 +40,7 @@ def post_pl_snapshot(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> PLSnapshotResponse:
     snapshot = create_pl_snapshot(
@@ -58,6 +61,7 @@ def get_pl_snapshot(
     entity_id: UUID,
     period_start: date = Query(...),
     period_end: date = Query(...),
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> PLSnapshotResponse:
     snapshot = (

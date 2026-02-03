@@ -35,3 +35,14 @@ Desktop.ini
 
 # Logs
 *.log
+
+# Root markdown files
+/*.md
+
+# Third-party theme assets
+theming-base-content-master/
+
+# Local rules/config
+.clinerules/
+.continue/
+.cursor/

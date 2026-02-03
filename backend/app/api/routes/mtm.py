@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.mtm import MTMObjectType, MTMSnapshot
@@ -20,6 +21,7 @@ router = APIRouter()
 def get_mtm_for_hedge_contract(
     contract_id: UUID,
     as_of_date: date = Query(...),
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> MTMResultResponse:
     return compute_mtm_for_contract(session, contract_id=contract_id, as_of_date=as_of_date)
@@ -29,6 +31,7 @@ def get_mtm_for_hedge_contract(
 def get_mtm_for_order(
     order_id: UUID,
     as_of_date: date = Query(...),
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> MTMResultResponse:
     return compute_mtm_for_order(session, order_id=order_id, as_of_date=as_of_date)
@@ -44,6 +47,7 @@ def create_mtm_snapshot(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> MTMSnapshotResponse:
     if payload.object_type == MTMObjectType.hedge_contract:
@@ -72,6 +76,7 @@ def get_mtm_snapshot(
     object_type: MTMObjectType,
     object_id: UUID,
     as_of_date: date,
+    _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> MTMSnapshotResponse:
     snapshot = (

@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_role
 from app.core.database import get_session
 from app.models.audit import AuditEvent
 from app.schemas.audit import AuditEventListResponse, AuditEventRead
@@ -34,6 +35,7 @@ def list_audit_events(
     end: datetime | None = Query(None),
     cursor: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
+    _: None = Depends(require_role("auditor")),
     session: Session = Depends(get_session),
 ) -> AuditEventListResponse:
     query = session.query(AuditEvent)

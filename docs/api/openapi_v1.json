@@ -1,0 +1,4283 @@
+{
+  "components": {
+    "schemas": {
+      "AddCashSettlementPriceOverrideDelta": {
+        "properties": {
+          "delta_type": {
+            "const": "add_cash_settlement_price_override",
+            "enum": [
+              "add_cash_settlement_price_override"
+            ],
+            "title": "Delta Type",
+            "type": "string"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Price Usd"
+          },
+          "settlement_date": {
+            "format": "date",
+            "title": "Settlement Date",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delta_type",
+          "symbol",
+          "settlement_date",
+          "price_usd"
+        ],
+        "title": "AddCashSettlementPriceOverrideDelta",
+        "type": "object"
+      },
+      "AddUnlinkedHedgeContractDelta": {
+        "properties": {
+          "contract_id": {
+            "format": "uuid",
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "delta_type": {
+            "const": "add_unlinked_hedge_contract",
+            "enum": [
+              "add_unlinked_hedge_contract"
+            ],
+            "title": "Delta Type",
+            "type": "string"
+          },
+          "fixed_leg_side": {
+            "enum": [
+              "buy",
+              "sell"
+            ],
+            "title": "Fixed Leg Side",
+            "type": "string"
+          },
+          "fixed_price_unit": {
+            "const": "USD/MT",
+            "enum": [
+              "USD/MT"
+            ],
+            "title": "Fixed Price Unit",
+            "type": "string"
+          },
+          "fixed_price_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Fixed Price Value"
+          },
+          "float_pricing_convention": {
+            "title": "Float Pricing Convention",
+            "type": "string"
+          },
+          "quantity_mt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity Mt"
+          },
+          "variable_leg_side": {
+            "enum": [
+              "buy",
+              "sell"
+            ],
+            "title": "Variable Leg Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delta_type",
+          "contract_id",
+          "quantity_mt",
+          "fixed_leg_side",
+          "variable_leg_side",
+          "fixed_price_value",
+          "fixed_price_unit",
+          "float_pricing_convention"
+        ],
+        "title": "AddUnlinkedHedgeContractDelta",
+        "type": "object"
+      },
+      "AdjustOrderQuantityDelta": {
+        "properties": {
+          "delta_type": {
+            "const": "adjust_order_quantity_mt",
+            "enum": [
+              "adjust_order_quantity_mt"
+            ],
+            "title": "Delta Type",
+            "type": "string"
+          },
+          "new_quantity_mt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "New Quantity Mt"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delta_type",
+          "order_id",
+          "new_quantity_mt"
+        ],
+        "title": "AdjustOrderQuantityDelta",
+        "type": "object"
+      },
+      "AuditEventListResponse": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEventRead"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "AuditEventListResponse",
+        "type": "object"
+      },
+      "AuditEventRead": {
+        "properties": {
+          "checksum": {
+            "title": "Checksum",
+            "type": "string"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "payload": {
+            "title": "Payload"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "format": "binary",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          },
+          "timestamp_utc": {
+            "format": "date-time",
+            "title": "Timestamp Utc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "timestamp_utc",
+          "entity_type",
+          "entity_id",
+          "event_type",
+          "payload",
+          "checksum"
+        ],
+        "title": "AuditEventRead",
+        "type": "object"
+      },
+      "CashFlowAnalyticResponse": {
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "cashflow_items": {
+            "items": {
+              "$ref": "#/components/schemas/CashFlowItem"
+            },
+            "title": "Cashflow Items",
+            "type": "array"
+          },
+          "total_net_cashflow": {
+            "title": "Total Net Cashflow",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of_date",
+          "cashflow_items",
+          "total_net_cashflow"
+        ],
+        "title": "CashFlowAnalyticResponse",
+        "type": "object"
+      },
+      "CashFlowBaselineSnapshotCreate": {
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of_date",
+          "correlation_id"
+        ],
+        "title": "CashFlowBaselineSnapshotCreate",
+        "type": "object"
+      },
+      "CashFlowBaselineSnapshotResponse": {
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "snapshot_data": {
+            "title": "Snapshot Data",
+            "type": "object"
+          },
+          "total_net_cashflow": {
+            "title": "Total Net Cashflow",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "as_of_date",
+          "snapshot_data",
+          "total_net_cashflow",
+          "created_at",
+          "correlation_id"
+        ],
+        "title": "CashFlowBaselineSnapshotResponse",
+        "type": "object"
+      },
+      "CashFlowCreate": {
+        "properties": {
+          "amount": {
+            "description": "Derived cashflow amount",
+            "title": "Amount",
+            "type": "number"
+          },
+          "contract_id": {
+            "description": "Source contract ID",
+            "format": "uuid",
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "value_date": {
+            "description": "Cashflow value date",
+            "format": "date",
+            "title": "Value Date",
+            "type": "string"
+          },
+          "view": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CashFlowView"
+              }
+            ],
+            "description": "CashFlow view type"
+          }
+        },
+        "required": [
+          "contract_id",
+          "view",
+          "amount",
+          "value_date"
+        ],
+        "title": "CashFlowCreate",
+        "type": "object"
+      },
+      "CashFlowItem": {
+        "properties": {
+          "amount_usd": {
+            "title": "Amount Usd",
+            "type": "string"
+          },
+          "mtm_value": {
+            "title": "Mtm Value",
+            "type": "string"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          },
+          "settlement_date": {
+            "format": "date",
+            "title": "Settlement Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_type",
+          "object_id",
+          "settlement_date",
+          "amount_usd",
+          "mtm_value"
+        ],
+        "title": "CashFlowItem",
+        "type": "object"
+      },
+      "CashFlowLedgerEntryRead": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "cashflow_date": {
+            "format": "date",
+            "title": "Cashflow Date",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "hedge_contract_id": {
+            "format": "uuid",
+            "title": "Hedge Contract Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "leg_id": {
+            "title": "Leg Id",
+            "type": "string"
+          },
+          "source_event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Event Id"
+          },
+          "source_event_type": {
+            "title": "Source Event Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "hedge_contract_id",
+          "source_event_type",
+          "source_event_id",
+          "leg_id",
+          "cashflow_date",
+          "currency",
+          "direction",
+          "amount",
+          "created_at"
+        ],
+        "title": "CashFlowLedgerEntryRead",
+        "type": "object"
+      },
+      "CashFlowRead": {
+        "properties": {
+          "amount": {
+            "description": "Derived cashflow amount",
+            "title": "Amount",
+            "type": "number"
+          },
+          "contract_id": {
+            "description": "Source contract ID",
+            "format": "uuid",
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "value_date": {
+            "description": "Cashflow value date",
+            "format": "date",
+            "title": "Value Date",
+            "type": "string"
+          },
+          "view": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CashFlowView"
+              }
+            ],
+            "description": "CashFlow view type"
+          }
+        },
+        "required": [
+          "contract_id",
+          "view",
+          "amount",
+          "value_date",
+          "id",
+          "created_at"
+        ],
+        "title": "CashFlowRead",
+        "type": "object"
+      },
+      "CashFlowView": {
+        "enum": [
+          "analytic",
+          "baseline",
+          "ledger",
+          "what_if"
+        ],
+        "title": "CashFlowView",
+        "type": "string"
+      },
+      "CashSettlementIngestRequest": {
+        "properties": {
+          "settlement_date": {
+            "description": "Settlement date to ingest (YYYY-MM-DD)",
+            "format": "date",
+            "title": "Settlement Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "settlement_date"
+        ],
+        "title": "CashSettlementIngestRequest",
+        "type": "object"
+      },
+      "CashSettlementIngestResponse": {
+        "properties": {
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "html_sha256": {
+            "title": "Html Sha256",
+            "type": "string"
+          },
+          "ingested_count": {
+            "title": "Ingested Count",
+            "type": "integer"
+          },
+          "settlement_date": {
+            "format": "date",
+            "title": "Settlement Date",
+            "type": "string"
+          },
+          "skipped_count": {
+            "title": "Skipped Count",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingested_count",
+          "skipped_count",
+          "source",
+          "symbol",
+          "settlement_date",
+          "source_url",
+          "html_sha256",
+          "fetched_at"
+        ],
+        "title": "CashSettlementIngestResponse",
+        "type": "object"
+      },
+      "CommercialExposureRead": {
+        "properties": {
+          "calculation_timestamp": {
+            "description": "UTC calculation timestamp",
+            "format": "date-time",
+            "title": "Calculation Timestamp",
+            "type": "string"
+          },
+          "commercial_active_mt": {
+            "description": "Residual variable-price SO exposure (MT)",
+            "title": "Commercial Active Mt",
+            "type": "number"
+          },
+          "commercial_net_mt": {
+            "description": "Active minus Passive (MT)",
+            "title": "Commercial Net Mt",
+            "type": "number"
+          },
+          "commercial_passive_mt": {
+            "description": "Residual variable-price PO exposure (MT)",
+            "title": "Commercial Passive Mt",
+            "type": "number"
+          },
+          "order_count_considered": {
+            "description": "Count of variable-price orders considered",
+            "title": "Order Count Considered",
+            "type": "integer"
+          },
+          "pre_reduction_commercial_active_mt": {
+            "description": "Sum of variable-price SO quantity before linkage (MT)",
+            "title": "Pre Reduction Commercial Active Mt",
+            "type": "number"
+          },
+          "pre_reduction_commercial_passive_mt": {
+            "description": "Sum of variable-price PO quantity before linkage (MT)",
+            "title": "Pre Reduction Commercial Passive Mt",
+            "type": "number"
+          },
+          "reduction_applied_active_mt": {
+            "description": "Reduction applied to active exposure via linkages (MT)",
+            "title": "Reduction Applied Active Mt",
+            "type": "number"
+          },
+          "reduction_applied_passive_mt": {
+            "description": "Reduction applied to passive exposure via linkages (MT)",
+            "title": "Reduction Applied Passive Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pre_reduction_commercial_active_mt",
+          "pre_reduction_commercial_passive_mt",
+          "reduction_applied_active_mt",
+          "reduction_applied_passive_mt",
+          "commercial_active_mt",
+          "commercial_passive_mt",
+          "commercial_net_mt",
+          "calculation_timestamp",
+          "order_count_considered"
+        ],
+        "title": "CommercialExposureRead",
+        "type": "object"
+      },
+      "FloatPricingConvention": {
+        "enum": [
+          "avg",
+          "avginter",
+          "c2r"
+        ],
+        "title": "FloatPricingConvention",
+        "type": "string"
+      },
+      "GlobalExposureRead": {
+        "properties": {
+          "calculation_timestamp": {
+            "description": "UTC calculation timestamp",
+            "format": "date-time",
+            "title": "Calculation Timestamp",
+            "type": "string"
+          },
+          "commercial_active_mt": {
+            "description": "Reduced commercial active exposure (MT)",
+            "title": "Commercial Active Mt",
+            "type": "number"
+          },
+          "commercial_passive_mt": {
+            "description": "Reduced commercial passive exposure (MT)",
+            "title": "Commercial Passive Mt",
+            "type": "number"
+          },
+          "entities_count_considered": {
+            "description": "Count of variable-price orders and hedge contracts considered",
+            "title": "Entities Count Considered",
+            "type": "integer"
+          },
+          "global_active_mt": {
+            "description": "Reduced global active exposure (MT)",
+            "title": "Global Active Mt",
+            "type": "number"
+          },
+          "global_net_mt": {
+            "description": "Global active minus global passive (MT)",
+            "title": "Global Net Mt",
+            "type": "number"
+          },
+          "global_passive_mt": {
+            "description": "Reduced global passive exposure (MT)",
+            "title": "Global Passive Mt",
+            "type": "number"
+          },
+          "hedge_long_mt": {
+            "description": "Unlinked hedge long quantity (MT)",
+            "title": "Hedge Long Mt",
+            "type": "number"
+          },
+          "hedge_short_mt": {
+            "description": "Unlinked hedge short quantity (MT)",
+            "title": "Hedge Short Mt",
+            "type": "number"
+          },
+          "pre_reduction_global_active_mt": {
+            "description": "Global active before linkage reduction (MT)",
+            "title": "Pre Reduction Global Active Mt",
+            "type": "number"
+          },
+          "pre_reduction_global_passive_mt": {
+            "description": "Global passive before linkage reduction (MT)",
+            "title": "Pre Reduction Global Passive Mt",
+            "type": "number"
+          },
+          "reduction_applied_active_mt": {
+            "description": "Reduction applied to global active via linkages (MT)",
+            "title": "Reduction Applied Active Mt",
+            "type": "number"
+          },
+          "reduction_applied_passive_mt": {
+            "description": "Reduction applied to global passive via linkages (MT)",
+            "title": "Reduction Applied Passive Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pre_reduction_global_active_mt",
+          "pre_reduction_global_passive_mt",
+          "reduction_applied_active_mt",
+          "reduction_applied_passive_mt",
+          "global_active_mt",
+          "global_passive_mt",
+          "global_net_mt",
+          "commercial_active_mt",
+          "commercial_passive_mt",
+          "hedge_long_mt",
+          "hedge_short_mt",
+          "calculation_timestamp",
+          "entities_count_considered"
+        ],
+        "title": "GlobalExposureRead",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HedgeClassification": {
+        "enum": [
+          "long",
+          "short"
+        ],
+        "title": "HedgeClassification",
+        "type": "string"
+      },
+      "HedgeContractCreate": {
+        "properties": {
+          "commodity": {
+            "description": "Commodity identifier",
+            "title": "Commodity",
+            "type": "string"
+          },
+          "legs": {
+            "description": "Exactly two legs: one fixed, one variable",
+            "items": {
+              "$ref": "#/components/schemas/HedgeLeg"
+            },
+            "title": "Legs",
+            "type": "array"
+          },
+          "quantity_mt": {
+            "description": "Quantity in metric tons (MT)",
+            "title": "Quantity Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "commodity",
+          "quantity_mt",
+          "legs"
+        ],
+        "title": "HedgeContractCreate",
+        "type": "object"
+      },
+      "HedgeContractRead": {
+        "properties": {
+          "classification": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HedgeClassification"
+              }
+            ],
+            "description": "Classification based on fixed leg"
+          },
+          "commodity": {
+            "title": "Commodity",
+            "type": "string"
+          },
+          "counterparty_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "fixed_leg_side": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HedgeLegSide"
+              }
+            ],
+            "description": "Fixed leg side (buy or sell)"
+          },
+          "fixed_price_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Price Unit"
+          },
+          "fixed_price_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Price Value"
+          },
+          "float_pricing_convention": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Pricing Convention"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "quantity_mt": {
+            "title": "Quantity Mt",
+            "type": "number"
+          },
+          "rfq_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rfq Id"
+          },
+          "rfq_quote_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rfq Quote Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "variable_leg_side": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HedgeLegSide"
+              }
+            ],
+            "description": "Variable leg side (buy or sell)"
+          }
+        },
+        "required": [
+          "id",
+          "commodity",
+          "quantity_mt",
+          "fixed_leg_side",
+          "variable_leg_side",
+          "classification",
+          "created_at"
+        ],
+        "title": "HedgeContractRead",
+        "type": "object"
+      },
+      "HedgeContractSettlementCreate": {
+        "properties": {
+          "cashflow_date": {
+            "format": "date",
+            "title": "Cashflow Date",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/HedgeContractSettlementLeg"
+            },
+            "title": "Legs",
+            "type": "array"
+          },
+          "source_event_id": {
+            "format": "uuid",
+            "title": "Source Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_event_id",
+          "cashflow_date",
+          "legs"
+        ],
+        "title": "HedgeContractSettlementCreate",
+        "type": "object"
+      },
+      "HedgeContractSettlementEventRead": {
+        "properties": {
+          "cashflow_date": {
+            "format": "date",
+            "title": "Cashflow Date",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "hedge_contract_id": {
+            "format": "uuid",
+            "title": "Hedge Contract Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "hedge_contract_id",
+          "cashflow_date",
+          "created_at"
+        ],
+        "title": "HedgeContractSettlementEventRead",
+        "type": "object"
+      },
+      "HedgeContractSettlementLeg": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/LedgerDirection"
+          },
+          "leg_id": {
+            "$ref": "#/components/schemas/LedgerLegId"
+          }
+        },
+        "required": [
+          "leg_id",
+          "direction",
+          "amount"
+        ],
+        "title": "HedgeContractSettlementLeg",
+        "type": "object"
+      },
+      "HedgeContractSettlementResponse": {
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/HedgeContractSettlementEventRead"
+          },
+          "ledger_entries": {
+            "items": {
+              "$ref": "#/components/schemas/CashFlowLedgerEntryRead"
+            },
+            "title": "Ledger Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "event",
+          "ledger_entries"
+        ],
+        "title": "HedgeContractSettlementResponse",
+        "type": "object"
+      },
+      "HedgeLeg": {
+        "properties": {
+          "price_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HedgeLegPriceType"
+              }
+            ],
+            "description": "Leg price type (fixed or variable)"
+          },
+          "side": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HedgeLegSide"
+              }
+            ],
+            "description": "Leg side (buy or sell)"
+          }
+        },
+        "required": [
+          "side",
+          "price_type"
+        ],
+        "title": "HedgeLeg",
+        "type": "object"
+      },
+      "HedgeLegPriceType": {
+        "enum": [
+          "fixed",
+          "variable"
+        ],
+        "title": "HedgeLegPriceType",
+        "type": "string"
+      },
+      "HedgeLegSide": {
+        "enum": [
+          "buy",
+          "sell"
+        ],
+        "title": "HedgeLegSide",
+        "type": "string"
+      },
+      "HedgeOrderLinkageCreate": {
+        "properties": {
+          "contract_id": {
+            "description": "Linked hedge contract ID",
+            "format": "uuid",
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "order_id": {
+            "description": "Linked order ID",
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "quantity_mt": {
+            "description": "Linked quantity in MT",
+            "title": "Quantity Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "order_id",
+          "contract_id",
+          "quantity_mt"
+        ],
+        "title": "HedgeOrderLinkageCreate",
+        "type": "object"
+      },
+      "HedgeOrderLinkageRead": {
+        "properties": {
+          "contract_id": {
+            "format": "uuid",
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "quantity_mt": {
+            "title": "Quantity Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "order_id",
+          "contract_id",
+          "quantity_mt",
+          "created_at"
+        ],
+        "title": "HedgeOrderLinkageRead",
+        "type": "object"
+      },
+      "LedgerDirection": {
+        "enum": [
+          "IN",
+          "OUT"
+        ],
+        "title": "LedgerDirection",
+        "type": "string"
+      },
+      "LedgerLegId": {
+        "enum": [
+          "FIXED",
+          "FLOAT"
+        ],
+        "title": "LedgerLegId",
+        "type": "string"
+      },
+      "MTMObjectType": {
+        "enum": [
+          "hedge_contract",
+          "order"
+        ],
+        "title": "MTMObjectType",
+        "type": "string"
+      },
+      "MTMResultResponse": {
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "entry_price": {
+            "title": "Entry Price",
+            "type": "string"
+          },
+          "mtm_value": {
+            "title": "Mtm Value",
+            "type": "string"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "object_type": {
+            "$ref": "#/components/schemas/MTMObjectType"
+          },
+          "price_d1": {
+            "title": "Price D1",
+            "type": "string"
+          },
+          "quantity_mt": {
+            "title": "Quantity Mt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_type",
+          "object_id",
+          "as_of_date",
+          "mtm_value",
+          "price_d1",
+          "entry_price",
+          "quantity_mt"
+        ],
+        "title": "MTMResultResponse",
+        "type": "object"
+      },
+      "MTMSnapshotCreate": {
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "correlation_id": {
+            "description": "Caller-provided correlation id for evidence",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "object_type": {
+            "$ref": "#/components/schemas/MTMObjectType"
+          }
+        },
+        "required": [
+          "object_type",
+          "object_id",
+          "as_of_date",
+          "correlation_id"
+        ],
+        "title": "MTMSnapshotCreate",
+        "type": "object"
+      },
+      "MTMSnapshotResponse": {
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "entry_price": {
+            "title": "Entry Price",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "mtm_value": {
+            "title": "Mtm Value",
+            "type": "string"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "object_type": {
+            "$ref": "#/components/schemas/MTMObjectType"
+          },
+          "price_d1": {
+            "title": "Price D1",
+            "type": "string"
+          },
+          "quantity_mt": {
+            "title": "Quantity Mt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "object_type",
+          "object_id",
+          "as_of_date",
+          "mtm_value",
+          "price_d1",
+          "entry_price",
+          "quantity_mt",
+          "correlation_id",
+          "created_at"
+        ],
+        "title": "MTMSnapshotResponse",
+        "type": "object"
+      },
+      "OrderPricingConvention": {
+        "enum": [
+          "AVG",
+          "AVGInter",
+          "C2R"
+        ],
+        "title": "OrderPricingConvention",
+        "type": "string"
+      },
+      "OrderRead": {
+        "properties": {
+          "avg_entry_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required only for variable orders (USD/MT)",
+            "title": "Avg Entry Price"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "order_type": {
+            "$ref": "#/components/schemas/OrderType"
+          },
+          "price_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceType"
+              }
+            ],
+            "description": "Fixed or variable pricing"
+          },
+          "pricing_convention": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderPricingConvention"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required only for variable orders (AVG, AVGInter, C2R)"
+          },
+          "quantity_mt": {
+            "description": "Quantity in metric tons (MT)",
+            "title": "Quantity Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "price_type",
+          "quantity_mt",
+          "id",
+          "order_type",
+          "created_at"
+        ],
+        "title": "OrderRead",
+        "type": "object"
+      },
+      "OrderType": {
+        "enum": [
+          "SO",
+          "PO"
+        ],
+        "title": "OrderType",
+        "type": "string"
+      },
+      "PLResultResponse": {
+        "properties": {
+          "realized_pl": {
+            "title": "Realized Pl",
+            "type": "string"
+          },
+          "unrealized_mtm": {
+            "title": "Unrealized Mtm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "realized_pl",
+          "unrealized_mtm"
+        ],
+        "title": "PLResultResponse",
+        "type": "object"
+      },
+      "PLSnapshotCreate": {
+        "properties": {
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_type",
+          "entity_id",
+          "period_start",
+          "period_end"
+        ],
+        "title": "PLSnapshotCreate",
+        "type": "object"
+      },
+      "PLSnapshotResponse": {
+        "properties": {
+          "correlation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "realized_pl": {
+            "title": "Realized Pl",
+            "type": "string"
+          },
+          "unrealized_mtm": {
+            "title": "Unrealized Mtm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "entity_type",
+          "entity_id",
+          "period_start",
+          "period_end",
+          "realized_pl",
+          "unrealized_mtm",
+          "created_at",
+          "correlation_id"
+        ],
+        "title": "PLSnapshotResponse",
+        "type": "object"
+      },
+      "PriceType": {
+        "enum": [
+          "fixed",
+          "variable"
+        ],
+        "title": "PriceType",
+        "type": "string"
+      },
+      "PurchaseOrderCreate": {
+        "properties": {
+          "avg_entry_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required only for variable orders (USD/MT)",
+            "title": "Avg Entry Price"
+          },
+          "price_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceType"
+              }
+            ],
+            "description": "Fixed or variable pricing"
+          },
+          "pricing_convention": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderPricingConvention"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required only for variable orders (AVG, AVGInter, C2R)"
+          },
+          "quantity_mt": {
+            "description": "Quantity in metric tons (MT)",
+            "title": "Quantity Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "price_type",
+          "quantity_mt"
+        ],
+        "title": "PurchaseOrderCreate",
+        "type": "object"
+      },
+      "RFQAwardRequest": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "RFQAwardRequest",
+        "type": "object"
+      },
+      "RFQCreate": {
+        "properties": {
+          "buy_trade_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Referenced buy trade (RFQ id) for SPREAD",
+            "title": "Buy Trade Id"
+          },
+          "commodity": {
+            "title": "Commodity",
+            "type": "string"
+          },
+          "delivery_window_end": {
+            "format": "date",
+            "title": "Delivery Window End",
+            "type": "string"
+          },
+          "delivery_window_start": {
+            "format": "date",
+            "title": "Delivery Window Start",
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/RFQDirection"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/RFQIntent"
+          },
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/RFQInvitationCreate"
+            },
+            "title": "Invitations",
+            "type": "array"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Referenced commercial order ID",
+            "title": "Order Id"
+          },
+          "quantity_mt": {
+            "description": "Quantity in metric tons (MT)",
+            "title": "Quantity Mt",
+            "type": "number"
+          },
+          "sell_trade_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Referenced sell trade (RFQ id) for SPREAD",
+            "title": "Sell Trade Id"
+          }
+        },
+        "required": [
+          "intent",
+          "commodity",
+          "quantity_mt",
+          "delivery_window_start",
+          "delivery_window_end",
+          "direction"
+        ],
+        "title": "RFQCreate",
+        "type": "object"
+      },
+      "RFQDirection": {
+        "enum": [
+          "BUY",
+          "SELL"
+        ],
+        "title": "RFQDirection",
+        "type": "string"
+      },
+      "RFQIntent": {
+        "enum": [
+          "COMMERCIAL_HEDGE",
+          "GLOBAL_POSITION",
+          "SPREAD"
+        ],
+        "title": "RFQIntent",
+        "type": "string"
+      },
+      "RFQInvitationChannel": {
+        "enum": [
+          "email",
+          "api",
+          "whatsapp",
+          "bank",
+          "broker",
+          "other"
+        ],
+        "title": "RFQInvitationChannel",
+        "type": "string"
+      },
+      "RFQInvitationCreate": {
+        "properties": {
+          "channel": {
+            "$ref": "#/components/schemas/RFQInvitationChannel"
+          },
+          "idempotency_key": {
+            "description": "Idempotency key for send",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "message_body": {
+            "description": "Exact message body sent",
+            "title": "Message Body",
+            "type": "string"
+          },
+          "provider_message_id": {
+            "description": "Provider message id",
+            "title": "Provider Message Id",
+            "type": "string"
+          },
+          "recipient_id": {
+            "description": "Recipient identifier",
+            "title": "Recipient Id",
+            "type": "string"
+          },
+          "recipient_name": {
+            "description": "Recipient name",
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "send_status": {
+            "$ref": "#/components/schemas/RFQInvitationStatus"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "recipient_name",
+          "channel",
+          "message_body",
+          "provider_message_id",
+          "send_status",
+          "sent_at",
+          "idempotency_key"
+        ],
+        "title": "RFQInvitationCreate",
+        "type": "object"
+      },
+      "RFQInvitationRead": {
+        "properties": {
+          "channel": {
+            "$ref": "#/components/schemas/RFQInvitationChannel"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Idempotency key for send",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "message_body": {
+            "description": "Exact message body sent",
+            "title": "Message Body",
+            "type": "string"
+          },
+          "provider_message_id": {
+            "description": "Provider message id",
+            "title": "Provider Message Id",
+            "type": "string"
+          },
+          "recipient_id": {
+            "description": "Recipient identifier",
+            "title": "Recipient Id",
+            "type": "string"
+          },
+          "recipient_name": {
+            "description": "Recipient name",
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "rfq_id": {
+            "format": "uuid",
+            "title": "Rfq Id",
+            "type": "string"
+          },
+          "rfq_number": {
+            "title": "Rfq Number",
+            "type": "string"
+          },
+          "send_status": {
+            "$ref": "#/components/schemas/RFQInvitationStatus"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "recipient_name",
+          "channel",
+          "message_body",
+          "provider_message_id",
+          "send_status",
+          "sent_at",
+          "idempotency_key",
+          "id",
+          "rfq_id",
+          "rfq_number",
+          "created_at"
+        ],
+        "title": "RFQInvitationRead",
+        "type": "object"
+      },
+      "RFQInvitationStatus": {
+        "enum": [
+          "queued",
+          "sent",
+          "failed"
+        ],
+        "title": "RFQInvitationStatus",
+        "type": "string"
+      },
+      "RFQQuoteCreate": {
+        "properties": {
+          "counterparty_id": {
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "fixed_price_unit": {
+            "title": "Fixed Price Unit",
+            "type": "string"
+          },
+          "fixed_price_value": {
+            "title": "Fixed Price Value",
+            "type": "number"
+          },
+          "float_pricing_convention": {
+            "$ref": "#/components/schemas/FloatPricingConvention"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "rfq_id": {
+            "format": "uuid",
+            "title": "Rfq Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rfq_id",
+          "counterparty_id",
+          "fixed_price_value",
+          "fixed_price_unit",
+          "float_pricing_convention",
+          "received_at"
+        ],
+        "title": "RFQQuoteCreate",
+        "type": "object"
+      },
+      "RFQQuoteRead": {
+        "properties": {
+          "counterparty_id": {
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "fixed_price_unit": {
+            "title": "Fixed Price Unit",
+            "type": "string"
+          },
+          "fixed_price_value": {
+            "title": "Fixed Price Value",
+            "type": "number"
+          },
+          "float_pricing_convention": {
+            "$ref": "#/components/schemas/FloatPricingConvention"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "rfq_id": {
+            "format": "uuid",
+            "title": "Rfq Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "rfq_id",
+          "counterparty_id",
+          "fixed_price_value",
+          "fixed_price_unit",
+          "float_pricing_convention",
+          "received_at",
+          "created_at"
+        ],
+        "title": "RFQQuoteRead",
+        "type": "object"
+      },
+      "RFQRead": {
+        "properties": {
+          "buy_trade_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buy Trade Id"
+          },
+          "commercial_active_mt": {
+            "title": "Commercial Active Mt",
+            "type": "number"
+          },
+          "commercial_net_mt": {
+            "title": "Commercial Net Mt",
+            "type": "number"
+          },
+          "commercial_passive_mt": {
+            "title": "Commercial Passive Mt",
+            "type": "number"
+          },
+          "commercial_reduction_applied_mt": {
+            "title": "Commercial Reduction Applied Mt",
+            "type": "number"
+          },
+          "commodity": {
+            "title": "Commodity",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "delivery_window_end": {
+            "format": "date",
+            "title": "Delivery Window End",
+            "type": "string"
+          },
+          "delivery_window_start": {
+            "format": "date",
+            "title": "Delivery Window Start",
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/RFQDirection"
+          },
+          "exposure_snapshot_timestamp": {
+            "format": "date-time",
+            "title": "Exposure Snapshot Timestamp",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/RFQIntent"
+          },
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/RFQInvitationRead"
+            },
+            "title": "Invitations",
+            "type": "array"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "quantity_mt": {
+            "title": "Quantity Mt",
+            "type": "number"
+          },
+          "rfq_number": {
+            "title": "Rfq Number",
+            "type": "string"
+          },
+          "sell_trade_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sell Trade Id"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RFQState"
+          }
+        },
+        "required": [
+          "id",
+          "rfq_number",
+          "intent",
+          "commodity",
+          "quantity_mt",
+          "delivery_window_start",
+          "delivery_window_end",
+          "direction",
+          "order_id",
+          "buy_trade_id",
+          "sell_trade_id",
+          "commercial_active_mt",
+          "commercial_passive_mt",
+          "commercial_net_mt",
+          "commercial_reduction_applied_mt",
+          "exposure_snapshot_timestamp",
+          "state",
+          "created_at"
+        ],
+        "title": "RFQRead",
+        "type": "object"
+      },
+      "RFQRefreshRequest": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "RFQRefreshRequest",
+        "type": "object"
+      },
+      "RFQRejectRequest": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "RFQRejectRequest",
+        "type": "object"
+      },
+      "RFQState": {
+        "enum": [
+          "CREATED",
+          "SENT",
+          "QUOTED",
+          "AWARDED",
+          "CLOSED"
+        ],
+        "title": "RFQState",
+        "type": "string"
+      },
+      "SalesOrderCreate": {
+        "properties": {
+          "avg_entry_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required only for variable orders (USD/MT)",
+            "title": "Avg Entry Price"
+          },
+          "price_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceType"
+              }
+            ],
+            "description": "Fixed or variable pricing"
+          },
+          "pricing_convention": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderPricingConvention"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required only for variable orders (AVG, AVGInter, C2R)"
+          },
+          "quantity_mt": {
+            "description": "Quantity in metric tons (MT)",
+            "title": "Quantity Mt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "price_type",
+          "quantity_mt"
+        ],
+        "title": "SalesOrderCreate",
+        "type": "object"
+      },
+      "ScenarioCashflowSnapshot": {
+        "properties": {
+          "analytic": {
+            "$ref": "#/components/schemas/CashFlowAnalyticResponse"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/CashFlowAnalyticResponse"
+          }
+        },
+        "required": [
+          "analytic",
+          "baseline"
+        ],
+        "title": "ScenarioCashflowSnapshot",
+        "type": "object"
+      },
+      "ScenarioPLSnapshotItem": {
+        "properties": {
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "const": "hedge_contract",
+            "enum": [
+              "hedge_contract"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "realized_pl": {
+            "title": "Realized Pl",
+            "type": "string"
+          },
+          "unrealized_mtm": {
+            "title": "Unrealized Mtm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_type",
+          "entity_id",
+          "period_start",
+          "period_end",
+          "realized_pl",
+          "unrealized_mtm"
+        ],
+        "title": "ScenarioPLSnapshotItem",
+        "type": "object"
+      },
+      "ScenarioWhatIfRunRequest": {
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "deltas": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_cash_settlement_price_override": "#/components/schemas/AddCashSettlementPriceOverrideDelta",
+                  "add_unlinked_hedge_contract": "#/components/schemas/AddUnlinkedHedgeContractDelta",
+                  "adjust_order_quantity_mt": "#/components/schemas/AdjustOrderQuantityDelta"
+                },
+                "propertyName": "delta_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AddUnlinkedHedgeContractDelta"
+                },
+                {
+                  "$ref": "#/components/schemas/AdjustOrderQuantityDelta"
+                },
+                {
+                  "$ref": "#/components/schemas/AddCashSettlementPriceOverrideDelta"
+                }
+              ]
+            },
+            "title": "Deltas",
+            "type": "array"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of_date",
+          "period_start",
+          "period_end"
+        ],
+        "title": "ScenarioWhatIfRunRequest",
+        "type": "object"
+      },
+      "ScenarioWhatIfRunResponse": {
+        "properties": {
+          "cashflow_snapshot": {
+            "$ref": "#/components/schemas/ScenarioCashflowSnapshot"
+          },
+          "commercial_exposure_snapshot": {
+            "$ref": "#/components/schemas/CommercialExposureRead"
+          },
+          "global_exposure_snapshot": {
+            "$ref": "#/components/schemas/GlobalExposureRead"
+          },
+          "mtm_snapshot": {
+            "items": {
+              "$ref": "#/components/schemas/MTMResultResponse"
+            },
+            "title": "Mtm Snapshot",
+            "type": "array"
+          },
+          "pl_snapshot": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioPLSnapshotItem"
+            },
+            "title": "Pl Snapshot",
+            "type": "array"
+          }
+        },
+        "required": [
+          "commercial_exposure_snapshot",
+          "global_exposure_snapshot",
+          "mtm_snapshot",
+          "cashflow_snapshot",
+          "pl_snapshot"
+        ],
+        "title": "ScenarioWhatIfRunResponse",
+        "type": "object"
+      },
+      "SpreadRankingEntry": {
+        "properties": {
+          "buy_quote": {
+            "$ref": "#/components/schemas/RFQQuoteRead"
+          },
+          "counterparty_id": {
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "sell_quote": {
+            "$ref": "#/components/schemas/RFQQuoteRead"
+          },
+          "spread_value": {
+            "title": "Spread Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rank",
+          "counterparty_id",
+          "spread_value",
+          "buy_quote",
+          "sell_quote"
+        ],
+        "title": "SpreadRankingEntry",
+        "type": "object"
+      },
+      "SpreadRankingFailureCode": {
+        "enum": [
+          "NO_ELIGIBLE_QUOTES",
+          "NON_COMPARABLE",
+          "TIE",
+          "NOT_SPREAD_INTENT"
+        ],
+        "title": "SpreadRankingFailureCode",
+        "type": "string"
+      },
+      "SpreadRankingRead": {
+        "properties": {
+          "failure_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpreadRankingFailureCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "ranking": {
+            "items": {
+              "$ref": "#/components/schemas/SpreadRankingEntry"
+            },
+            "title": "Ranking",
+            "type": "array"
+          },
+          "rfq_id": {
+            "format": "uuid",
+            "title": "Rfq Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rfq_id",
+          "status"
+        ],
+        "title": "SpreadRankingRead",
+        "type": "object"
+      },
+      "TradeRankingEntry": {
+        "properties": {
+          "quote": {
+            "$ref": "#/components/schemas/RFQQuoteRead"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rank",
+          "quote"
+        ],
+        "title": "TradeRankingEntry",
+        "type": "object"
+      },
+      "TradeRankingFailureCode": {
+        "enum": [
+          "NO_ELIGIBLE_QUOTES",
+          "NON_COMPARABLE",
+          "TIE",
+          "NOT_TRADE_INTENT"
+        ],
+        "title": "TradeRankingFailureCode",
+        "type": "string"
+      },
+      "TradeRankingRead": {
+        "properties": {
+          "failure_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeRankingFailureCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "ranking": {
+            "items": {
+              "$ref": "#/components/schemas/TradeRankingEntry"
+            },
+            "title": "Ranking",
+            "type": "array"
+          },
+          "rfq_id": {
+            "format": "uuid",
+            "title": "Rfq Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rfq_id",
+          "status"
+        ],
+        "title": "TradeRankingRead",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Hedge Control Platform",
+    "version": "0.3.0-phase3-step2"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/audit/events": {
+      "get": {
+        "operationId": "list_audit_events_audit_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audit Events",
+        "tags": [
+          "Audit"
+        ]
+      }
+    },
+    "/cashflow/analytic": {
+      "get": {
+        "operationId": "get_cashflow_analytic_cashflow_analytic_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "As Of Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlowAnalyticResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cashflow Analytic",
+        "tags": [
+          "CashFlow"
+        ]
+      }
+    },
+    "/cashflow/baseline/snapshots": {
+      "get": {
+        "operationId": "get_baseline_snapshot_cashflow_baseline_snapshots_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "As Of Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlowBaselineSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Baseline Snapshot",
+        "tags": [
+          "CashFlow"
+        ]
+      },
+      "post": {
+        "operationId": "create_baseline_snapshot_cashflow_baseline_snapshots_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashFlowBaselineSnapshotCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlowBaselineSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Baseline Snapshot",
+        "tags": [
+          "CashFlow"
+        ]
+      }
+    },
+    "/cashflow/contracts/{contract_id}/settle": {
+      "post": {
+        "operationId": "settle_hedge_contract_cashflow_contracts__contract_id__settle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HedgeContractSettlementCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HedgeContractSettlementResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Settle Hedge Contract",
+        "tags": [
+          "CashFlowLedger"
+        ]
+      }
+    },
+    "/cashflow/ledger": {
+      "get": {
+        "operationId": "list_ledger_entries_by_event_cashflow_ledger_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source_event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_event_type",
+            "required": false,
+            "schema": {
+              "default": "HEDGE_CONTRACT_SETTLED",
+              "title": "Source Event Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CashFlowLedgerEntryRead"
+                  },
+                  "title": "Response List Ledger Entries By Event Cashflow Ledger Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ledger Entries By Event",
+        "tags": [
+          "CashFlowLedger"
+        ]
+      }
+    },
+    "/cashflow/ledger/hedge-contracts/{contract_id}": {
+      "get": {
+        "operationId": "list_ledger_entries_for_contract_cashflow_ledger_hedge_contracts__contract_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contract Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CashFlowLedgerEntryRead"
+                  },
+                  "title": "Response List Ledger Entries For Contract Cashflow Ledger Hedge Contracts  Contract Id  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ledger Entries For Contract",
+        "tags": [
+          "CashFlowLedger"
+        ]
+      }
+    },
+    "/cashflows": {
+      "get": {
+        "operationId": "list_cashflows_cashflows_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CashFlowRead"
+                  },
+                  "title": "Response List Cashflows Cashflows Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Cashflows",
+        "tags": [
+          "CashFlows"
+        ]
+      },
+      "post": {
+        "operationId": "create_cashflow_cashflows_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashFlowCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlowRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Cashflow",
+        "tags": [
+          "CashFlows"
+        ]
+      }
+    },
+    "/cashflows/{cashflow_id}": {
+      "get": {
+        "operationId": "get_cashflow_cashflows__cashflow_id__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "_",
+            "required": true,
+            "schema": {
+              "title": " ",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlowRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cashflow",
+        "tags": [
+          "CashFlows"
+        ]
+      }
+    },
+    "/contracts/hedge": {
+      "post": {
+        "operationId": "create_hedge_contract_contracts_hedge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HedgeContractCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HedgeContractRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Hedge Contract",
+        "tags": [
+          "Contracts"
+        ]
+      }
+    },
+    "/contracts/hedge/{contract_id}": {
+      "get": {
+        "operationId": "get_hedge_contract_contracts_hedge__contract_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HedgeContractRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Hedge Contract",
+        "tags": [
+          "Contracts"
+        ]
+      }
+    },
+    "/exposures/commercial": {
+      "get": {
+        "operationId": "get_commercial_exposure_exposures_commercial_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialExposureRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Commercial Exposure",
+        "tags": [
+          "Exposures"
+        ]
+      }
+    },
+    "/exposures/global": {
+      "get": {
+        "operationId": "get_global_exposure_exposures_global_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalExposureRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Global Exposure",
+        "tags": [
+          "Exposures"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/linkages": {
+      "post": {
+        "operationId": "create_linkage_linkages_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HedgeOrderLinkageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HedgeOrderLinkageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Linkage",
+        "tags": [
+          "Linkages"
+        ]
+      }
+    },
+    "/linkages/{linkage_id}": {
+      "get": {
+        "operationId": "get_linkage_linkages__linkage_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "linkage_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Linkage Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HedgeOrderLinkageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Linkage",
+        "tags": [
+          "Linkages"
+        ]
+      }
+    },
+    "/market-data/westmetall/aluminum/cash-settlement/ingest": {
+      "post": {
+        "operationId": "ingest_cash_settlement_daily_market_data_westmetall_aluminum_cash_settlement_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashSettlementIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashSettlementIngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Cash Settlement Daily",
+        "tags": [
+          "MarketData"
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "description": "Endpoint that serves Prometheus metrics.",
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics"
+      }
+    },
+    "/mtm/hedge-contracts/{contract_id}": {
+      "get": {
+        "operationId": "get_mtm_for_hedge_contract_mtm_hedge_contracts__contract_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contract Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "As Of Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MTMResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Mtm For Hedge Contract",
+        "tags": [
+          "MTM"
+        ]
+      }
+    },
+    "/mtm/orders/{order_id}": {
+      "get": {
+        "operationId": "get_mtm_for_order_mtm_orders__order_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "As Of Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MTMResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Mtm For Order",
+        "tags": [
+          "MTM"
+        ]
+      }
+    },
+    "/mtm/snapshots": {
+      "get": {
+        "operationId": "get_mtm_snapshot_mtm_snapshots_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "object_type",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MTMObjectType"
+            }
+          },
+          {
+            "in": "query",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Object Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "As Of Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MTMSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Mtm Snapshot",
+        "tags": [
+          "MTM"
+        ]
+      },
+      "post": {
+        "operationId": "create_mtm_snapshot_mtm_snapshots_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MTMSnapshotCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MTMSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Mtm Snapshot",
+        "tags": [
+          "MTM"
+        ]
+      }
+    },
+    "/orders/purchase": {
+      "post": {
+        "operationId": "create_purchase_order_orders_purchase_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseOrderCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Purchase Order",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/orders/sales": {
+      "post": {
+        "operationId": "create_sales_order_orders_sales_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesOrderCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Sales Order",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/orders/{order_id}": {
+      "get": {
+        "operationId": "get_order_orders__order_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Order",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/pl/snapshots": {
+      "get": {
+        "operationId": "get_pl_snapshot_pl_snapshots_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entity_type",
+            "required": true,
+            "schema": {
+              "title": "Entity Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Period End",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pl Snapshot",
+        "tags": [
+          "P&L"
+        ]
+      },
+      "post": {
+        "operationId": "post_pl_snapshot_pl_snapshots_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PLSnapshotCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Pl Snapshot",
+        "tags": [
+          "P&L"
+        ]
+      }
+    },
+    "/pl/{entity_type}/{entity_id}": {
+      "get": {
+        "operationId": "get_pl_pl__entity_type___entity_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_type",
+            "required": true,
+            "schema": {
+              "title": "Entity Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Period End",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pl",
+        "tags": [
+          "P&L"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "readiness_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Readiness Ready Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness"
+      }
+    },
+    "/rfqs": {
+      "post": {
+        "operationId": "create_rfq_rfqs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RFQCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RFQRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Rfq",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}": {
+      "get": {
+        "operationId": "get_rfq_rfqs__rfq_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rfq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rfq Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RFQRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Rfq",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}/actions/award": {
+      "post": {
+        "operationId": "award_rfq_rfqs__rfq_id__actions_award_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rfq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rfq Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RFQAwardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RFQRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Award Rfq",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}/actions/refresh": {
+      "post": {
+        "operationId": "refresh_rfq_rfqs__rfq_id__actions_refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rfq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rfq Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RFQRefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RFQRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Rfq",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}/actions/reject": {
+      "post": {
+        "operationId": "reject_rfq_rfqs__rfq_id__actions_reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rfq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rfq Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RFQRejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RFQRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Rfq",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}/quotes": {
+      "post": {
+        "operationId": "create_quote_rfqs__rfq_id__quotes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rfq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rfq Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RFQQuoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RFQQuoteRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Quote",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}/ranking": {
+      "get": {
+        "operationId": "get_spread_ranking_rfqs__rfq_id__ranking_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rfq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rfq Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpreadRankingRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Spread Ranking",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}/trade-ranking": {
+      "get": {
+        "operationId": "get_trade_ranking_rfqs__rfq_id__trade_ranking_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rfq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rfq Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeRankingRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trade Ranking",
+        "tags": [
+          "RFQs"
+        ]
+      }
+    },
+    "/scenario/what-if/run": {
+      "post": {
+        "operationId": "run_what_if_scenario_scenario_what_if_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioWhatIfRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioWhatIfRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run What If Scenario",
+        "tags": [
+          "Scenario"
+        ]
+      }
+    }
+  }
+}

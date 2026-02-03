@@ -1,4 +1,4 @@
-# API Endpoints — Phase 3 (Step 2)
+# API Endpoints — Phases 3–9
 
 ## Orders
 - POST /orders/sales
@@ -144,3 +144,16 @@
 - Ordering: ascendente por `timestamp_utc`, depois `id`.
 - Errors:
   - 422: filtros inválidos.
+
+## Observability (Phase 9)
+
+### GET /metrics
+- Purpose: exposição de métricas Prometheus.
+
+### GET /health
+- Purpose: health check sempre 200.
+
+### GET /ready
+- Purpose: readiness check (DB + JWKS disponíveis).
+- Errors:
+  - 503: db_unavailable ou jwks_unavailable.

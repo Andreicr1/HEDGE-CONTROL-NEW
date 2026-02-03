@@ -1,0 +1,38 @@
+name: OpenAPI Contract Diff
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  openapi_diff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install swagger-diff
+        run: pip install swagger-diff
+
+      - name: Export OpenAPI (PR)
+        run: |
+          export DATABASE_URL="sqlite+pysqlite:///:memory:"
+          python -m backend.scripts.export_openapi > /tmp/openapi_pr.json
+
+      - name: Fetch main branch
+        run: git fetch origin main:main
+
+      - name: Export OpenAPI (main)
+        run: |
+          git checkout main
+          export DATABASE_URL="sqlite+pysqlite:///:memory:"
+          python -m backend.scripts.export_openapi > /tmp/openapi_main.json
+
+      - name: Compare OpenAPI
+        run: swagger-diff /tmp/openapi_main.json /tmp/openapi_pr.json

@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_role
 from app.core.database import get_session
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.contracts import HedgeClassification, HedgeContract, HedgeContractStatus, HedgeLegSide
@@ -26,6 +27,7 @@ def create_hedge_contract(
             event_type="created",
         )
     ),
+    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> HedgeContractRead:
     fixed_leg = next(leg for leg in payload.legs if leg.price_type == HedgeLegPriceType.fixed)
