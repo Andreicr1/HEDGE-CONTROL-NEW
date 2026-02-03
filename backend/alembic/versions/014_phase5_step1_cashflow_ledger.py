@@ -18,24 +18,24 @@ depends_on = None
 def upgrade():
     op.create_table(
         'hedge_contract_settlement_events',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column('hedge_contract_id', UUID(as_uuid=True), sa.ForeignKey('hedge_contracts.id', ondelete='RESTRICT'), nullable=False),
+        sa.Column('id', sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column('hedge_contract_id', sa.Uuid(), sa.ForeignKey('hedge_contracts.id', ondelete='RESTRICT'), nullable=False),
         sa.Column('cashflow_date', sa.Date, nullable=False),
-        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=False),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
     )
 
     op.create_table(
         'cashflow_ledger_entries',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column('hedge_contract_id', UUID(as_uuid=True), sa.ForeignKey('hedge_contracts.id', ondelete='RESTRICT'), nullable=False),
+        sa.Column('id', sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column('hedge_contract_id', sa.Uuid(), sa.ForeignKey('hedge_contracts.id', ondelete='RESTRICT'), nullable=False),
         sa.Column('source_event_type', sa.String, nullable=False),
-        sa.Column('source_event_id', UUID(as_uuid=True), sa.ForeignKey('hedge_contract_settlement_events.id', ondelete='RESTRICT'), nullable=True),
+        sa.Column('source_event_id', sa.Uuid(), sa.ForeignKey('hedge_contract_settlement_events.id', ondelete='RESTRICT'), nullable=True),
         sa.Column('leg_id', sa.String, nullable=False),
         sa.Column('cashflow_date', sa.Date, nullable=False),
         sa.Column('currency', sa.String, nullable=False),
         sa.Column('direction', sa.String, nullable=False),
         sa.Column('amount', sa.Numeric(18, 6), nullable=False),
-        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=False),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
         sa.UniqueConstraint('source_event_type', 'source_event_id', 'leg_id', 'cashflow_date', name='uq_cashflow_ledger_entry_event_leg_date'),
     )
 

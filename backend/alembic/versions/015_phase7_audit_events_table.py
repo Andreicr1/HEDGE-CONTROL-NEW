@@ -19,10 +19,10 @@ depends_on = None
 def upgrade():
     op.create_table(
         "audit_events",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("timestamp_utc", sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column("timestamp_utc", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
         sa.Column("entity_type", sa.Text, nullable=False),
-        sa.Column("entity_id", UUID(as_uuid=True), nullable=False),
+        sa.Column("entity_id", sa.Uuid(), nullable=False),
         sa.Column("event_type", sa.Text, nullable=False),
         sa.Column("payload", sa.JSON, nullable=False),
         sa.Column("checksum", sa.String(length=64), nullable=False),

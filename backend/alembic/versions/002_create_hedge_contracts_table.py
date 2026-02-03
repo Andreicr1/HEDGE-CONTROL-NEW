@@ -23,22 +23,40 @@ hedge_classification_enum = postgresql.ENUM("long", "short", name="hedge_classif
 
 
 def upgrade() -> None:
-    hedge_leg_side_enum.create(op.get_bind(), checkfirst=True)
-    hedge_classification_enum.create(op.get_bind(), checkfirst=True)
+    bind = op.get_bind()
+    is_postgres = bind.dialect.name == "postgresql"
+    if is_postgres:
+        hedge_leg_side_enum.create(bind, checkfirst=True)
+        hedge_classification_enum.create(bind, checkfirst=True)
+
+    enum_kwargs = {} if is_postgres else {"native_enum": False, "create_constraint": True}
 
     op.create_table(
         "hedge_contracts",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
         sa.Column("commodity", sa.String(length=64), nullable=False),
         sa.Column("quantity_mt", sa.Float(), nullable=False),
-        sa.Column("fixed_leg_side", sa.Enum("buy", "sell", name="hedge_leg_side"), nullable=False),
-        sa.Column("variable_leg_side", sa.Enum("buy", "sell", name="hedge_leg_side"), nullable=False),
         sa.Column(
-            "classification",
-            sa.Enum("long", "short", name="hedge_classification"),
+            "fixed_leg_side",
+            sa.Enum("buy", "sell", name="hedge_leg_side", **enum_kwargs),
             nullable=False,
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "variable_leg_side",
+            sa.Enum("buy", "sell", name="hedge_leg_side", **enum_kwargs),
+            nullable=False,
+        ),
+        sa.Column(
+            "classification",
+            sa.Enum("long", "short", name="hedge_classification", **enum_kwargs),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
     )
 
 

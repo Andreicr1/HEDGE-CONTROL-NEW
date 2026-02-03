@@ -21,14 +21,19 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "rfq_quotes",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("rfq_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column("rfq_id", sa.Uuid(), nullable=False),
         sa.Column("counterparty_id", sa.String(length=64), nullable=False),
         sa.Column("price_value", sa.Float(), nullable=False),
         sa.Column("price_unit", sa.String(length=32), nullable=False),
         sa.Column("pricing_convention", sa.String(length=64), nullable=False),
         sa.Column("received_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["rfq_id"], ["rfqs.id"], ondelete="RESTRICT"),
     )
 

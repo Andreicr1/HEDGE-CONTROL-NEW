@@ -26,7 +26,12 @@ def upgrade() -> None:
         sa.Column("as_of_date", sa.Date(), nullable=False),
         sa.Column("snapshot_data", sa.JSON(), nullable=False),
         sa.Column("total_net_cashflow", sa.Numeric(18, 6), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
         sa.Column("correlation_id", sa.String(length=64), nullable=False),
         sa.UniqueConstraint("as_of_date", name="uq_cashflow_baseline_snapshots_as_of_date"),
     )

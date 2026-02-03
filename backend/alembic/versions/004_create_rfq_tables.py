@@ -36,11 +36,16 @@ rfq_invitation_status_enum = postgresql.ENUM(
 
 
 def upgrade() -> None:
-    rfq_intent_enum.create(op.get_bind(), checkfirst=True)
-    rfq_direction_enum.create(op.get_bind(), checkfirst=True)
-    rfq_state_enum.create(op.get_bind(), checkfirst=True)
-    rfq_invitation_channel_enum.create(op.get_bind(), checkfirst=True)
-    rfq_invitation_status_enum.create(op.get_bind(), checkfirst=True)
+    bind = op.get_bind()
+    is_postgres = bind.dialect.name == "postgresql"
+    if is_postgres:
+        rfq_intent_enum.create(bind, checkfirst=True)
+        rfq_direction_enum.create(bind, checkfirst=True)
+        rfq_state_enum.create(bind, checkfirst=True)
+        rfq_invitation_channel_enum.create(bind, checkfirst=True)
+        rfq_invitation_status_enum.create(bind, checkfirst=True)
+
+    enum_kwargs = {} if is_postgres else {"native_enum": False, "create_constraint": True}
 
     op.create_table(
         "rfq_sequences",
@@ -49,29 +54,42 @@ def upgrade() -> None:
 
     op.create_table(
         "rfqs",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
         sa.Column("rfq_number", sa.String(length=32), nullable=False, unique=True),
-        sa.Column("intent", sa.Enum("COMMERCIAL_HEDGE", "GLOBAL_POSITION", name="rfq_intent"), nullable=False),
+        sa.Column(
+            "intent",
+            sa.Enum("COMMERCIAL_HEDGE", "GLOBAL_POSITION", name="rfq_intent", **enum_kwargs),
+            nullable=False,
+        ),
         sa.Column("commodity", sa.String(length=64), nullable=False),
         sa.Column("quantity_mt", sa.Float(), nullable=False),
         sa.Column("delivery_window_start", sa.Date(), nullable=False),
         sa.Column("delivery_window_end", sa.Date(), nullable=False),
-        sa.Column("direction", sa.Enum("BUY", "SELL", name="rfq_direction"), nullable=False),
-        sa.Column("order_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("direction", sa.Enum("BUY", "SELL", name="rfq_direction", **enum_kwargs), nullable=False),
+        sa.Column("order_id", sa.Uuid(), nullable=True),
         sa.Column("commercial_active_mt", sa.Float(), nullable=False),
         sa.Column("commercial_passive_mt", sa.Float(), nullable=False),
         sa.Column("commercial_net_mt", sa.Float(), nullable=False),
         sa.Column("commercial_reduction_applied_mt", sa.Float(), nullable=False),
         sa.Column("exposure_snapshot_timestamp", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("state", sa.Enum("CREATED", "SENT", "QUOTED", name="rfq_state"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "state",
+            sa.Enum("CREATED", "SENT", "QUOTED", name="rfq_state", **enum_kwargs),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["order_id"], ["orders.id"], ondelete="RESTRICT"),
     )
 
     op.create_table(
         "rfq_invitations",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("rfq_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column("rfq_id", sa.Uuid(), nullable=False),
         sa.Column("rfq_number", sa.String(length=32), nullable=False),
         sa.Column("recipient_id", sa.String(length=64), nullable=False),
         sa.Column("recipient_name", sa.String(length=128), nullable=False),
@@ -85,6 +103,7 @@ def upgrade() -> None:
                 "broker",
                 "other",
                 name="rfq_invitation_channel",
+                **enum_kwargs,
             ),
             nullable=False,
         ),
@@ -92,22 +111,40 @@ def upgrade() -> None:
         sa.Column("provider_message_id", sa.String(length=128), nullable=False),
         sa.Column(
             "send_status",
-            sa.Enum("queued", "sent", "failed", name="rfq_invitation_status"),
+            sa.Enum("queued", "sent", "failed", name="rfq_invitation_status", **enum_kwargs),
             nullable=False,
         ),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("idempotency_key", sa.String(length=128), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["rfq_id"], ["rfqs.id"], ondelete="RESTRICT"),
     )
 
     op.create_table(
         "rfq_state_events",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("rfq_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("from_state", sa.Enum("CREATED", "SENT", "QUOTED", name="rfq_state"), nullable=False),
-        sa.Column("to_state", sa.Enum("CREATED", "SENT", "QUOTED", name="rfq_state"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column("rfq_id", sa.Uuid(), nullable=False),
+        sa.Column(
+            "from_state",
+            sa.Enum("CREATED", "SENT", "QUOTED", name="rfq_state", **enum_kwargs),
+            nullable=False,
+        ),
+        sa.Column(
+            "to_state",
+            sa.Enum("CREATED", "SENT", "QUOTED", name="rfq_state", **enum_kwargs),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["rfq_id"], ["rfqs.id"], ondelete="RESTRICT"),
     )
 

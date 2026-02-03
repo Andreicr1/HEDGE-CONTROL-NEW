@@ -23,16 +23,26 @@ price_type_enum = postgresql.ENUM("fixed", "variable", name="price_type")
 
 
 def upgrade() -> None:
-    order_type_enum.create(op.get_bind(), checkfirst=True)
-    price_type_enum.create(op.get_bind(), checkfirst=True)
+    bind = op.get_bind()
+    is_postgres = bind.dialect.name == "postgresql"
+    if is_postgres:
+        order_type_enum.create(bind, checkfirst=True)
+        price_type_enum.create(bind, checkfirst=True)
+
+    enum_kwargs = {} if is_postgres else {"native_enum": False, "create_constraint": True}
 
     op.create_table(
         "orders",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("order_type", sa.Enum("SO", "PO", name="order_type"), nullable=False),
-        sa.Column("price_type", sa.Enum("fixed", "variable", name="price_type"), nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
+        sa.Column("order_type", sa.Enum("SO", "PO", name="order_type", **enum_kwargs), nullable=False),
+        sa.Column("price_type", sa.Enum("fixed", "variable", name="price_type", **enum_kwargs), nullable=False),
         sa.Column("quantity_mt", sa.Float(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
     )
 
 

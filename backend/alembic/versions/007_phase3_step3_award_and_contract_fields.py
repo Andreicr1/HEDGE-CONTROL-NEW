@@ -34,8 +34,8 @@ def upgrade() -> None:
     op.add_column("rfq_state_events", sa.Column("award_timestamp", sa.DateTime(timezone=True), nullable=True))
     op.add_column("rfq_state_events", sa.Column("created_contract_ids", sa.Text(), nullable=True))
 
-    op.add_column("hedge_contracts", sa.Column("rfq_id", postgresql.UUID(as_uuid=True), nullable=True))
-    op.add_column("hedge_contracts", sa.Column("rfq_quote_id", postgresql.UUID(as_uuid=True), nullable=True))
+    op.add_column("hedge_contracts", sa.Column("rfq_id", sa.Uuid(), nullable=True))
+    op.add_column("hedge_contracts", sa.Column("rfq_quote_id", sa.Uuid(), nullable=True))
     op.add_column("hedge_contracts", sa.Column("counterparty_id", sa.String(length=64), nullable=True))
     op.add_column("hedge_contracts", sa.Column("fixed_price_value", sa.Float(), nullable=True))
     op.add_column("hedge_contracts", sa.Column("fixed_price_unit", sa.String(length=32), nullable=True))

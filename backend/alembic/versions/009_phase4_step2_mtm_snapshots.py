@@ -23,14 +23,29 @@ def upgrade() -> None:
     op.create_table(
         "mtm_snapshots",
         sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
-        sa.Column("object_type", sa.Enum("hedge_contract", "order", name="mtm_object_type"), nullable=False),
+        sa.Column(
+            "object_type",
+            sa.Enum(
+                "hedge_contract",
+                "order",
+                name="mtm_object_type",
+                native_enum=False,
+                create_constraint=True,
+            ),
+            nullable=False,
+        ),
         sa.Column("object_id", sa.Uuid(), nullable=False),
         sa.Column("as_of_date", sa.Date(), nullable=False),
         sa.Column("mtm_value", sa.Numeric(18, 6), nullable=False),
         sa.Column("price_d1", sa.Numeric(18, 6), nullable=False),
         sa.Column("entry_price", sa.Numeric(18, 6), nullable=False),
         sa.Column("quantity_mt", sa.Numeric(18, 6), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
         sa.Column("correlation_id", sa.String(length=64), nullable=False),
         sa.UniqueConstraint("object_type", "object_id", "as_of_date", name="uq_mtm_snapshots_object_type_id_as_of"),
     )

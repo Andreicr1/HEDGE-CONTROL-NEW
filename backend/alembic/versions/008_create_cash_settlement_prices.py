@@ -23,7 +23,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "cash_settlement_prices",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
         sa.Column("source", sa.String(length=64), nullable=False),
         sa.Column("symbol", sa.String(length=64), nullable=False),
         sa.Column("settlement_date", sa.Date(), nullable=False),
@@ -31,7 +31,12 @@ def upgrade() -> None:
         sa.Column("source_url", sa.Text(), nullable=False),
         sa.Column("html_sha256", sa.String(length=64), nullable=False),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
         sa.UniqueConstraint("source", "symbol", "settlement_date", name="uq_cash_settlement_prices_source_symbol_date"),
     )
 
