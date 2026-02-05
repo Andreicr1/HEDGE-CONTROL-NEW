@@ -39,7 +39,9 @@ jobs:
           set -euo pipefail
           API_BASE_URL="${HC_API_BASE_URL:-}"
           if [ -z "$API_BASE_URL" ]; then
-            API_BASE_URL="https://alcast-hc-dev-api.ashywater-9b50898d.eastus2.azurecontainerapps.io"
+            echo "HC_API_BASE_URL is not set (secrets/vars)." >&2
+            echo "Set repository secret HC_API_BASE_URL (recommended) or repository variable HC_API_BASE_URL." >&2
+            exit 1
           fi
           python - <<'PY'
           import os
@@ -56,8 +58,8 @@ jobs:
           print(f"Configured apiBaseUrl={api_base_url}")
           PY
         env:
-          HC_API_BASE_URL: ${{ vars.HC_API_BASE_URL }}
-          API_BASE_URL: ${{ vars.HC_API_BASE_URL }}
+          HC_API_BASE_URL: ${{ secrets.HC_API_BASE_URL || vars.HC_API_BASE_URL }}
+          API_BASE_URL: ${{ secrets.HC_API_BASE_URL || vars.HC_API_BASE_URL }}
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
