@@ -32,6 +32,32 @@ jobs:
                const coredemo = require('@actions/core')
                return await coredemo.getIDToken()
            result-encoding: string
+
+      - name: Configure API base URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          API_BASE_URL="${HC_API_BASE_URL:-}"
+          if [ -z "$API_BASE_URL" ]; then
+            API_BASE_URL="https://alcast-hc-dev-api.ashywater-9b50898d.eastus2.azurecontainerapps.io"
+          fi
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          api_base_url = os.environ.get("API_BASE_URL", "").strip()
+          if not api_base_url:
+            raise SystemExit("API_BASE_URL is empty")
+
+          p = Path("frontend/index.html")
+          data = p.read_text(encoding="utf-8")
+          data = data.replace("__HC_API_BASE_URL__", api_base_url)
+          p.write_text(data, encoding="utf-8")
+          print(f"Configured apiBaseUrl={api_base_url}")
+          PY
+        env:
+          HC_API_BASE_URL: ${{ vars.HC_API_BASE_URL }}
+          API_BASE_URL: ${{ vars.HC_API_BASE_URL }}
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1

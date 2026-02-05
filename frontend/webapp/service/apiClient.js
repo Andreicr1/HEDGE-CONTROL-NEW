@@ -29,7 +29,7 @@ sap.ui.define([], function () {
 
     if (win.__HC_CONFIG__ && typeof win.__HC_CONFIG__.apiBaseUrl === "string") {
       var fromWindow = win.__HC_CONFIG__.apiBaseUrl.trim();
-      if (fromWindow) {
+      if (fromWindow && fromWindow !== "__HC_API_BASE_URL__") {
         return fromWindow;
       }
     }
