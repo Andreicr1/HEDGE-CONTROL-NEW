@@ -16,11 +16,11 @@
         showProductSwitcher="false"
         menuButtonPressed=".onMenuButtonPressed">
         <f:additionalContent>
-          <Button text="{i18n>headerBadge}" type="Transparent" enabled="false" class="appHeaderBadge">
+          <OverflowToolbarButton text="{i18n>headerBadge}" type="Transparent" enabled="false" class="appHeaderBadge">
             <layoutData>
               <OverflowToolbarLayoutData priority="NeverOverflow" />
             </layoutData>
-          </Button>
+          </OverflowToolbarButton>
         </f:additionalContent>
       </f:ShellBar>
     </tnt:header>

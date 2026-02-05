@@ -1,8 +1,10 @@
 import time
 import uuid
+import os
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.auth import get_auth_settings
@@ -16,6 +18,24 @@ configure_logging()
 logger = get_logger()
 
 app = FastAPI(title="Hedge Control Platform", version="0.3.0-phase3-step2")
+
+cors_allow_origins_raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+if cors_allow_origins_raw:
+    cors_allow_origins = [origin.strip() for origin in cors_allow_origins_raw.split(",") if origin.strip()]
+else:
+    cors_allow_origins = [
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "https://mango-cliff-077560a10.6.azurestaticapps.net",
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_allow_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 instrumentator = Instrumentator()
 instrumentator.instrument(app).expose(app, endpoint="/metrics")
