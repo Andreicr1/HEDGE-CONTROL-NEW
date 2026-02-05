@@ -130,7 +130,13 @@ sap.ui.define([], function () {
   };
 
   var request = function (path, options) {
-    return fetch(buildUrl(path), options);
+    var url;
+    try {
+      url = buildUrl(path);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+    return fetch(url, options);
   };
 
   return {
