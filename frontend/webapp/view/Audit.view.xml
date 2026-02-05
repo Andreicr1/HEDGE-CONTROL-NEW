@@ -1,0 +1,100 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Audit"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:comp="sap.ui.comp.filterbar"
+  xmlns:table="sap.ui.table">
+  <Page title="{i18n>navAudit}" busy="{audit>/busy}" class="sapUiResponsiveContentPadding">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <Panel headerText="Filters" expandable="false">
+          <content>
+            <comp:FilterBar
+              showGoOnFB="true"
+              search=".onApplyFilter"
+              showRestoreOnFB="false"
+              showClearOnFB="false">
+              <comp:filterItems>
+                <comp:FilterItem name="entityType" label="Entity Type">
+                  <comp:control>
+                    <Input value="{audit>/filters/entity_type}" />
+                  </comp:control>
+                </comp:FilterItem>
+                <comp:FilterItem name="entityId" label="Entity ID">
+                  <comp:control>
+                    <Input value="{audit>/filters/entity_id}" placeholder="UUID" />
+                  </comp:control>
+                </comp:FilterItem>
+                <comp:FilterItem name="startUtc" label="Start (UTC)">
+                  <comp:control>
+                    <DateTimePicker value="{audit>/filters/start}" displayFormat="yyyy-MM-dd'T'HH:mm:ss'Z'" valueFormat="yyyy-MM-dd'T'HH:mm:ss'Z'" />
+                  </comp:control>
+                </comp:FilterItem>
+                <comp:FilterItem name="endUtc" label="End (UTC)">
+                  <comp:control>
+                    <DateTimePicker value="{audit>/filters/end}" displayFormat="yyyy-MM-dd'T'HH:mm:ss'Z'" valueFormat="yyyy-MM-dd'T'HH:mm:ss'Z'" />
+                  </comp:control>
+                </comp:FilterItem>
+                <comp:FilterItem name="cursor" label="Cursor">
+                  <comp:control>
+                    <Input value="{audit>/filters/cursor}" />
+                  </comp:control>
+                </comp:FilterItem>
+                <comp:FilterItem name="limit" label="Limit">
+                  <comp:control>
+                    <Input value="{audit>/filters/limit}" type="Number" />
+                  </comp:control>
+                </comp:FilterItem>
+              </comp:filterItems>
+            </comp:FilterBar>
+          </content>
+        </Panel>
+        <Panel headerText="Results" expandable="false" class="sapUiSmallMarginTop">
+          <content>
+            <Text text="Next cursor: {audit>/next_cursor}" />
+            <table:Table rows="{audit>/events}" visibleRowCount="15" selectionMode="None">
+              <table:columns>
+                <table:Column width="80px">
+                  <Label text="ID" />
+                  <table:template>
+                    <Text text="{audit>id}" />
+                  </table:template>
+                </table:Column>
+                <table:Column width="180px">
+                  <Label text="Timestamp UTC" />
+                  <table:template>
+                    <Text text="{audit>timestamp_utc}" />
+                  </table:template>
+                </table:Column>
+                <table:Column width="150px">
+                  <Label text="Entity Type" />
+                  <table:template>
+                    <Text text="{audit>entity_type}" />
+                  </table:template>
+                </table:Column>
+                <table:Column>
+                  <Label text="Entity ID" />
+                  <table:template>
+                    <Text text="{audit>entity_id}" />
+                  </table:template>
+                </table:Column>
+                <table:Column width="150px">
+                  <Label text="Event Type" />
+                  <table:template>
+                    <Text text="{audit>event_type}" />
+                  </table:template>
+                </table:Column>
+                <table:Column width="100px">
+                  <Label text="Checksum" />
+                  <table:template>
+                    <Text text="{audit>checksum}" />
+                  </table:template>
+                </table:Column>
+              </table:columns>
+            </table:Table>
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

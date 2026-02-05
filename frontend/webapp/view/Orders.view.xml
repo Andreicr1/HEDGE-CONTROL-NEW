@@ -1,0 +1,60 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Orders"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:form="sap.ui.layout.form"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navOrders}" busy="{orders>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <IconTabBar expanded="true">
+          <items>
+            <IconTabFilter text="Create Sales" key="createSales">
+              <VBox class="sapUiSmallMargin">
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="Request JSON" />
+                  <TextArea value="{orders>/createSalesBody}" rows="10" width="100%" growing="true" />
+                </form:SimpleForm>
+                <Button text="POST /orders/sales" type="Emphasized" press=".onCreateSales" />
+              </VBox>
+            </IconTabFilter>
+            <IconTabFilter text="Create Purchase" key="createPurchase">
+              <VBox class="sapUiSmallMargin">
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="Request JSON" />
+                  <TextArea value="{orders>/createPurchaseBody}" rows="10" width="100%" growing="true" />
+                </form:SimpleForm>
+                <Button text="POST /orders/purchase" type="Emphasized" press=".onCreatePurchase" />
+              </VBox>
+            </IconTabFilter>
+            <IconTabFilter text="Lookup" key="lookup">
+              <VBox class="sapUiSmallMargin">
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="order_id (uuid)" />
+                  <Input value="{orders>/orderId}" width="100%" />
+                  <Label text="as_of_date (YYYY-MM-DD) for MTM" />
+                  <Input value="{orders>/mtmAsOfDate}" width="100%" />
+                </form:SimpleForm>
+                <HBox wrap="Wrap">
+                  <Button text="GET /orders/{order_id}" type="Emphasized" press=".onGetOrder" />
+                  <Button text="GET /mtm/orders/{order_id}" class="sapUiSmallMarginBegin" press=".onGetOrderMtm" />
+                </HBox>
+              </VBox>
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
+
+        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{orders>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{orders>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

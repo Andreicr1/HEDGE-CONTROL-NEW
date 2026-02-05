@@ -1,0 +1,27 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Blocked"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m">
+  <Page
+    title="{blocked>/title}"
+    showNavButton="true"
+    navButtonPress=".onNavBack"
+    class="sapUiResponsiveContentPadding">
+    <content>
+      <IllustratedMessage
+        title="{blocked>/title}"
+        description="{blocked>/description}"
+        illustrationType="sapIllus-UnableToLoad"
+        illustrationSize="Auto">
+        <additionalContent>
+          <VBox class="sapUiSmallMarginTop">
+            <Title level="H5" text="Blockers" />
+            <List items="{blocked>/blockers}" noDataText="No blockers">
+              <StandardListItem title="{blocked>}" icon="sap-icon://warning" />
+            </List>
+          </VBox>
+        </additionalContent>
+      </IllustratedMessage>
+    </content>
+  </Page>
+</mvc:View>

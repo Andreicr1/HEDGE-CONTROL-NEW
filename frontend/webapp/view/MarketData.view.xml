@@ -1,0 +1,30 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.MarketData"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navMarketData}" busy="{marketData>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <Panel headerText="POST /market-data/westmetall/aluminum/cash-settlement/ingest">
+          <content>
+            <Label text="Request JSON" />
+            <TextArea value="{marketData>/ingestBody}" rows="14" width="100%" growing="true" />
+            <Button text="Ingest" type="Emphasized" press=".onIngest" />
+          </content>
+        </Panel>
+
+        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{marketData>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{marketData>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

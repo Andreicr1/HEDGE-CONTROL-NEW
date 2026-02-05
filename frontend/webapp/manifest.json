@@ -1,0 +1,185 @@
+{
+  "_version": "1.32.0",
+  "sap.app": {
+    "id": "hedgecontrol",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "dataSources": {
+      "mainService": {
+        "uri": "/api/v1/",
+        "type": "JSON"
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    },
+    "supportedThemes": ["sap_horizon"]
+  },
+  "sap.ui5": {
+    "rootView": {
+      "viewName": "hedgecontrol.view.App",
+      "type": "XML",
+      "async": true,
+      "id": "app"
+    },
+    "dependencies": {
+      "minUI5Version": "1.108.0",
+      "libs": {
+        "sap.m": {},
+        "sap.f": {},
+        "sap.tnt": {},
+        "sap.ui.core": {},
+        "sap.ui.layout": {},
+        "sap.ui.table": {},
+        "sap.ui.comp": {},
+        "sap.ui.integration": {}
+      }
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "hedgecontrol.i18n.i18n"
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "viewType": "XML",
+        "viewPath": "hedgecontrol.view",
+        "controlId": "app",
+        "controlAggregation": "pages",
+        "async": true
+      },
+      "routes": [
+        {
+          "pattern": "",
+          "name": "home",
+          "target": "home"
+        },
+        {
+          "pattern": "observability",
+          "name": "observability",
+          "target": "observability"
+        },
+        {
+          "pattern": "audit",
+          "name": "audit",
+          "target": "audit"
+        },
+        {
+          "pattern": "exposures",
+          "name": "exposures",
+          "target": "exposures"
+        },
+        {
+          "pattern": "orders",
+          "name": "orders",
+          "target": "orders"
+        },
+        {
+          "pattern": "rfq",
+          "name": "rfq",
+          "target": "rfq"
+        },
+        {
+          "pattern": "contracts",
+          "name": "contracts",
+          "target": "contracts"
+        },
+        {
+          "pattern": "cashflow",
+          "name": "cashflow",
+          "target": "cashflow"
+        },
+        {
+          "pattern": "pnl",
+          "name": "pnl",
+          "target": "pnl"
+        },
+        {
+          "pattern": "scenario",
+          "name": "scenario",
+          "target": "scenario"
+        },
+        {
+          "pattern": "mtm",
+          "name": "mtm",
+          "target": "mtm"
+        },
+        {
+          "pattern": "market-data",
+          "name": "marketData",
+          "target": "marketData"
+        },
+        {
+          "pattern": ":catchAll:",
+          "name": "notFound",
+          "target": "notFound"
+        }
+      ],
+      "targets": {
+        "home": {
+          "viewName": "Home"
+        },
+        "observability": {
+          "viewName": "Observability"
+        },
+        "audit": {
+          "viewName": "Audit"
+        },
+        "exposures": {
+          "viewName": "Exposures"
+        },
+        "orders": {
+          "viewName": "Orders"
+        },
+        "rfq": {
+          "viewName": "Rfq"
+        },
+        "contracts": {
+          "viewName": "Contracts"
+        },
+        "cashflow": {
+          "viewName": "Cashflow"
+        },
+        "pnl": {
+          "viewName": "Pnl"
+        },
+        "scenario": {
+          "viewName": "Scenario"
+        },
+        "mtm": {
+          "viewName": "Mtm"
+        },
+        "marketData": {
+          "viewName": "MarketData"
+        },
+        "blocked": {
+          "viewName": "Blocked"
+        },
+        "notFound": {
+          "viewName": "Blocked"
+        }
+      }
+    }
+  }
+}

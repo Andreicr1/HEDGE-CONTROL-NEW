@@ -21,6 +21,15 @@ pnpm-debug.log*
 dist/
 build/
 
+# Local SAPUI5 SDK (too large to commit)
+frontend/public/
+
+# TypeScript build info
+frontend/tsconfig.tsbuildinfo
+
+# Accidental root npm lockfile
+/package-lock.json
+
 # IDE
 .vscode/
 .idea/

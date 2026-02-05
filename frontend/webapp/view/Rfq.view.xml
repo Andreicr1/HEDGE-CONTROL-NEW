@@ -1,0 +1,75 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Rfq"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:form="sap.ui.layout.form"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navRfq}" busy="{rfq>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+          <Label text="rfq_id (uuid)" />
+          <Input value="{rfq>/rfqId}" width="100%" />
+        </form:SimpleForm>
+
+        <IconTabBar expanded="true">
+          <items>
+            <IconTabFilter text="Create" key="create">
+              <VBox class="sapUiSmallMargin">
+                <Label text="Request JSON" />
+                <TextArea value="{rfq>/createRfqBody}" rows="10" width="100%" growing="true" />
+                <Button text="POST /rfqs" type="Emphasized" press=".onCreateRfq" />
+              </VBox>
+            </IconTabFilter>
+            <IconTabFilter text="Detail" key="detail">
+              <VBox class="sapUiSmallMargin">
+                <Button text="GET /rfqs/{rfq_id}" type="Emphasized" press=".onGetRfq" />
+              </VBox>
+            </IconTabFilter>
+            <IconTabFilter text="Quotes" key="quotes">
+              <VBox class="sapUiSmallMargin">
+                <Label text="Request JSON" />
+                <TextArea value="{rfq>/quoteBody}" rows="10" width="100%" growing="true" />
+                <Button text="POST /rfqs/{rfq_id}/quotes" type="Emphasized" press=".onCreateQuote" />
+              </VBox>
+            </IconTabFilter>
+            <IconTabFilter text="Ranking" key="ranking">
+              <VBox class="sapUiSmallMargin">
+                <HBox wrap="Wrap">
+                  <Button text="GET /rfqs/{rfq_id}/ranking" type="Emphasized" press=".onGetRanking" />
+                  <Button text="GET /rfqs/{rfq_id}/trade-ranking" class="sapUiSmallMarginBegin" press=".onGetTradeRanking" />
+                </HBox>
+              </VBox>
+            </IconTabFilter>
+            <IconTabFilter text="Actions" key="actions">
+              <VBox class="sapUiSmallMargin">
+                <Title level="H5" text="Award" />
+                <TextArea value="{rfq>/awardBody}" rows="6" width="100%" growing="true" />
+                <Button text="POST /rfqs/{rfq_id}/actions/award" type="Emphasized" press=".onAward" />
+
+                <Title level="H5" text="Refresh" class="sapUiSmallMarginTop" />
+                <TextArea value="{rfq>/refreshBody}" rows="6" width="100%" growing="true" />
+                <Button text="POST /rfqs/{rfq_id}/actions/refresh" type="Emphasized" press=".onRefresh" />
+
+                <Title level="H5" text="Reject" class="sapUiSmallMarginTop" />
+                <TextArea value="{rfq>/rejectBody}" rows="6" width="100%" growing="true" />
+                <Button text="POST /rfqs/{rfq_id}/actions/reject" type="Emphasized" press=".onReject" />
+              </VBox>
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
+
+        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{rfq>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{rfq>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

@@ -1,0 +1,42 @@
+.appShell {
+  min-height: 100vh;
+}
+
+.sapUiResponsiveContentPadding {
+  padding: var(--sapContent_Space_S);
+}
+
+@media (min-width: 600px) {
+  .sapUiResponsiveContentPadding {
+    padding: var(--sapContent_Space_M);
+  }
+}
+
+@media (min-width: 1024px) {
+  .sapUiResponsiveContentPadding {
+    padding: var(--sapContent_Space_L);
+  }
+}
+
+.appHeaderBadge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--sapNeutralBackground);
+  color: var(--sapTextColor);
+  border: 1px solid var(--sapContent_ForegroundBorderColor);
+  pointer-events: none;
+}
+
+#menuButton {
+  margin-right: 1rem;
+}
+
+.sapMSplitContainerMaster {
+  border-right: 1px solid var(--sapContent_ForegroundBorderColor);
+}
+
+#splitContainer .sapMSplitContainerMaster {
+  width: 15rem;
+  min-width: 15rem;
+}

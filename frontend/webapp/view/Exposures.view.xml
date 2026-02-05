@@ -1,0 +1,28 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Exposures"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navExposures}" busy="{exposures>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <HBox wrap="Wrap" class="sapUiSmallMarginBottom">
+          <Button text="Load Commercial" type="Emphasized" press=".onLoadCommercial" />
+          <Button text="Load Global" class="sapUiSmallMarginBegin" press=".onLoadGlobal" />
+        </HBox>
+
+        <Panel headerText="Response (as-is)">
+          <content>
+            <TextArea value="{exposures>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{exposures>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

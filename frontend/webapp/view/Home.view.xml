@@ -1,0 +1,68 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Home"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:cards="sap.f.cards">
+  <Page title="{i18n>navOverview}" class="sapUiResponsiveContentPadding">
+    <content>
+      <f:GridContainer class="sapUiSmallMargin" width="100%">
+        <f:layout>
+          <f:GridContainerSettings rowSize="10rem" columnSize="16rem" gap="1rem" />
+        </f:layout>
+        <f:items>
+          <f:Card>
+            <f:header>
+              <cards:Header title="Governed Presenter Overview" />
+            </f:header>
+            <f:content>
+              <VBox class="sapUiSmallMargin">
+                <Text text="This frontend is read-only and reflects backend authority without client-side inference." />
+              </VBox>
+            </f:content>
+          </f:Card>
+          <f:Card>
+            <f:header>
+              <cards:Header title="Backend Contract" />
+            </f:header>
+            <f:content>
+              <VBox class="sapUiSmallMargin">
+                <Text text="OpenAPI-driven. No endpoints are invented." />
+              </VBox>
+            </f:content>
+          </f:Card>
+          <f:Card>
+            <f:header>
+              <cards:Header title="Worklists" />
+            </f:header>
+            <f:content>
+              <VBox class="sapUiSmallMargin">
+                <Text text="Blocked by Backend B1 (worklist endpoints missing)." />
+              </VBox>
+            </f:content>
+          </f:Card>
+          <f:Card>
+            <f:header>
+              <cards:Header title="RFQ Evidence" />
+            </f:header>
+            <f:content>
+              <VBox class="sapUiSmallMargin">
+                <Text text="Blocked by Backend B2 (send/evidence endpoint missing)." />
+              </VBox>
+            </f:content>
+          </f:Card>
+          <f:Card>
+            <f:header>
+              <cards:Header title="UI Components" />
+            </f:header>
+            <f:content>
+              <VBox class="sapUiSmallMargin">
+                <Text text="SAP Horizon theming via theming-base-content." />
+              </VBox>
+            </f:content>
+          </f:Card>
+        </f:items>
+      </f:GridContainer>
+    </content>
+  </Page>
+</mvc:View>

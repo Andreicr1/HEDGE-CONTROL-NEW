@@ -1,0 +1,48 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Observability"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:cards="sap.f.cards">
+  <Page title="{i18n>navObservability}" busy="{observability>/busy}" class="sapUiResponsiveContentPadding">
+    <content>
+      <f:GridContainer class="sapUiSmallMargin" width="100%">
+        <f:layout>
+          <f:GridContainerSettings rowSize="12rem" columnSize="20rem" gap="1rem" />
+        </f:layout>
+        <f:items>
+          <f:Card>
+            <f:header>
+              <cards:Header title="Health" />
+            </f:header>
+            <f:content>
+              <List items="{observability>/healthItems}">
+                <StandardListItem title="{observability>label}" description="{observability>value}" />
+              </List>
+            </f:content>
+          </f:Card>
+          <f:Card>
+            <f:header>
+              <cards:Header title="Ready" />
+            </f:header>
+            <f:content>
+              <List items="{observability>/readyItems}">
+                <StandardListItem title="{observability>label}" description="{observability>value}" />
+              </List>
+            </f:content>
+          </f:Card>
+          <f:Card>
+            <f:header>
+              <cards:Header title="Metrics" />
+            </f:header>
+            <f:content>
+              <VBox class="sapUiSmallMargin">
+                <Text text="{observability>/metricsText}" wrapping="true" />
+              </VBox>
+            </f:content>
+          </f:Card>
+        </f:items>
+      </f:GridContainer>
+    </content>
+  </Page>
+</mvc:View>

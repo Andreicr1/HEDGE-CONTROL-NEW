@@ -1,0 +1,46 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Pnl"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:form="sap.ui.layout.form"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navPnl}" busy="{pnl>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+          <Label text="entity_type" />
+          <Input value="{pnl>/entityType}" width="100%" />
+          <Label text="entity_id (uuid)" />
+          <Input value="{pnl>/entityId}" width="100%" />
+          <Label text="period_start (YYYY-MM-DD)" />
+          <Input value="{pnl>/periodStart}" width="100%" />
+          <Label text="period_end (YYYY-MM-DD)" />
+          <Input value="{pnl>/periodEnd}" width="100%" />
+        </form:SimpleForm>
+
+        <HBox wrap="Wrap" class="sapUiSmallMarginBottom">
+          <Button text="GET /pl/{entity_type}/{entity_id}" type="Emphasized" press=".onGetPl" />
+          <Button text="GET /pl/snapshots" class="sapUiSmallMarginBegin" press=".onGetSnapshot" />
+        </HBox>
+
+        <Panel headerText="Create Snapshot">
+          <content>
+            <TextArea value="{pnl>/snapshotCreateBody}" rows="10" width="100%" growing="true" />
+            <Button text="POST /pl/snapshots" type="Emphasized" press=".onCreateSnapshot" />
+          </content>
+        </Panel>
+
+        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{pnl>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{pnl>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

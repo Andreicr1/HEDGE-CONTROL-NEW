@@ -1,0 +1,95 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Cashflow"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:form="sap.ui.layout.form"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navCashflow}" busy="{cashflow>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <IconTabBar expanded="true">
+          <items>
+            <IconTabFilter text="Cashflows" key="cashflows">
+              <VBox class="sapUiSmallMargin">
+                <Button text="GET /cashflows" type="Emphasized" press=".onListCashflows" />
+
+                <Title level="H5" text="Create Cashflow" class="sapUiSmallMarginTop" />
+                <TextArea value="{cashflow>/cashflowCreateBody}" rows="10" width="100%" growing="true" />
+                <Button text="POST /cashflows" type="Emphasized" press=".onCreateCashflow" />
+
+                <Title level="H5" text="Get Cashflow" class="sapUiSmallMarginTop" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="cashflow_id (uuid)" />
+                  <Input value="{cashflow>/cashflowId}" width="100%" />
+                  <Label text="required query '_' (per OpenAPI)" />
+                  <Input value="{cashflow>/cashflowIdUnderscore}" width="100%" />
+                </form:SimpleForm>
+                <Button text="GET /cashflows/{cashflow_id}" type="Emphasized" press=".onGetCashflow" />
+              </VBox>
+            </IconTabFilter>
+
+            <IconTabFilter text="Analytic/Baseline" key="analytic">
+              <VBox class="sapUiSmallMargin">
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="as_of_date (YYYY-MM-DD)" />
+                  <Input value="{cashflow>/asOfDate}" width="100%" />
+                </form:SimpleForm>
+                <HBox wrap="Wrap">
+                  <Button text="GET /cashflow/analytic" type="Emphasized" press=".onGetAnalytic" />
+                  <Button text="GET /cashflow/baseline/snapshots" class="sapUiSmallMarginBegin" press=".onGetBaselineSnapshot" />
+                </HBox>
+
+                <Title level="H5" text="Create Baseline Snapshot" class="sapUiSmallMarginTop" />
+                <TextArea value="{cashflow>/baselineCreateBody}" rows="10" width="100%" growing="true" />
+                <Button text="POST /cashflow/baseline/snapshots" type="Emphasized" press=".onCreateBaselineSnapshot" />
+              </VBox>
+            </IconTabFilter>
+
+            <IconTabFilter text="Ledger/Settle" key="ledger">
+              <VBox class="sapUiSmallMargin">
+                <Title level="H5" text="Settle Hedge Contract" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="contract_id (uuid)" />
+                  <Input value="{cashflow>/settleContractId}" width="100%" />
+                </form:SimpleForm>
+                <TextArea value="{cashflow>/settleBody}" rows="10" width="100%" growing="true" />
+                <Button text="POST /cashflow/contracts/{contract_id}/settle" type="Emphasized" press=".onSettleContract" />
+
+                <Title level="H5" text="Ledger by Event" class="sapUiSmallMarginTop" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="source_event_id (uuid)" />
+                  <Input value="{cashflow>/ledgerSourceEventId}" width="100%" />
+                  <Label text="source_event_type (optional)" />
+                  <Input value="{cashflow>/ledgerSourceEventType}" width="100%" />
+                </form:SimpleForm>
+                <Button text="GET /cashflow/ledger" type="Emphasized" press=".onLedgerByEvent" />
+
+                <Title level="H5" text="Ledger for Contract" class="sapUiSmallMarginTop" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="contract_id (uuid)" />
+                  <Input value="{cashflow>/ledgerContractId}" width="100%" />
+                  <Label text="start (optional, YYYY-MM-DD)" />
+                  <Input value="{cashflow>/ledgerStart}" width="100%" />
+                  <Label text="end (optional, YYYY-MM-DD)" />
+                  <Input value="{cashflow>/ledgerEnd}" width="100%" />
+                </form:SimpleForm>
+                <Button text="GET /cashflow/ledger/hedge-contracts/{contract_id}" type="Emphasized" press=".onLedgerForContract" />
+              </VBox>
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
+
+        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{cashflow>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{cashflow>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

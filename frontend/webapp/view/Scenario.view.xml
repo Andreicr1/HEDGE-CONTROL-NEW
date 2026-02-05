@@ -1,0 +1,29 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Scenario"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navScenario}" busy="{scenario>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <Panel headerText="POST /scenario/what-if/run (in-memory; no persistence)">
+          <content>
+            <TextArea value="{scenario>/requestBody}" rows="14" width="100%" growing="true" />
+            <Button text="Run Scenario" type="Emphasized" press=".onRun" />
+          </content>
+        </Panel>
+
+        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{scenario>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{scenario>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

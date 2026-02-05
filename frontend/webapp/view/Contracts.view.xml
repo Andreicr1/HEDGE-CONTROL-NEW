@@ -1,0 +1,67 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.Contracts"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:form="sap.ui.layout.form"
+  class="sapUiResponsiveContentPadding">
+  <Page title="{i18n>navContracts}" busy="{contracts>/busy}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <IconTabBar expanded="true">
+          <items>
+            <IconTabFilter text="Hedge Contract" key="contract">
+              <VBox class="sapUiSmallMargin">
+                <Title level="H5" text="Create Hedge Contract" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="Request JSON" />
+                  <TextArea value="{contracts>/createContractBody}" rows="10" width="100%" growing="true" />
+                </form:SimpleForm>
+                <Button text="POST /contracts/hedge" type="Emphasized" press=".onCreateContract" />
+
+                <Title level="H5" text="Lookup + MTM" class="sapUiSmallMarginTop" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="contract_id (uuid)" />
+                  <Input value="{contracts>/contractId}" width="100%" />
+                  <Label text="as_of_date (YYYY-MM-DD) for MTM" />
+                  <Input value="{contracts>/mtmAsOfDate}" width="100%" />
+                </form:SimpleForm>
+                <HBox wrap="Wrap">
+                  <Button text="GET /contracts/hedge/{contract_id}" type="Emphasized" press=".onGetContract" />
+                  <Button text="GET /mtm/hedge-contracts/{contract_id}" class="sapUiSmallMarginBegin" press=".onGetContractMtm" />
+                </HBox>
+              </VBox>
+            </IconTabFilter>
+            <IconTabFilter text="Linkages" key="linkages">
+              <VBox class="sapUiSmallMargin">
+                <Title level="H5" text="Create Linkage" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="Request JSON" />
+                  <TextArea value="{contracts>/createLinkageBody}" rows="10" width="100%" growing="true" />
+                </form:SimpleForm>
+                <Button text="POST /linkages" type="Emphasized" press=".onCreateLinkage" />
+
+                <Title level="H5" text="Lookup" class="sapUiSmallMarginTop" />
+                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="linkage_id (uuid)" />
+                  <Input value="{contracts>/linkageId}" width="100%" />
+                </form:SimpleForm>
+                <Button text="GET /linkages/{linkage_id}" type="Emphasized" press=".onGetLinkage" />
+              </VBox>
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
+
+        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{contracts>/responseText}" width="100%" rows="14" editable="false" growing="true" />
+          </content>
+        </Panel>
+        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
+          <content>
+            <TextArea value="{contracts>/errorText}" width="100%" rows="6" editable="false" growing="true" />
+          </content>
+        </Panel>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>
