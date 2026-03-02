@@ -4,30 +4,31 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CashSettlementIngestRequest(BaseModel):
-    settlement_date: date = Field(..., description="Settlement date to ingest (YYYY-MM-DD)")
+    settlement_date: date = Field(
+        ..., description="Settlement date to ingest (YYYY-MM-DD)"
+    )
 
 
 class CashSettlementIngestResponse(BaseModel):
     ingested_count: int
     skipped_count: int
-    source: str
-    symbol: str
+    source: str = Field(..., max_length=64)
+    symbol: str = Field(..., max_length=64)
     settlement_date: date
-    source_url: str
-    html_sha256: str
+    source_url: str = Field(..., max_length=512)
+    html_sha256: str = Field(..., max_length=128)
     fetched_at: datetime
 
 
 class CashSettlementPriceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
-    source: str
-    symbol: str
+    id: str = Field(..., max_length=64)
+    source: str = Field(..., max_length=64)
+    symbol: str = Field(..., max_length=64)
     settlement_date: date
     price_usd: float
-    source_url: str
-    html_sha256: str
+    source_url: str = Field(..., max_length=512)
+    html_sha256: str = Field(..., max_length=128)
     fetched_at: datetime
     created_at: datetime
-

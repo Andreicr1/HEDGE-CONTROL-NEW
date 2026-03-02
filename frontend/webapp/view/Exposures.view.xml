@@ -2,27 +2,96 @@
   controllerName="hedgecontrol.controller.Exposures"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
-  class="sapUiResponsiveContentPadding">
-  <Page title="{i18n>navExposures}" busy="{exposures>/busy}">
-    <content>
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  core:require="{ formatter: 'hedgecontrol/util/formatter' }">
+  <f:DynamicPage id="exposuresPage" showFooter="false" busy="{exp>/busy}">
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{i18n>exposuresTitle}" />
+        </f:heading>
+        <f:actions>
+          <Button text="{i18n>refresh}" icon="sap-icon://refresh" press=".onRefresh" type="Emphasized" />
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+    <f:content>
       <VBox class="sapUiSmallMargin">
-        <HBox wrap="Wrap" class="sapUiSmallMarginBottom">
-          <Button text="Load Commercial" type="Emphasized" press=".onLoadCommercial" />
-          <Button text="Load Global" class="sapUiSmallMarginBegin" press=".onLoadGlobal" />
-        </HBox>
-
-        <Panel headerText="Response (as-is)">
-          <content>
-            <TextArea value="{exposures>/responseText}" width="100%" rows="14" editable="false" growing="true" />
-          </content>
-        </Panel>
-
-        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{exposures>/errorText}" width="100%" rows="6" editable="false" growing="true" />
-          </content>
-        </Panel>
+        <MessageStrip
+          text="{exp>/errorMessage}"
+          type="Error"
+          showIcon="true"
+          showCloseButton="true"
+          visible="{= !!${exp>/errorMessage}}"
+          class="sapUiSmallMarginBottom" />
+        <IconTabBar id="exposuresTabBar" select=".onTabSelect" selectedKey="commercial">
+          <items>
+            <IconTabFilter key="commercial" text="{i18n>exposuresCommercial}" count="{= ${exp>/commercial} ? ${exp>/commercial}.length : 0}">
+              <Table id="commercialTable" items="{exp>/commercial}" growing="true" growingThreshold="50"
+                noDataText="{i18n>noData}" mode="None">
+                <headerToolbar>
+                  <OverflowToolbar>
+                    <Title text="{i18n>exposuresCommercial}" level="H3" />
+                    <ToolbarSpacer />
+                    <SearchField width="15rem" search=".onSearchCommercial" />
+                  </OverflowToolbar>
+                </headerToolbar>
+                <columns>
+                  <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
+                  <Column><header><Text text="{i18n>colDirection}" /></header></Column>
+                  <Column><header><Text text="{i18n>colQuantity}" /></header></Column>
+                  <Column><header><Text text="{i18n>colUnit}" /></header></Column>
+                  <Column><header><Text text="{i18n>colDeliveryMonth}" /></header></Column>
+                  <Column><header><Text text="{i18n>colEntity}" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <Text text="{exp>commodity}" />
+                      <ObjectStatus text="{exp>direction}" state="{= ${exp>direction} === 'buy' ? 'Success' : 'Error'}" />
+                      <Text text="{path: 'exp>quantity', formatter: 'formatter.numberTwoDecimals'}" />
+                      <Text text="{exp>unit}" />
+                      <Text text="{exp>delivery_month}" />
+                      <Text text="{exp>entity}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </IconTabFilter>
+            <IconTabFilter key="global" text="{i18n>exposuresGlobal}" count="{= ${exp>/global} ? ${exp>/global}.length : 0}">
+              <Table id="globalTable" items="{exp>/global}" growing="true" growingThreshold="50"
+                noDataText="{i18n>noData}" mode="None">
+                <headerToolbar>
+                  <OverflowToolbar>
+                    <Title text="{i18n>exposuresGlobal}" level="H3" />
+                    <ToolbarSpacer />
+                    <SearchField width="15rem" search=".onSearchGlobal" />
+                  </OverflowToolbar>
+                </headerToolbar>
+                <columns>
+                  <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
+                  <Column><header><Text text="{i18n>colNetPosition}" /></header></Column>
+                  <Column><header><Text text="{i18n>colUnit}" /></header></Column>
+                  <Column><header><Text text="{i18n>colHedgeRatio}" /></header></Column>
+                  <Column><header><Text text="{i18n>colDeliveryMonth}" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <Text text="{exp>commodity}" />
+                      <Text text="{path: 'exp>net_position', formatter: 'formatter.numberTwoDecimals'}" />
+                      <Text text="{exp>unit}" />
+                      <Text text="{path: 'exp>hedge_ratio', formatter: 'formatter.numberTwoDecimals'}" />
+                      <Text text="{exp>delivery_month}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
       </VBox>
-    </content>
-  </Page>
+    </f:content>
+  </f:DynamicPage>
 </mvc:View>

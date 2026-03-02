@@ -28,19 +28,29 @@ class HedgeContractStatus(enum.Enum):
 class HedgeContract(Base):
     __tablename__ = "hedge_contracts"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     commodity: Mapped[str] = mapped_column(String(length=64), nullable=False)
     quantity_mt: Mapped[float] = mapped_column(Float, nullable=False)
     rfq_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=True
     )
     rfq_quote_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfq_quotes.id", ondelete="RESTRICT"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("rfq_quotes.id", ondelete="RESTRICT"),
+        nullable=True,
     )
-    counterparty_id: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
+    counterparty_id: Mapped[str | None] = mapped_column(
+        String(length=64), nullable=True
+    )
     fixed_price_value: Mapped[float | None] = mapped_column(Float, nullable=True)
-    fixed_price_unit: Mapped[str | None] = mapped_column(String(length=32), nullable=True)
-    float_pricing_convention: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
+    fixed_price_unit: Mapped[str | None] = mapped_column(
+        String(length=32), nullable=True
+    )
+    float_pricing_convention: Mapped[str | None] = mapped_column(
+        String(length=64), nullable=True
+    )
     status: Mapped[HedgeContractStatus] = mapped_column(
         Enum(HedgeContractStatus, name="hedge_contract_status"),
         nullable=False,
@@ -58,4 +68,9 @@ class HedgeContract(Base):
         Enum(HedgeClassification, name="hedge_classification"),
         nullable=False,
     )
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    deleted_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )

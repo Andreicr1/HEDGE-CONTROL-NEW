@@ -31,14 +31,22 @@ class RFQState(enum.Enum):
 class RFQ(Base):
     __tablename__ = "rfqs"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    rfq_number: Mapped[str] = mapped_column(String(length=32), unique=True, nullable=False)
-    intent: Mapped[RFQIntent] = mapped_column(Enum(RFQIntent, name="rfq_intent"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    rfq_number: Mapped[str] = mapped_column(
+        String(length=32), unique=True, nullable=False
+    )
+    intent: Mapped[RFQIntent] = mapped_column(
+        Enum(RFQIntent, name="rfq_intent"), nullable=False
+    )
     commodity: Mapped[str] = mapped_column(String(length=64), nullable=False)
     quantity_mt: Mapped[float] = mapped_column(Float, nullable=False)
     delivery_window_start: Mapped[Date] = mapped_column(Date, nullable=False)
     delivery_window_end: Mapped[Date] = mapped_column(Date, nullable=False)
-    direction: Mapped[RFQDirection] = mapped_column(Enum(RFQDirection, name="rfq_direction"), nullable=False)
+    direction: Mapped[RFQDirection] = mapped_column(
+        Enum(RFQDirection, name="rfq_direction"), nullable=False
+    )
     order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="RESTRICT"), nullable=True
     )
@@ -52,11 +60,22 @@ class RFQ(Base):
     commercial_active_mt: Mapped[float] = mapped_column(Float, nullable=False)
     commercial_passive_mt: Mapped[float] = mapped_column(Float, nullable=False)
     commercial_net_mt: Mapped[float] = mapped_column(Float, nullable=False)
-    commercial_reduction_applied_mt: Mapped[float] = mapped_column(Float, nullable=False)
-    exposure_snapshot_timestamp: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    commercial_reduction_applied_mt: Mapped[float] = mapped_column(
+        Float, nullable=False
+    )
+    exposure_snapshot_timestamp: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
-    state: Mapped[RFQState] = mapped_column(Enum(RFQState, name="rfq_state"), nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    state: Mapped[RFQState] = mapped_column(
+        Enum(RFQState, name="rfq_state"), nullable=False
+    )
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    deleted_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
 
 class RFQInvitationChannel(enum.Enum):
@@ -77,7 +96,9 @@ class RFQInvitationStatus(enum.Enum):
 class RFQInvitation(Base):
     __tablename__ = "rfq_invitations"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     rfq_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=False
     )
@@ -96,30 +117,48 @@ class RFQInvitation(Base):
     )
     sent_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(length=128), nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class RFQStateEvent(Base):
     __tablename__ = "rfq_state_events"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     rfq_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=False
     )
-    from_state: Mapped[RFQState] = mapped_column(Enum(RFQState, name="rfq_state"), nullable=False)
-    to_state: Mapped[RFQState] = mapped_column(Enum(RFQState, name="rfq_state"), nullable=False)
+    from_state: Mapped[RFQState] = mapped_column(
+        Enum(RFQState, name="rfq_state"), nullable=False
+    )
+    to_state: Mapped[RFQState] = mapped_column(
+        Enum(RFQState, name="rfq_state"), nullable=False
+    )
     trigger: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
-    triggering_quote_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    triggering_counterparty_id: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
-    event_timestamp: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    triggering_quote_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    triggering_counterparty_id: Mapped[str | None] = mapped_column(
+        String(length=64), nullable=True
+    )
+    event_timestamp: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     user_id: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
     reason: Mapped[str | None] = mapped_column(String(length=128), nullable=True)
     ranking_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)
     winning_quote_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
     winning_counterparty_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
-    award_timestamp: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    award_timestamp: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_contract_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class RFQSequence(Base):

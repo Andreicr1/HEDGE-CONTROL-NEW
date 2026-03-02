@@ -2,94 +2,155 @@
   controllerName="hedgecontrol.controller.Cashflow"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
   xmlns:form="sap.ui.layout.form"
-  class="sapUiResponsiveContentPadding">
-  <Page title="{i18n>navCashflow}" busy="{cashflow>/busy}">
-    <content>
-      <VBox class="sapUiSmallMargin">
-        <IconTabBar expanded="true">
-          <items>
-            <IconTabFilter text="Cashflows" key="cashflows">
-              <VBox class="sapUiSmallMargin">
-                <Button text="GET /cashflows" type="Emphasized" press=".onListCashflows" />
+  xmlns:layout="sap.ui.layout"
+  core:require="{ formatter: 'hedgecontrol/util/formatter' }">
 
-                <Title level="H5" text="Create Cashflow" class="sapUiSmallMarginTop" />
-                <TextArea value="{cashflow>/cashflowCreateBody}" rows="10" width="100%" growing="true" />
-                <Button text="POST /cashflows" type="Emphasized" press=".onCreateCashflow" />
+  <f:DynamicPage id="cashflowPage" headerExpanded="true" showFooter="false">
 
-                <Title level="H5" text="Get Cashflow" class="sapUiSmallMarginTop" />
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="cashflow_id (uuid)" />
-                  <Input value="{cashflow>/cashflowId}" width="100%" />
-                  <Label text="required query '_' (per OpenAPI)" />
-                  <Input value="{cashflow>/cashflowIdUnderscore}" width="100%" />
-                </form:SimpleForm>
-                <Button text="GET /cashflows/{cashflow_id}" type="Emphasized" press=".onGetCashflow" />
-              </VBox>
-            </IconTabFilter>
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{i18n>cashflowTitle}" />
+        </f:heading>
+      </f:DynamicPageTitle>
+    </f:title>
 
-            <IconTabFilter text="Analytic/Baseline" key="analytic">
-              <VBox class="sapUiSmallMargin">
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="as_of_date (YYYY-MM-DD)" />
-                  <Input value="{cashflow>/asOfDate}" width="100%" />
-                </form:SimpleForm>
-                <HBox wrap="Wrap">
-                  <Button text="GET /cashflow/analytic" type="Emphasized" press=".onGetAnalytic" />
-                  <Button text="GET /cashflow/baseline/snapshots" class="sapUiSmallMarginBegin" press=".onGetBaselineSnapshot" />
-                </HBox>
+    <f:content>
+      <IconTabBar id="cashflowTabs" select=".onTabSelect" class="sapUiNoContentPadding">
 
-                <Title level="H5" text="Create Baseline Snapshot" class="sapUiSmallMarginTop" />
-                <TextArea value="{cashflow>/baselineCreateBody}" rows="10" width="100%" growing="true" />
-                <Button text="POST /cashflow/baseline/snapshots" type="Emphasized" press=".onCreateBaselineSnapshot" />
-              </VBox>
-            </IconTabFilter>
+        <!-- Analytic Tab -->
+        <items>
+          <IconTabFilter text="{i18n>analytic}" key="analytic" icon="sap-icon://bar-chart">
+            <VBox class="sapUiSmallMargin">
+              <HBox alignItems="End" class="sapUiSmallMarginBottom">
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>asOfDate}" />
+                  <DatePicker id="analyticDate" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                </VBox>
+                <Button text="{i18n>load}" type="Emphasized" press=".onLoadAnalytic" />
+              </HBox>
 
-            <IconTabFilter text="Ledger/Settle" key="ledger">
-              <VBox class="sapUiSmallMargin">
-                <Title level="H5" text="Settle Hedge Contract" />
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="contract_id (uuid)" />
-                  <Input value="{cashflow>/settleContractId}" width="100%" />
-                </form:SimpleForm>
-                <TextArea value="{cashflow>/settleBody}" rows="10" width="100%" growing="true" />
-                <Button text="POST /cashflow/contracts/{contract_id}/settle" type="Emphasized" press=".onSettleContract" />
+              <ObjectNumber number="{ path: 'cf>/analytic/total_net_cashflow', formatter: 'formatter.numberTwoDecimals' }"
+                unit="USD" emphasized="true" class="sapUiSmallMarginBottom" />
 
-                <Title level="H5" text="Ledger by Event" class="sapUiSmallMarginTop" />
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="source_event_id (uuid)" />
-                  <Input value="{cashflow>/ledgerSourceEventId}" width="100%" />
-                  <Label text="source_event_type (optional)" />
-                  <Input value="{cashflow>/ledgerSourceEventType}" width="100%" />
-                </form:SimpleForm>
-                <Button text="GET /cashflow/ledger" type="Emphasized" press=".onLedgerByEvent" />
+              <Table items="{cf>/analytic/cashflow_items}" noDataText="{i18n>noData}" busy="{cf>/analyticBusy}">
+                <columns>
+                  <Column><header><Text text="{i18n>objectType}" /></header></Column>
+                  <Column><header><Text text="{i18n>objectId}" /></header></Column>
+                  <Column><header><Text text="{i18n>settlementDate}" /></header></Column>
+                  <Column><header><Text text="{i18n>amountUsd}" /></header></Column>
+                  <Column><header><Text text="{i18n>mtmValue}" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <Text text="{cf>object_type}" />
+                    <Text text="{ path: 'cf>object_id', formatter: 'formatter.shortUuid' }" />
+                    <Text text="{ path: 'cf>settlement_date', formatter: 'formatter.dateDisplay' }" />
+                    <ObjectNumber number="{ path: 'cf>amount_usd', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                    <ObjectNumber number="{ path: 'cf>mtm_value', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
 
-                <Title level="H5" text="Ledger for Contract" class="sapUiSmallMarginTop" />
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="contract_id (uuid)" />
-                  <Input value="{cashflow>/ledgerContractId}" width="100%" />
-                  <Label text="start (optional, YYYY-MM-DD)" />
-                  <Input value="{cashflow>/ledgerStart}" width="100%" />
-                  <Label text="end (optional, YYYY-MM-DD)" />
-                  <Input value="{cashflow>/ledgerEnd}" width="100%" />
-                </form:SimpleForm>
-                <Button text="GET /cashflow/ledger/hedge-contracts/{contract_id}" type="Emphasized" press=".onLedgerForContract" />
-              </VBox>
-            </IconTabFilter>
-          </items>
-        </IconTabBar>
+          <!-- Baseline Snapshot Tab -->
+          <IconTabFilter text="{i18n>baseline}" key="baseline" icon="sap-icon://history">
+            <VBox class="sapUiSmallMargin">
+              <HBox alignItems="End" class="sapUiSmallMarginBottom">
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>asOfDate}" />
+                  <DatePicker id="baselineDate" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                </VBox>
+                <Button text="{i18n>load}" type="Emphasized" press=".onLoadBaseline" class="sapUiSmallMarginEnd" />
+                <Button text="{i18n>createSnapshot}" icon="sap-icon://add" press=".onCreateBaseline" />
+              </HBox>
 
-        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{cashflow>/responseText}" width="100%" rows="14" editable="false" growing="true" />
-          </content>
-        </Panel>
-        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{cashflow>/errorText}" width="100%" rows="6" editable="false" growing="true" />
-          </content>
-        </Panel>
-      </VBox>
-    </content>
-  </Page>
+              <MessageStrip text="{cf>/baselineError}" type="Error" showIcon="true"
+                visible="{ path: 'cf>/baselineError', formatter: '.hasValue' }" class="sapUiSmallMarginBottom" />
+
+              <form:Form editable="false" visible="{cf>/baselineLoaded}">
+                <form:layout>
+                  <form:ColumnLayout columnsM="2" columnsL="2" columnsXL="2" />
+                </form:layout>
+                <form:formContainers>
+                  <form:FormContainer title="{i18n>snapshotInfo}">
+                    <form:formElements>
+                      <form:FormElement label="{i18n>id}">
+                        <Text text="{ path: 'cf>/baseline/id', formatter: 'formatter.shortUuid' }" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>asOfDate}">
+                        <Text text="{ path: 'cf>/baseline/as_of_date', formatter: 'formatter.dateDisplay' }" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>totalNetCashflow}">
+                        <ObjectNumber number="{ path: 'cf>/baseline/total_net_cashflow', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>correlationId}">
+                        <Text text="{cf>/baseline/correlation_id}" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>createdAt}">
+                        <Text text="{ path: 'cf>/baseline/created_at', formatter: 'formatter.dateTimeDisplay' }" />
+                      </form:FormElement>
+                    </form:formElements>
+                  </form:FormContainer>
+                </form:formContainers>
+              </form:Form>
+            </VBox>
+          </IconTabFilter>
+
+          <!-- Ledger Tab -->
+          <IconTabFilter text="{i18n>ledger}" key="ledger" icon="sap-icon://accounting-document-verification">
+            <VBox class="sapUiSmallMargin">
+              <HBox alignItems="End" class="sapUiSmallMarginBottom">
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>contractId}" />
+                  <Input id="ledgerContractId" width="20rem" placeholder="{i18n>placeholderContractId}" />
+                </VBox>
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>startDate}" />
+                  <DatePicker id="ledgerStart" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                </VBox>
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>endDate}" />
+                  <DatePicker id="ledgerEnd" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                </VBox>
+                <Button text="{i18n>load}" type="Emphasized" press=".onLoadLedger" />
+              </HBox>
+
+              <Table items="{cf>/ledger/entries}" noDataText="{i18n>noData}" busy="{cf>/ledgerBusy}">
+                <columns>
+                  <Column><header><Text text="{i18n>id}" /></header></Column>
+                  <Column><header><Text text="{i18n>legId}" /></header></Column>
+                  <Column><header><Text text="{i18n>direction}" /></header></Column>
+                  <Column><header><Text text="{i18n>amount}" /></header></Column>
+                  <Column><header><Text text="{i18n>currency}" /></header></Column>
+                  <Column><header><Text text="{i18n>cashflowDate}" /></header></Column>
+                  <Column><header><Text text="{i18n>sourceEventType}" /></header></Column>
+                  <Column><header><Text text="{i18n>createdAt}" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <Text text="{ path: 'cf>id', formatter: 'formatter.shortUuid' }" />
+                    <Text text="{cf>leg_id}" />
+                    <ObjectStatus text="{cf>direction}"
+                      state="{ path: 'cf>direction', formatter: '.formatDirectionState' }" />
+                    <ObjectNumber number="{ path: 'cf>amount', formatter: 'formatter.priceFourDecimals' }" />
+                    <Text text="{cf>currency}" />
+                    <Text text="{ path: 'cf>cashflow_date', formatter: 'formatter.dateDisplay' }" />
+                    <Text text="{cf>source_event_type}" />
+                    <Text text="{ path: 'cf>created_at', formatter: 'formatter.dateTimeDisplay' }" />
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+    </f:content>
+
+  </f:DynamicPage>
 </mvc:View>

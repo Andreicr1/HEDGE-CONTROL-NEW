@@ -2,29 +2,65 @@
   controllerName="hedgecontrol.controller.MarketData"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
-  class="sapUiResponsiveContentPadding">
-  <Page title="{i18n>navMarketData}" busy="{marketData>/busy}">
-    <content>
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
+  xmlns:form="sap.ui.layout.form">
+
+  <f:DynamicPage id="marketDataPage" headerExpanded="true" showFooter="true">
+
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{i18n>marketDataTitle}" />
+        </f:heading>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <f:content>
       <VBox class="sapUiSmallMargin">
-        <Panel headerText="POST /market-data/westmetall/aluminum/cash-settlement/ingest">
-          <content>
-            <Label text="Request JSON" />
-            <TextArea value="{marketData>/ingestBody}" rows="14" width="100%" growing="true" />
-            <Button text="Ingest" type="Emphasized" press=".onIngest" />
-          </content>
+
+        <MessageStrip text="{mkt>/error}" type="Error" showIcon="true"
+          visible="{= !!${mkt>/error} }" class="sapUiSmallMarginBottom" />
+
+        <MessageStrip text="{mkt>/success}" type="Success" showIcon="true"
+          visible="{= !!${mkt>/success} }" class="sapUiSmallMarginBottom" />
+
+        <Panel headerText="{i18n>westmetallAluminumCash}">
+          <form:Form editable="true">
+            <form:layout>
+              <form:ColumnLayout columnsM="2" columnsL="3" columnsXL="3" />
+            </form:layout>
+            <form:formContainers>
+              <form:FormContainer>
+                <form:formElements>
+                  <form:FormElement label="{i18n>symbol}">
+                    <Input value="{mkt>/symbol}" placeholder="{i18n>placeholderSymbol}" />
+                  </form:FormElement>
+                  <form:FormElement label="{i18n>settlementDate}">
+                    <DatePicker displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd"
+                      value="{mkt>/settlement_date}" placeholder="dd/MM/yyyy" />
+                  </form:FormElement>
+                  <form:FormElement label="{i18n>priceUsd}">
+                    <Input value="{mkt>/price_usd}" type="Number" placeholder="0.00" />
+                  </form:FormElement>
+                  <form:FormElement label="{i18n>source}">
+                    <Input value="{mkt>/source}" placeholder="{i18n>placeholderSource}" />
+                  </form:FormElement>
+                </form:formElements>
+              </form:FormContainer>
+            </form:formContainers>
+          </form:Form>
         </Panel>
 
-        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{marketData>/responseText}" width="100%" rows="14" editable="false" growing="true" />
-          </content>
-        </Panel>
-        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{marketData>/errorText}" width="100%" rows="6" editable="false" growing="true" />
-          </content>
-        </Panel>
       </VBox>
-    </content>
-  </Page>
+    </f:content>
+
+    <f:footer>
+      <OverflowToolbar>
+        <ToolbarSpacer />
+        <Button text="{i18n>ingest}" type="Emphasized" icon="sap-icon://upload" press=".onIngest" />
+      </OverflowToolbar>
+    </f:footer>
+
+  </f:DynamicPage>
 </mvc:View>

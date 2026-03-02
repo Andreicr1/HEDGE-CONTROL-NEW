@@ -10,7 +10,12 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.cashflow import CashFlowLedgerEntry
-from app.models.contracts import HedgeClassification, HedgeContract, HedgeContractStatus, HedgeLegSide
+from app.models.contracts import (
+    HedgeClassification,
+    HedgeContract,
+    HedgeContractStatus,
+    HedgeLegSide,
+)
 from app.models.linkages import HedgeOrderLinkage
 from app.models.orders import Order, OrderPricingConvention, OrderType, PriceType
 from app.schemas.cashflow import CashFlowAnalyticResponse, CashFlowItem
@@ -26,10 +31,13 @@ from app.schemas.scenario import (
     ScenarioWhatIfRunResponse,
 )
 from app.services.cashflow_ledger_service import SOURCE_EVENT_TYPE
-from app.services.price_lookup_service import get_cash_settlement_price_d1
+from app.services.price_lookup_service import (
+    get_cash_settlement_price_d1,
+    resolve_symbol,
+)
 
 
-DEFAULT_CASH_SETTLEMENT_SYMBOL = "LME_ALU_CASH_SETTLEMENT_DAILY"
+DEFAULT_COMMODITY = "LME_AL"
 
 
 @dataclass(frozen=True)
@@ -45,7 +53,9 @@ class VirtualHedgeContract:
     status: HedgeContractStatus
 
 
-def _build_price_lookup(overrides: dict[tuple[str, date], Decimal]) -> Callable[[Session, str, date], Decimal]:
+def _build_price_lookup(
+    overrides: dict[tuple[str, date], Decimal],
+) -> Callable[[Session, str, date], Decimal]:
     def lookup(db: Session, symbol: str, as_of_date: date) -> Decimal:
         price_date = as_of_date - timedelta(days=1)
         key = (symbol, price_date)
@@ -60,8 +70,10 @@ def _resolve_price_d1(
     db: Session,
     as_of_date: date,
     lookup: Callable[[Session, str, date], Decimal],
+    commodity: str = DEFAULT_COMMODITY,
 ) -> Decimal:
-    return lookup(db, DEFAULT_CASH_SETTLEMENT_SYMBOL, as_of_date)
+    symbol = resolve_symbol(commodity)
+    return lookup(db, symbol, as_of_date)
 
 
 def _mtm_for_contract(
@@ -90,15 +102,24 @@ def _mtm_for_order(
     price_d1: Decimal,
 ) -> MTMResultResponse:
     if order.price_type != PriceType.variable:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MTM is not defined for fixed-price orders")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="MTM is not defined for fixed-price orders",
+        )
     if order.pricing_convention not in (
         OrderPricingConvention.avg,
         OrderPricingConvention.avginter,
         OrderPricingConvention.c2r,
     ):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Order pricing_convention is not MTM-eligible")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Order pricing_convention is not MTM-eligible",
+        )
     if order.avg_entry_price is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Order avg_entry_price is missing")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Order avg_entry_price is missing",
+        )
 
     entry_price = Decimal(str(order.avg_entry_price))
     mtm_value = quantity_mt * (price_d1 - entry_price)
@@ -117,7 +138,9 @@ def _apply_deltas(
     req: ScenarioWhatIfRunRequest,
     contracts: list[HedgeContract],
     orders: list[Order],
-) -> tuple[list[VirtualHedgeContract], dict[UUID, Decimal], dict[tuple[str, date], Decimal]]:
+) -> tuple[
+    list[VirtualHedgeContract], dict[UUID, Decimal], dict[tuple[str, date], Decimal]
+]:
     contract_ids = {contract.id for contract in contracts}
     order_ids = {order.id for order in orders}
     virtual_contracts: list[VirtualHedgeContract] = []
@@ -127,10 +150,20 @@ def _apply_deltas(
     for delta in req.deltas:
         if isinstance(delta, AddUnlinkedHedgeContractDelta):
             if delta.contract_id in contract_ids:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Virtual contract_id collides with existing contract")
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Virtual contract_id collides with existing contract",
+                )
             if delta.fixed_leg_side == delta.variable_leg_side:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="fixed_leg_side and variable_leg_side must differ")
-            classification = HedgeClassification.long if delta.fixed_leg_side == "buy" else HedgeClassification.short
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="fixed_leg_side and variable_leg_side must differ",
+                )
+            classification = (
+                HedgeClassification.long
+                if delta.fixed_leg_side == "buy"
+                else HedgeClassification.short
+            )
             virtual_contracts.append(
                 VirtualHedgeContract(
                     id=delta.contract_id,
@@ -146,15 +179,21 @@ def _apply_deltas(
             )
         elif isinstance(delta, AdjustOrderQuantityDelta):
             if delta.order_id not in order_ids:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+                )
             order_quantity_overrides[delta.order_id] = Decimal(delta.new_quantity_mt)
         elif isinstance(delta, AddCashSettlementPriceOverrideDelta):
-            price_overrides[(delta.symbol, delta.settlement_date)] = Decimal(delta.price_usd)
+            price_overrides[(delta.symbol, delta.settlement_date)] = Decimal(
+                delta.price_usd
+            )
 
     return virtual_contracts, order_quantity_overrides, price_overrides
 
 
-def _load_orders(db: Session, quantity_overrides: dict[UUID, Decimal]) -> list[tuple[Order, Decimal]]:
+def _load_orders(
+    db: Session, quantity_overrides: dict[UUID, Decimal]
+) -> list[tuple[Order, Decimal]]:
     orders = db.query(Order).order_by(Order.created_at.asc()).all()
     result: list[tuple[Order, Decimal]] = []
     for order in orders:
@@ -178,9 +217,9 @@ def _compute_commercial_exposure(
 ) -> CommercialExposureRead:
     linked_by_order: dict[UUID, Decimal] = {}
     for linkage in linkages:
-        linked_by_order[linkage.order_id] = linked_by_order.get(linkage.order_id, Decimal("0")) + Decimal(
-            str(linkage.quantity_mt)
-        )
+        linked_by_order[linkage.order_id] = linked_by_order.get(
+            linkage.order_id, Decimal("0")
+        ) + Decimal(str(linkage.quantity_mt))
 
     pre_active = Decimal("0")
     pre_passive = Decimal("0")
@@ -202,7 +241,10 @@ def _compute_commercial_exposure(
         linked_qty = linked_by_order.get(order.id, Decimal("0"))
         residual = quantity - linked_qty
         if residual < 0:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Residual exposure cannot be negative")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Residual exposure cannot be negative",
+            )
         if order.order_type == OrderType.sales:
             residual_active += residual
             reduction_active += linked_qty
@@ -232,15 +274,15 @@ def _compute_global_exposure(
 ) -> GlobalExposureRead:
     linked_by_order: dict[UUID, Decimal] = {}
     for linkage in linkages:
-        linked_by_order[linkage.order_id] = linked_by_order.get(linkage.order_id, Decimal("0")) + Decimal(
-            str(linkage.quantity_mt)
-        )
+        linked_by_order[linkage.order_id] = linked_by_order.get(
+            linkage.order_id, Decimal("0")
+        ) + Decimal(str(linkage.quantity_mt))
 
     linked_by_contract: dict[UUID, Decimal] = {}
     for linkage in linkages:
-        linked_by_contract[linkage.contract_id] = linked_by_contract.get(linkage.contract_id, Decimal("0")) + Decimal(
-            str(linkage.quantity_mt)
-        )
+        linked_by_contract[linkage.contract_id] = linked_by_contract.get(
+            linkage.contract_id, Decimal("0")
+        ) + Decimal(str(linkage.quantity_mt))
 
     pre_active = Decimal("0")
     pre_passive = Decimal("0")
@@ -260,7 +302,10 @@ def _compute_global_exposure(
         linked_qty = linked_by_order.get(order.id, Decimal("0"))
         residual = quantity - linked_qty
         if residual < 0:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Residual exposure cannot be negative")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Residual exposure cannot be negative",
+            )
         if order.order_type == OrderType.sales:
             reduced_active += residual
         else:
@@ -280,7 +325,10 @@ def _compute_global_exposure(
         linked_qty = linked_by_contract.get(contract.id, Decimal("0"))
         residual = total_qty - linked_qty
         if residual < 0:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Residual hedge quantity cannot be negative")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Residual hedge quantity cannot be negative",
+            )
         if contract.classification == HedgeClassification.long:
             unlinked_hedge_long += residual
         else:
@@ -318,12 +366,18 @@ def _compute_global_exposure(
     )
 
 
-def run_what_if(db: Session, req: ScenarioWhatIfRunRequest) -> ScenarioWhatIfRunResponse:
+def run_what_if(
+    db: Session, req: ScenarioWhatIfRunRequest
+) -> ScenarioWhatIfRunResponse:
     base_orders = db.query(Order).order_by(Order.created_at.asc()).all()
-    base_contracts = db.query(HedgeContract).order_by(HedgeContract.created_at.asc()).all()
+    base_contracts = (
+        db.query(HedgeContract).order_by(HedgeContract.created_at.asc()).all()
+    )
     linkages = _load_linkages(db)
 
-    virtual_contracts, order_overrides, price_overrides = _apply_deltas(req, base_contracts, base_orders)
+    virtual_contracts, order_overrides, price_overrides = _apply_deltas(
+        req, base_contracts, base_orders
+    )
 
     orders = _load_orders(db, order_overrides)
     contracts = base_contracts
@@ -337,7 +391,10 @@ def run_what_if(db: Session, req: ScenarioWhatIfRunRequest) -> ScenarioWhatIfRun
         if contract.status != HedgeContractStatus.active:
             continue
         if contract.fixed_price_value is None:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Hedge contract entry_price is missing")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Hedge contract entry_price is missing",
+            )
         mtm_results.append(
             _mtm_for_contract(
                 contract_id=contract.id,
@@ -362,7 +419,9 @@ def run_what_if(db: Session, req: ScenarioWhatIfRunRequest) -> ScenarioWhatIfRun
     for order, quantity in orders:
         if order.price_type != PriceType.variable:
             continue
-        mtm_results.append(_mtm_for_order(order, quantity, req.as_of_date, price_d1_as_of))
+        mtm_results.append(
+            _mtm_for_order(order, quantity, req.as_of_date, price_d1_as_of)
+        )
 
     cashflow_items: list[CashFlowItem] = [
         CashFlowItem(
@@ -380,11 +439,19 @@ def run_what_if(db: Session, req: ScenarioWhatIfRunRequest) -> ScenarioWhatIfRun
         cashflow_items=cashflow_items,
         total_net_cashflow=total_cashflow,
     )
-    cashflow_snapshot = ScenarioCashflowSnapshot(analytic=cashflow_analytic, baseline=cashflow_analytic)
+    cashflow_snapshot = ScenarioCashflowSnapshot(
+        analytic=cashflow_analytic, baseline=cashflow_analytic
+    )
 
-    calculation_timestamp = datetime.combine(req.as_of_date, time.min, tzinfo=timezone.utc)
-    commercial_exposure = _compute_commercial_exposure(orders, linkages, calculation_timestamp)
-    global_exposure = _compute_global_exposure(orders, contracts, virtual_contracts, linkages, calculation_timestamp)
+    calculation_timestamp = datetime.combine(
+        req.as_of_date, time.min, tzinfo=timezone.utc
+    )
+    commercial_exposure = _compute_commercial_exposure(
+        orders, linkages, calculation_timestamp
+    )
+    global_exposure = _compute_global_exposure(
+        orders, contracts, virtual_contracts, linkages, calculation_timestamp
+    )
 
     pl_snapshots: list[ScenarioPLSnapshotItem] = []
     for contract in contracts:
@@ -392,7 +459,10 @@ def run_what_if(db: Session, req: ScenarioWhatIfRunRequest) -> ScenarioWhatIfRun
             unrealized = Decimal("0")
         else:
             if contract.fixed_price_value is None:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Hedge contract entry_price is missing")
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Hedge contract entry_price is missing",
+                )
             unrealized = _mtm_for_contract(
                 contract_id=contract.id,
                 quantity_mt=Decimal(str(contract.quantity_mt)),

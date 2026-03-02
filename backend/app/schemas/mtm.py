@@ -12,7 +12,7 @@ class MTMObjectType(str, Enum):
 
 class MTMResultResponse(BaseModel):
     object_type: MTMObjectType
-    object_id: str
+    object_id: str = Field(..., max_length=64)
     as_of_date: date
     mtm_value: Decimal
     price_d1: Decimal
@@ -22,22 +22,23 @@ class MTMResultResponse(BaseModel):
 
 class MTMSnapshotCreate(BaseModel):
     object_type: MTMObjectType
-    object_id: str
+    object_id: str = Field(..., max_length=64)
     as_of_date: date
-    correlation_id: str = Field(..., description="Caller-provided correlation id for evidence")
+    correlation_id: str = Field(
+        ..., description="Caller-provided correlation id for evidence", max_length=64
+    )
 
 
 class MTMSnapshotResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
+    id: str = Field(..., max_length=64)
     object_type: MTMObjectType
-    object_id: str
+    object_id: str = Field(..., max_length=64)
     as_of_date: date
     mtm_value: Decimal
     price_d1: Decimal
     entry_price: Decimal
     quantity_mt: Decimal
-    correlation_id: str
+    correlation_id: str = Field(..., max_length=64)
     created_at: datetime
-

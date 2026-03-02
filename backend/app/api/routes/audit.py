@@ -1,30 +1,27 @@
 from __future__ import annotations
 
-import base64
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_role
 from app.core.database import get_session
+from app.core.pagination import paginate
 from app.models.audit import AuditEvent
 from app.schemas.audit import AuditEventListResponse, AuditEventRead
+from app.services.audit_trail_service import _get_signing_key, verify_signature
 
 
 router = APIRouter()
 
 
-def _encode_cursor(timestamp: datetime, event_id: UUID) -> str:
-    raw = f"{timestamp.isoformat()}|{event_id}"
-    return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8")
-
-
-def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
-    decoded = base64.urlsafe_b64decode(cursor.encode("utf-8")).decode("utf-8")
-    timestamp_str, event_id_str = decoded.split("|", maxsplit=1)
-    return datetime.fromisoformat(timestamp_str), UUID(event_id_str)
+class AuditVerifyResponse(BaseModel):
+    event_id: UUID
+    valid: bool
+    detail: str
 
 
 @router.get("/events", response_model=AuditEventListResponse)
@@ -48,26 +45,53 @@ def list_audit_events(
     if end:
         query = query.filter(AuditEvent.timestamp_utc <= end)
 
-    if cursor:
-        cursor_timestamp, cursor_id = _decode_cursor(cursor)
-        query = query.filter(
-            (AuditEvent.timestamp_utc > cursor_timestamp)
-            | ((AuditEvent.timestamp_utc == cursor_timestamp) & (AuditEvent.id > cursor_id))
-        )
-
-    rows = (
-        query.order_by(AuditEvent.timestamp_utc.asc(), AuditEvent.id.asc())
-        .limit(limit + 1)
-        .all()
+    rows, next_cursor = paginate(
+        query,
+        created_at_col=AuditEvent.timestamp_utc,
+        id_col=AuditEvent.id,
+        cursor=cursor,
+        limit=limit,
+        ts_attr="timestamp_utc",
     )
-
-    next_cursor = None
-    if len(rows) > limit:
-        last = rows[limit - 1]
-        next_cursor = _encode_cursor(last.timestamp_utc, last.id)
-        rows = rows[:limit]
 
     return AuditEventListResponse(
         events=[AuditEventRead.model_validate(row) for row in rows],
         next_cursor=next_cursor,
+    )
+
+
+@router.get("/events/{event_id}/verify", response_model=AuditVerifyResponse)
+def verify_audit_event(
+    event_id: UUID,
+    _: None = Depends(require_role("auditor")),
+    session: Session = Depends(get_session),
+) -> AuditVerifyResponse:
+    """Verify the HMAC signature of an audit event."""
+    event = session.get(AuditEvent, event_id)
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Audit event not found"
+        )
+
+    key = _get_signing_key()
+    if key is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AUDIT_SIGNING_KEY not configured — verification unavailable",
+        )
+
+    if event.signature is None:
+        return AuditVerifyResponse(
+            event_id=event_id,
+            valid=False,
+            detail="Event was recorded without a signature",
+        )
+
+    valid = verify_signature(event.checksum, event.signature, key)
+    return AuditVerifyResponse(
+        event_id=event_id,
+        valid=valid,
+        detail="Signature valid"
+        if valid
+        else "Signature mismatch — event may have been tampered with",
     )

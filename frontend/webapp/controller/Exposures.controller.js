@@ -1,52 +1,58 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/model/json/JSONModel",
-  "sap/m/MessageBox",
+  "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/exposuresService",
-  "hedgecontrol/util/jsonUtil"
-], function (Controller, JSONModel, MessageBox, exposuresService, jsonUtil) {
+  "sap/ui/model/json/JSONModel",
+  "sap/ui/model/Filter",
+  "sap/ui/model/FilterOperator"
+], function (BaseController, exposuresService, JSONModel, Filter, FilterOperator) {
   "use strict";
 
-  return Controller.extend("hedgecontrol.controller.Exposures", {
+  return BaseController.extend("hedgecontrol.controller.Exposures", {
     onInit: function () {
-      var model = new JSONModel({
-        busy: false,
-        responseText: "",
-        errorText: ""
+      this.initViewModel("exp", {
+        commercial: [],
+        global: []
       });
-      this.getView().setModel(model, "exposures");
+      this._loadExposures();
     },
 
-    onLoadCommercial: function () {
-      this._run(function () {
-        return exposuresService.getCommercial();
+    _loadExposures: function () {
+      var oModel = this.getViewModel();
+      oModel.setProperty("/busy", true);
+      oModel.setProperty("/errorMessage", "");
+
+      var that = this;
+      Promise.all([
+        exposuresService.getCommercial(),
+        exposuresService.getGlobal()
+      ]).then(function (aResults) {
+        oModel.setProperty("/commercial", aResults[0] || []);
+        oModel.setProperty("/global", aResults[1] || []);
+      }).catch(function (oError) {
+        oModel.setProperty("/errorMessage", that._formatError(oError));
+      }).finally(function () {
+        oModel.setProperty("/busy", false);
       });
     },
 
-    onLoadGlobal: function () {
-      this._run(function () {
-        return exposuresService.getGlobal();
-      });
+    onRefresh: function () {
+      this._loadExposures();
     },
 
-    _run: function (fn) {
-      var model = this.getView().getModel("exposures");
-      model.setProperty("/busy", true);
-      model.setProperty("/errorText", "");
-      fn()
-        .then(function (payload) {
-          model.setProperty("/responseText", jsonUtil.pretty(payload));
-        })
-        .catch(function (error) {
-          var status = error && error.status ? "HTTP " + error.status : "HTTP ?";
-          var details = error && error.details !== undefined ? "\n\n" + jsonUtil.pretty(error.details) : "";
-          var message = status + ": " + (error && error.message ? error.message : "Request failed") + details;
-          model.setProperty("/errorText", message);
-          MessageBox.error(message);
-        })
-        .finally(function () {
-          model.setProperty("/busy", false);
-        });
+    onSearchCommercial: function (oEvent) {
+      var sQuery = oEvent.getParameter("query");
+      var aFilters = sQuery ? [new Filter("commodity", FilterOperator.Contains, sQuery)] : [];
+      this.byId("commercialTable").getBinding("items").filter(aFilters);
+    },
+
+    onSearchGlobal: function (oEvent) {
+      var sQuery = oEvent.getParameter("query");
+      var aFilters = sQuery ? [new Filter("commodity", FilterOperator.Contains, sQuery)] : [];
+      this.byId("globalTable").getBinding("items").filter(aFilters);
+    },
+
+    onTabSelect: function () {
+      // placeholder for tab-specific logic
     }
   });
 });

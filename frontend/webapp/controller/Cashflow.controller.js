@@ -1,181 +1,121 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/model/json/JSONModel",
-  "sap/m/MessageBox",
-  "hedgecontrol/service/cashflowsService",
+  "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/cashflowAnalyticService",
   "hedgecontrol/service/cashflowBaselineSnapshotsService",
   "hedgecontrol/service/cashflowLedgerService",
-  "hedgecontrol/util/jsonUtil"
-], function (
-  Controller,
-  JSONModel,
-  MessageBox,
-  cashflowsService,
-  cashflowAnalyticService,
-  cashflowBaselineSnapshotsService,
-  cashflowLedgerService,
-  jsonUtil
-) {
+  "sap/m/MessageBox",
+  "sap/m/MessageToast"
+], function (BaseController, analyticService, baselineService, ledgerService, MessageBox, MessageToast) {
   "use strict";
 
-  return Controller.extend("hedgecontrol.controller.Cashflow", {
+  return BaseController.extend("hedgecontrol.controller.Cashflow", {
+
     onInit: function () {
-      var model = new JSONModel({
-        busy: false,
-        cashflowId: "",
-        cashflowIdUnderscore: "1",
-        cashflowCreateBody: "{}",
-        asOfDate: "",
-        baselineCreateBody: "{}",
-        settleContractId: "",
-        settleBody: "{}",
-        ledgerSourceEventId: "",
-        ledgerSourceEventType: "HEDGE_CONTRACT_SETTLED",
-        ledgerContractId: "",
-        ledgerStart: "",
-        ledgerEnd: "",
-        responseText: "",
-        errorText: ""
+      this.initViewModel("cf", {
+        analytic: { cashflow_items: [], total_net_cashflow: 0 },
+        analyticBusy: false,
+        baseline: {},
+        baselineLoaded: false,
+        baselineError: "",
+        ledger: { entries: [] },
+        ledgerBusy: false
       });
-      this.getView().setModel(model, "cashflow");
+      this.getRouter().getRoute("cashflow").attachPatternMatched(this._onRouteMatched, this);
     },
 
-    onListCashflows: function () {
-      this._run(function () {
-        return cashflowsService.list();
-      });
+    _onRouteMatched: function () {
+      // Reset state on navigation
     },
 
-    onCreateCashflow: function () {
-      this._postBody("/cashflowCreateBody", function (payload) {
-        return cashflowsService.create(payload);
-      });
-    },
-
-    onGetCashflow: function () {
-      var model = this.getView().getModel("cashflow");
-      var cashflowId = (model.getProperty("/cashflowId") || "").trim();
-      if (!cashflowId) {
-        MessageBox.error("cashflow_id is required");
+    onLoadAnalytic: function () {
+      var sDate = this.byId("analyticDate").getValue();
+      if (!sDate) {
+        MessageBox.warning(this.getI18nText("dateRequired"));
         return;
       }
-      var underscore = (model.getProperty("/cashflowIdUnderscore") || "").trim();
-      if (!underscore) {
-        MessageBox.error("OpenAPI requires query parameter '_' for /cashflows/{cashflow_id}");
-        return;
-      }
-      this._run(function () {
-        return cashflowsService.getById(cashflowId, underscore);
+      var oModel = this.getViewModel();
+      oModel.setProperty("/analyticBusy", true);
+      analyticService.get(sDate).then(function (oData) {
+        oModel.setProperty("/analytic", oData);
+      }).catch(function (oError) {
+        MessageBox.error(this._formatError(oError));
+      }.bind(this)).finally(function () {
+        oModel.setProperty("/analyticBusy", false);
       });
     },
 
-    onGetAnalytic: function () {
-      var model = this.getView().getModel("cashflow");
-      var asOfDate = (model.getProperty("/asOfDate") || "").trim();
-      if (!asOfDate) {
-        MessageBox.error("as_of_date is required");
+    onLoadBaseline: function () {
+      var sDate = this.byId("baselineDate").getValue();
+      if (!sDate) {
+        MessageBox.warning(this.getI18nText("dateRequired"));
         return;
       }
-      this._run(function () {
-        return cashflowAnalyticService.get(asOfDate);
+      var oModel = this.getViewModel();
+      oModel.setProperty("/baselineError", "");
+      oModel.setProperty("/busy", true);
+      baselineService.get(sDate).then(function (oData) {
+        oModel.setProperty("/baseline", oData);
+        oModel.setProperty("/baselineLoaded", true);
+      }).catch(function (oError) {
+        oModel.setProperty("/baselineError", this._formatError(oError));
+        oModel.setProperty("/baselineLoaded", false);
+      }.bind(this)).finally(function () {
+        oModel.setProperty("/busy", false);
       });
     },
 
-    onGetBaselineSnapshot: function () {
-      var model = this.getView().getModel("cashflow");
-      var asOfDate = (model.getProperty("/asOfDate") || "").trim();
-      if (!asOfDate) {
-        MessageBox.error("as_of_date is required");
+    onCreateBaseline: function () {
+      var sDate = this.byId("baselineDate").getValue();
+      if (!sDate) {
+        MessageBox.warning(this.getI18nText("dateRequired"));
         return;
       }
-      this._run(function () {
-        return cashflowBaselineSnapshotsService.get(asOfDate);
+      var that = this;
+      var oPayload = {
+        as_of_date: sDate,
+        correlation_id: "ui-" + Date.now()
+      };
+      baselineService.create(oPayload).then(function (oData) {
+        MessageToast.show(that.getI18nText("snapshotCreated"));
+        that.getViewModel().setProperty("/baseline", oData);
+        that.getViewModel().setProperty("/baselineLoaded", true);
+      }).catch(function (oError) {
+        MessageBox.error(that._formatError(oError));
       });
     },
 
-    onCreateBaselineSnapshot: function () {
-      this._postBody("/baselineCreateBody", function (payload) {
-        return cashflowBaselineSnapshotsService.create(payload);
+    onLoadLedger: function () {
+      var sContractId = this.byId("ledgerContractId").getValue().trim();
+      if (!sContractId) {
+        MessageBox.warning(this.getI18nText("contractIdRequired"));
+        return;
+      }
+      var sStart = this.byId("ledgerStart").getValue();
+      var sEnd = this.byId("ledgerEnd").getValue();
+
+      var oModel = this.getViewModel();
+      oModel.setProperty("/ledgerBusy", true);
+      ledgerService.listForContract(sContractId, sStart, sEnd).then(function (oData) {
+        oModel.setProperty("/ledger/entries", Array.isArray(oData) ? oData : (oData.items || []));
+      }).catch(function (oError) {
+        MessageBox.error(this._formatError(oError));
+      }.bind(this)).finally(function () {
+        oModel.setProperty("/ledgerBusy", false);
       });
     },
 
-    onSettleContract: function () {
-      var model = this.getView().getModel("cashflow");
-      var contractId = (model.getProperty("/settleContractId") || "").trim();
-      if (!contractId) {
-        MessageBox.error("contract_id is required");
-        return;
-      }
-      this._postBody("/settleBody", function (payload) {
-        return cashflowLedgerService.settleContract(contractId, payload);
-      });
+    onTabSelect: function () {
+      // Tab change handler — no action needed
     },
 
-    onLedgerByEvent: function () {
-      var model = this.getView().getModel("cashflow");
-      var sourceEventId = (model.getProperty("/ledgerSourceEventId") || "").trim();
-      if (!sourceEventId) {
-        MessageBox.error("source_event_id is required");
-        return;
-      }
-      var sourceEventType = (model.getProperty("/ledgerSourceEventType") || "").trim();
-      this._run(function () {
-        return cashflowLedgerService.listByEvent(sourceEventId, sourceEventType);
-      });
+    formatDirectionState: function (sDirection) {
+      if (sDirection === "IN") { return "Success"; }
+      if (sDirection === "OUT") { return "Error"; }
+      return "None";
     },
 
-    onLedgerForContract: function () {
-      var model = this.getView().getModel("cashflow");
-      var contractId = (model.getProperty("/ledgerContractId") || "").trim();
-      if (!contractId) {
-        MessageBox.error("contract_id is required");
-        return;
-      }
-      var start = (model.getProperty("/ledgerStart") || "").trim();
-      var end = (model.getProperty("/ledgerEnd") || "").trim();
-      this._run(function () {
-        return cashflowLedgerService.listForContract(contractId, start, end);
-      });
-    },
-
-    _postBody: function (path, fn) {
-      var model = this.getView().getModel("cashflow");
-      var bodyText = model.getProperty(path);
-      var payload;
-      try {
-        payload = jsonUtil.parse(bodyText);
-      } catch (e) {
-        MessageBox.error("Invalid JSON: " + e.message);
-        return;
-      }
-      if (payload === undefined) {
-        MessageBox.error("Request body is required");
-        return;
-      }
-      this._run(function () {
-        return fn(payload);
-      });
-    },
-
-    _run: function (fn) {
-      var model = this.getView().getModel("cashflow");
-      model.setProperty("/busy", true);
-      model.setProperty("/errorText", "");
-      fn()
-        .then(function (payload) {
-          model.setProperty("/responseText", jsonUtil.pretty(payload));
-        })
-        .catch(function (error) {
-          var status = error && error.status ? "HTTP " + error.status : "HTTP ?";
-          var details = error && error.details !== undefined ? "\n\n" + jsonUtil.pretty(error.details) : "";
-          var message = status + ": " + (error && error.message ? error.message : "Request failed") + details;
-          model.setProperty("/errorText", message);
-          MessageBox.error(message);
-        })
-        .finally(function () {
-          model.setProperty("/busy", false);
-        });
+    hasValue: function (sVal) {
+      return !!sVal;
     }
   });
 });

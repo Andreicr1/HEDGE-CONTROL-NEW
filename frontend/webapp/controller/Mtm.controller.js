@@ -1,84 +1,119 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
+  "hedgecontrol/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageBox",
-  "hedgecontrol/service/mtmService",
-  "hedgecontrol/util/jsonUtil"
-], function (Controller, JSONModel, MessageBox, mtmService, jsonUtil) {
+  "sap/m/MessageToast",
+  "hedgecontrol/service/mtmService"
+], function (BaseController, JSONModel, MessageBox, MessageToast, mtmService) {
   "use strict";
 
-  return Controller.extend("hedgecontrol.controller.Mtm", {
+  function _emptyForm() {
+    return {
+      objectType: "hedge_contract",
+      objectId: "",
+      asOfDate: "",
+      hasCalcResult: false,
+      calcResult: null,
+      snapObjectType: "hedge_contract",
+      snapObjectId: "",
+      snapAsOfDate: "",
+      hasSnapResult: false,
+      snapResult: null
+    };
+  }
+
+  return BaseController.extend("hedgecontrol.controller.Mtm", {
+
     onInit: function () {
-      var model = new JSONModel({
-        busy: false,
-        objectType: "",
-        objectId: "",
-        asOfDate: "",
-        contractId: "",
-        orderId: "",
-        responseText: "",
-        errorText: ""
-      });
-      this.getView().setModel(model, "mtm");
+      this.initViewModel("mtm", _emptyForm());
+      this.getRouter().getRoute("mtm").attachPatternMatched(this._onRouteMatched, this);
     },
 
-    onGetSnapshot: function () {
-      var model = this.getView().getModel("mtm");
-      var objectType = (model.getProperty("/objectType") || "").trim();
-      var objectId = (model.getProperty("/objectId") || "").trim();
-      var asOfDate = (model.getProperty("/asOfDate") || "").trim();
-      if (!objectType || !objectId || !asOfDate) {
-        MessageBox.error("object_type, object_id and as_of_date are required");
+    _onRouteMatched: function () {
+      this.getViewModel().setData(_emptyForm());
+    },
+
+    /* ─── Calculate ─── */
+
+    onCalculate: function () {
+      var oModel = this.getViewModel();
+      var sType = oModel.getProperty("/objectType");
+      var sId = oModel.getProperty("/objectId").trim();
+      var sDate = oModel.getProperty("/asOfDate");
+
+      if (!sId || !sDate) {
+        MessageBox.warning(this.getI18nText("msgProvideObjectIdDate"));
         return;
       }
-      this._run(function () {
-        return mtmService.getSnapshot(objectType, objectId, asOfDate);
-      });
-    },
 
-    onGetContractMtm: function () {
-      var model = this.getView().getModel("mtm");
-      var contractId = (model.getProperty("/contractId") || "").trim();
-      var asOfDate = (model.getProperty("/asOfDate") || "").trim();
-      if (!contractId || !asOfDate) {
-        MessageBox.error("contract_id and as_of_date are required");
-        return;
-      }
-      this._run(function () {
-        return mtmService.getForHedgeContract(contractId, asOfDate);
-      });
-    },
+      var fnCall = sType === "hedge_contract"
+        ? mtmService.getForHedgeContract(sId, sDate)
+        : mtmService.getForOrder(sId, sDate);
 
-    onGetOrderMtm: function () {
-      var model = this.getView().getModel("mtm");
-      var orderId = (model.getProperty("/orderId") || "").trim();
-      var asOfDate = (model.getProperty("/asOfDate") || "").trim();
-      if (!orderId || !asOfDate) {
-        MessageBox.error("order_id and as_of_date are required");
-        return;
-      }
-      this._run(function () {
-        return mtmService.getForOrder(orderId, asOfDate);
-      });
-    },
-
-    _run: function (fn) {
-      var model = this.getView().getModel("mtm");
-      model.setProperty("/busy", true);
-      model.setProperty("/errorText", "");
-      fn()
-        .then(function (payload) {
-          model.setProperty("/responseText", jsonUtil.pretty(payload));
+      var that = this;
+      fnCall
+        .then(function (oData) {
+          oModel.setProperty("/calcResult", oData);
+          oModel.setProperty("/hasCalcResult", true);
         })
-        .catch(function (error) {
-          var status = error && error.status ? "HTTP " + error.status : "HTTP ?";
-          var details = error && error.details !== undefined ? "\n\n" + jsonUtil.pretty(error.details) : "";
-          var message = status + ": " + (error && error.message ? error.message : "Request failed") + details;
-          model.setProperty("/errorText", message);
-          MessageBox.error(message);
+        .catch(function (err) {
+          oModel.setProperty("/hasCalcResult", false);
+          MessageBox.error(that._formatError(err));
+        });
+    },
+
+    /* ─── Snapshots ─── */
+
+    onLoadSnapshot: function () {
+      var oModel = this.getViewModel();
+      var sType = oModel.getProperty("/snapObjectType");
+      var sId = oModel.getProperty("/snapObjectId").trim();
+      var sDate = oModel.getProperty("/snapAsOfDate");
+
+      if (!sType || !sId || !sDate) {
+        MessageBox.warning(this.getI18nText("msgProvideSnapshotFields"));
+        return;
+      }
+
+      var that = this;
+      mtmService.getSnapshot(sType, sId, sDate)
+        .then(function (oData) {
+          oModel.setProperty("/snapResult", oData);
+          oModel.setProperty("/hasSnapResult", true);
         })
-        .finally(function () {
-          model.setProperty("/busy", false);
+        .catch(function (err) {
+          oModel.setProperty("/hasSnapResult", false);
+          MessageBox.error(that._formatError(err));
+        });
+    },
+
+    onCreateSnapshot: function () {
+      var oModel = this.getViewModel();
+      var sType = oModel.getProperty("/snapObjectType");
+      var sId = oModel.getProperty("/snapObjectId").trim();
+      var sDate = oModel.getProperty("/snapAsOfDate");
+
+      if (!sType || !sId || !sDate) {
+        MessageBox.warning(this.getI18nText("msgProvideAllSnapshotFields"));
+        return;
+      }
+
+      var oPayload = {
+        object_type: sType,
+        object_id: sId,
+        as_of_date: sDate,
+        correlation_id: crypto.randomUUID()
+      };
+
+      var that = this;
+      mtmService.createSnapshot(oPayload)
+        .then(function (oData) {
+          oModel.setProperty("/snapResult", oData);
+          oModel.setProperty("/hasSnapResult", true);
+          MessageToast.show(that.getI18nText("snapshotCreatedMtm"));
+        })
+        .catch(function (err) {
+          MessageBox.error(that._formatError(err));
         });
     }
   });

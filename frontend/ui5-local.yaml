@@ -1,0 +1,35 @@
+specVersion: "4.0"
+metadata:
+  name: hedgecontrol
+type: application
+framework:
+  name: SAPUI5
+  version: 1.136.0
+  libraries:
+    - name: sap.m
+    - name: sap.f
+    - name: sap.tnt
+    - name: sap.ui.core
+    - name: sap.ui.layout
+    - name: sap.ui.table
+    - name: sap.ui.comp
+    - name: sap.ui.generic.app
+    - name: sap.ushell
+    - name: themelib_sap_horizon
+server:
+  customMiddleware:
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: false
+    - name: fiori-tools-appreload
+      afterMiddleware: compression
+      configuration:
+        port: 35729
+        path: webapp
+        delay: 300
+    - name: fiori-tools-preview
+      afterMiddleware: fiori-tools-appreload
+      configuration:
+        component: hedgecontrol
+        ui5Theme: sap_horizon

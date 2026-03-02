@@ -24,3 +24,8 @@ class HedgeOrderLinkageRead(BaseModel):
     contract_id: UUID
     quantity_mt: float
     created_at: datetime
+
+
+class HedgeOrderLinkageListResponse(BaseModel):
+    items: list[HedgeOrderLinkageRead]
+    next_cursor: str | None = None

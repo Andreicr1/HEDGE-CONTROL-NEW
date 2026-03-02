@@ -1,1 +1,0 @@
-// Optional preload bundle placeholder to avoid 404s in dev setups.

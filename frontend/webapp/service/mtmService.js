@@ -16,6 +16,9 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
       return apiClient.getJson(
         "/mtm/snapshots?object_type=" + encodeURIComponent(objectType) + "&object_id=" + encodeURIComponent(objectId) + "&as_of_date=" + encodeURIComponent(asOfDate)
       );
+    },
+    createSnapshot: function (payload) {
+      return apiClient.postJson("/mtm/snapshots", payload);
     }
   };
 });

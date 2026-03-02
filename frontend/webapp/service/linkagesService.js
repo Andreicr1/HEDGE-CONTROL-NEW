@@ -7,6 +7,9 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     },
     getById: function (linkageId) {
       return apiClient.getJson("/linkages/" + encodeURIComponent(linkageId));
+    },
+    list: function () {
+      return apiClient.getJson("/linkages");
     }
   };
 });

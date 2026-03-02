@@ -1,21 +1,55 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import require_role
+from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
+from app.core.pagination import paginate
+from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
-from app.models.contracts import HedgeContract
 from app.models.linkages import HedgeOrderLinkage
-from app.models.orders import Order
-from app.schemas.linkages import HedgeOrderLinkageCreate, HedgeOrderLinkageRead
+from app.schemas.linkages import (
+    HedgeOrderLinkageCreate,
+    HedgeOrderLinkageListResponse,
+    HedgeOrderLinkageRead,
+)
+from app.services.linkage_service import LinkageService
 
 router = APIRouter()
 
 
-@router.post("", response_model=HedgeOrderLinkageRead, status_code=status.HTTP_201_CREATED)
+@router.get("", response_model=HedgeOrderLinkageListResponse)
+def list_linkages(
+    order_id: UUID | None = Query(None, description="Filter by order ID"),
+    contract_id: UUID | None = Query(None, description="Filter by contract ID"),
+    cursor: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> HedgeOrderLinkageListResponse:
+    query = session.query(HedgeOrderLinkage)
+    if order_id:
+        query = query.filter(HedgeOrderLinkage.order_id == order_id)
+    if contract_id:
+        query = query.filter(HedgeOrderLinkage.contract_id == contract_id)
+    items, next_cursor = paginate(
+        query,
+        created_at_col=HedgeOrderLinkage.created_at,
+        id_col=HedgeOrderLinkage.id,
+        cursor=cursor,
+        limit=limit,
+    )
+    return HedgeOrderLinkageListResponse(
+        items=[HedgeOrderLinkageRead.model_validate(lnk) for lnk in items],
+        next_cursor=next_cursor,
+    )
+
+
+@router.post(
+    "", response_model=HedgeOrderLinkageRead, status_code=status.HTTP_201_CREATED
+)
+@limiter.limit(RATE_LIMIT_MUTATION)
 def create_linkage(
     payload: HedgeOrderLinkageCreate,
     request: Request,
@@ -28,40 +62,9 @@ def create_linkage(
     __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> HedgeOrderLinkageRead:
-    order = session.get(Order, payload.order_id)
-    if not order:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-
-    contract = session.get(HedgeContract, payload.contract_id)
-    if not contract:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found")
-
-    order_linked_qty = (
-        session.query(func.coalesce(func.sum(HedgeOrderLinkage.quantity_mt), 0.0))
-        .filter(HedgeOrderLinkage.order_id == payload.order_id)
-        .scalar()
+    linkage = LinkageService.create(
+        session, payload.order_id, payload.contract_id, payload.quantity_mt
     )
-    contract_linked_qty = (
-        session.query(func.coalesce(func.sum(HedgeOrderLinkage.quantity_mt), 0.0))
-        .filter(HedgeOrderLinkage.contract_id == payload.contract_id)
-        .scalar()
-    )
-
-    if float(order_linked_qty or 0.0) + payload.quantity_mt > order.quantity_mt:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Linkage exceeds order quantity")
-
-    if float(contract_linked_qty or 0.0) + payload.quantity_mt > contract.quantity_mt:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Linkage exceeds contract quantity",
-        )
-
-    linkage = HedgeOrderLinkage(
-        order_id=payload.order_id,
-        contract_id=payload.contract_id,
-        quantity_mt=payload.quantity_mt,
-    )
-    session.add(linkage)
     session.commit()
     session.refresh(linkage)
     mark_audit_success(request, linkage.id)
@@ -70,8 +73,12 @@ def create_linkage(
 
 
 @router.get("/{linkage_id}", response_model=HedgeOrderLinkageRead)
-def get_linkage(linkage_id: UUID, session: Session = Depends(get_session)) -> HedgeOrderLinkageRead:
+def get_linkage(
+    linkage_id: UUID, session: Session = Depends(get_session)
+) -> HedgeOrderLinkageRead:
     linkage = session.get(HedgeOrderLinkage, linkage_id)
     if not linkage:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linkage not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Linkage not found"
+        )
     return HedgeOrderLinkageRead.model_validate(linkage)

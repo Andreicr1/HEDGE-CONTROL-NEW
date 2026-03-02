@@ -1,52 +1,64 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
+  "hedgecontrol/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageBox",
-  "hedgecontrol/service/marketDataService",
-  "hedgecontrol/util/jsonUtil"
-], function (Controller, JSONModel, MessageBox, marketDataService, jsonUtil) {
+  "sap/m/MessageToast",
+  "hedgecontrol/service/marketDataService"
+], function (BaseController, JSONModel, MessageBox, MessageToast, marketDataService) {
   "use strict";
 
-  return Controller.extend("hedgecontrol.controller.MarketData", {
+  function _emptyForm() {
+    return {
+      symbol: "",
+      settlement_date: "",
+      price_usd: "",
+      source: "westmetall",
+      error: "",
+      success: ""
+    };
+  }
+
+  return BaseController.extend("hedgecontrol.controller.MarketData", {
+
     onInit: function () {
-      var model = new JSONModel({
-        busy: false,
-        ingestBody: "{}",
-        responseText: "",
-        errorText: ""
-      });
-      this.getView().setModel(model, "marketData");
+      this.initViewModel("mkt", _emptyForm());
+      this.getRouter().getRoute("market-data").attachPatternMatched(this._onRouteMatched, this);
+    },
+
+    _onRouteMatched: function () {
+      this.getViewModel().setData(_emptyForm());
     },
 
     onIngest: function () {
-      var model = this.getView().getModel("marketData");
-      var payload;
-      try {
-        payload = jsonUtil.parse(model.getProperty("/ingestBody"));
-      } catch (e) {
-        MessageBox.error("Invalid JSON: " + e.message);
+      var oModel = this.getViewModel();
+      oModel.setProperty("/error", "");
+      oModel.setProperty("/success", "");
+
+      var sSymbol = oModel.getProperty("/symbol").trim();
+      var sDate = oModel.getProperty("/settlement_date");
+      var sPrice = oModel.getProperty("/price_usd");
+      var sSource = oModel.getProperty("/source").trim();
+
+      if (!sSymbol || !sDate || !sPrice) {
+        MessageBox.warning(this.getI18nText("msgFillSymbolDatePrice"));
         return;
       }
-      if (payload === undefined) {
-        MessageBox.error("Request body is required");
-        return;
-      }
-      model.setProperty("/busy", true);
-      model.setProperty("/errorText", "");
-      marketDataService
-        .ingestWestmetallAluminumCashSettlement(payload)
-        .then(function (response) {
-          model.setProperty("/responseText", jsonUtil.pretty(response));
+
+      var oPayload = {
+        symbol: sSymbol,
+        settlement_date: sDate,
+        price_usd: parseFloat(sPrice),
+        source: sSource || "westmetall"
+      };
+
+      var that = this;
+      marketDataService.ingestWestmetallAluminumCashSettlement(oPayload)
+        .then(function () {
+          oModel.setProperty("/success", that.getI18nText("msgPriceIngestSuccess"));
+          MessageToast.show(that.getI18nText("msgPriceIngested"));
         })
-        .catch(function (error) {
-          var status = error && error.status ? "HTTP " + error.status : "HTTP ?";
-          var details = error && error.details !== undefined ? "\n\n" + jsonUtil.pretty(error.details) : "";
-          var message = status + ": " + (error && error.message ? error.message : "Request failed") + details;
-          model.setProperty("/errorText", message);
-          MessageBox.error(message);
-        })
-        .finally(function () {
-          model.setProperty("/busy", false);
+        .catch(function (err) {
+          oModel.setProperty("/error", that._formatError(err));
         });
     }
   });

@@ -9,31 +9,52 @@ from sqlalchemy.orm import Session
 
 from app.models.orders import Order, OrderPricingConvention, PriceType
 from app.schemas.mtm import MTMObjectType, MTMResultResponse
-from app.services.price_lookup_service import get_cash_settlement_price_d1
+from app.services.price_lookup_service import (
+    get_cash_settlement_price_d1,
+    resolve_symbol,
+)
 
 
-DEFAULT_CASH_SETTLEMENT_SYMBOL = "LME_ALU_CASH_SETTLEMENT_DAILY"
+DEFAULT_COMMODITY = "LME_AL"
 
 
-def compute_mtm_for_order(db: Session, order_id: UUID, as_of_date: date) -> MTMResultResponse:
+def compute_mtm_for_order(
+    db: Session,
+    order_id: UUID,
+    as_of_date: date,
+    commodity: str = DEFAULT_COMMODITY,
+) -> MTMResultResponse:
     order = db.get(Order, order_id)
     if not order:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+        )
 
     if order.price_type != PriceType.variable:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MTM is not defined for fixed-price orders")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="MTM is not defined for fixed-price orders",
+        )
 
     if order.pricing_convention not in (
         OrderPricingConvention.avg,
         OrderPricingConvention.avginter,
         OrderPricingConvention.c2r,
     ):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Order pricing_convention is not MTM-eligible")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Order pricing_convention is not MTM-eligible",
+        )
 
     if order.avg_entry_price is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Order avg_entry_price is missing")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Order avg_entry_price is missing",
+        )
 
-    price_d1 = get_cash_settlement_price_d1(db, symbol=DEFAULT_CASH_SETTLEMENT_SYMBOL, as_of_date=as_of_date)
+    price_d1 = get_cash_settlement_price_d1(
+        db, symbol=resolve_symbol(commodity), as_of_date=as_of_date
+    )
     entry_price = Decimal(str(order.avg_entry_price))
     quantity_mt = Decimal(str(order.quantity_mt))
 
@@ -48,4 +69,3 @@ def compute_mtm_for_order(db: Session, order_id: UUID, as_of_date: date) -> MTMR
         entry_price=entry_price,
         quantity_mt=quantity_mt,
     )
-

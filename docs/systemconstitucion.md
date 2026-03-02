@@ -27,7 +27,7 @@ auditability and traceability
 Correctness, determinism and auditability have priority over UX, speed of delivery or convenience.
 
 2. Canonical Economic Model
-2.1 Orders
+   2.1 Orders
 
 Sales Orders (SO) generate Commercial Active Exposure
 
@@ -52,7 +52,7 @@ Commercial Net Exposure = Active – Passive
 Exposure is state, not event.
 
 3. Hedge Contracts
-3.1 Hedge Contract Definition
+   3.1 Hedge Contract Definition
 
 A hedge contract always contains:
 
@@ -105,7 +105,7 @@ Global Net Exposure = Global Active – Global Passive
 This is the primary risk KPI of the company.
 
 5. RFQ System (Binding Rules)
-5.1 RFQ Lifecycle
+   5.1 RFQ Lifecycle
 
 RFQ → Quotes → Ranking → Award → Contract
 
@@ -127,7 +127,6 @@ Canonical identifier:
 
 RFQ#<rfq_number>
 
-
 Must exist in every outbound message
 
 Inbound responses are correlated only via this identifier
@@ -147,11 +146,11 @@ Incomplete quotes hard-fail
 CashFlow is always derived, never manually input.
 
 6.1 Views and Purpose
-View	Purpose	Persistence
-Analytic	Risk & management	No
-Baseline	Institutional record	Yes
-Ledger	Accounting / audit	Yes
-What-if	Simulation	No
+View Purpose Persistence
+Analytic Risk & management No
+Baseline Institutional record Yes
+Ledger Accounting / audit Yes
+What-if Simulation No
 
 Each view has exactly one methodology.
 
@@ -225,7 +224,7 @@ UI never infers economics
 
 Execution phases are explicit and gated
 
-2️⃣ MASTER PROMPT — MICROSOFT FOUNDRY AGENT
+2️⃣ MASTER PROMPT
 
 Title:
 Hedge Control Platform — Institutional Governance Executor
@@ -248,7 +247,6 @@ STOP
 Respond with:
 
 BLOCKED — requires governance decision
-
 
 Never infer business semantics.
 
@@ -337,4 +335,3 @@ Final Instruction
 You are building an institutional system, not a prototype.
 
 If something would “probably work” but cannot be proven, it must be rejected.
-

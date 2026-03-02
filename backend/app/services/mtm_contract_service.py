@@ -9,24 +9,34 @@ from sqlalchemy.orm import Session
 
 from app.models.contracts import HedgeContract, HedgeContractStatus
 from app.schemas.mtm import MTMObjectType, MTMResultResponse
-from app.services.price_lookup_service import get_cash_settlement_price_d1
+from app.services.price_lookup_service import (
+    get_cash_settlement_price_d1,
+    resolve_symbol,
+)
 
 
-DEFAULT_CASH_SETTLEMENT_SYMBOL = "LME_ALU_CASH_SETTLEMENT_DAILY"
-
-
-def compute_mtm_for_contract(db: Session, contract_id: UUID, as_of_date: date) -> MTMResultResponse:
+def compute_mtm_for_contract(
+    db: Session, contract_id: UUID, as_of_date: date
+) -> MTMResultResponse:
     contract = db.get(HedgeContract, contract_id)
     if not contract:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found"
+        )
 
     if contract.status != HedgeContractStatus.active:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Hedge contract is not active")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Hedge contract is not active"
+        )
 
     if contract.fixed_price_value is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Hedge contract entry_price is missing")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Hedge contract entry_price is missing",
+        )
 
-    price_d1 = get_cash_settlement_price_d1(db, symbol=DEFAULT_CASH_SETTLEMENT_SYMBOL, as_of_date=as_of_date)
+    symbol = resolve_symbol(contract.commodity)
+    price_d1 = get_cash_settlement_price_d1(db, symbol=symbol, as_of_date=as_of_date)
     entry_price = Decimal(str(contract.fixed_price_value))
     quantity_mt = Decimal(str(contract.quantity_mt))
 
@@ -41,4 +51,3 @@ def compute_mtm_for_contract(db: Session, contract_id: UUID, as_of_date: date) -
         entry_price=entry_price,
         quantity_mt=quantity_mt,
     )
-

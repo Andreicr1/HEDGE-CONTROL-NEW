@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from uuid import UUID
 
@@ -21,13 +21,33 @@ class OrderPricingConvention(str, Enum):
     c2r = "C2R"
 
 
+class PricingType(str, Enum):
+    fixed = "fixed"
+    average = "average"
+    avginter = "avginter"
+    fix = "fix"
+    c2r = "c2r"
+
+
 class OrderBase(BaseModel):
     price_type: PriceType = Field(..., description="Fixed or variable pricing")
     quantity_mt: float = Field(..., description="Quantity in metric tons (MT)")
     pricing_convention: OrderPricingConvention | None = Field(
         None, description="Required only for variable orders (AVG, AVGInter, C2R)"
     )
-    avg_entry_price: float | None = Field(None, description="Required only for variable orders (USD/MT)")
+    avg_entry_price: float | None = Field(
+        None, description="Required only for variable orders (USD/MT)"
+    )
+    counterparty_id: UUID | None = Field(None, description="FK to counterparties")
+    pricing_type: PricingType | None = Field(None, description="Pricing type detail")
+    delivery_terms: str | None = Field(
+        None, max_length=50, description="e.g. CIF Rotterdam"
+    )
+    delivery_date_start: date | None = Field(None, description="Delivery window start")
+    delivery_date_end: date | None = Field(None, description="Delivery window end")
+    payment_terms_days: int | None = Field(None, description="Payment terms in days")
+    currency: str = Field("USD", max_length=3, description="ISO 4217 currency code")
+    notes: str | None = Field(None, description="Free-form notes")
 
 
 class SalesOrderCreate(OrderBase):
@@ -44,3 +64,33 @@ class OrderRead(OrderBase):
     id: UUID
     order_type: OrderType
     created_at: datetime
+    deleted_at: datetime | None = None
+
+
+class OrderListResponse(BaseModel):
+    items: list[OrderRead]
+    next_cursor: str | None = Field(None, max_length=256)
+
+
+# --- SoPoLink schemas ---
+
+
+class SoPoLinkCreate(BaseModel):
+    sales_order_id: UUID
+    purchase_order_id: UUID
+    linked_tons: float = Field(..., gt=0)
+
+
+class SoPoLinkRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    sales_order_id: UUID
+    purchase_order_id: UUID
+    linked_tons: float
+    created_at: datetime
+
+
+class SoPoLinkListResponse(BaseModel):
+    items: list[SoPoLinkRead]
+    next_cursor: str | None = Field(None, max_length=256)

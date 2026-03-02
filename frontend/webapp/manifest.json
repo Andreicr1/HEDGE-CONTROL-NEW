@@ -1,185 +1,278 @@
 {
-  "_version": "1.32.0",
-  "sap.app": {
-    "id": "hedgecontrol",
-    "type": "application",
-    "i18n": "i18n/i18n.properties",
-    "applicationVersion": {
-      "version": "1.0.0"
+    "_version": "2.0.0",
+    "sap.app": {
+        "id": "hedgecontrol",
+        "type": "application",
+        "i18n": "i18n/i18n.properties",
+        "applicationVersion": {
+            "version": "2.0.0"
+        },
+        "title": "Alcast Hedge Platform",
+        "description": "Hedge Control",
+        "dataSources": {},
+        "sourceTemplate": {
+            "id": "@sap/ux-app-migrator:freestyle",
+            "version": "1.20.3",
+            "toolsId": "1bf0db9e-4261-4b73-802b-23239d6c0f06"
+        }
     },
-    "title": "{{appTitle}}",
-    "description": "{{appDescription}}",
-    "dataSources": {
-      "mainService": {
-        "uri": "/api/v1/",
-        "type": "JSON"
-      }
+    "sap.ui": {
+        "technology": "UI5",
+        "deviceTypes": {
+            "desktop": true,
+            "tablet": true,
+            "phone": true
+        },
+        "supportedThemes": [
+            "sap_horizon"
+        ]
+    },
+    "sap.ui5": {
+        "flexEnabled": false,
+        "rootView": {
+            "viewName": "hedgecontrol.view.App",
+            "type": "XML",
+            "id": "app"
+        },
+        "dependencies": {
+            "minUI5Version": "1.136.0",
+            "libs": {
+                "sap.m": {},
+                "sap.f": {},
+                "sap.tnt": {},
+                "sap.ui.core": {},
+                "sap.ui.layout": {},
+                "sap.ui.table": {},
+                "sap.uxap": {}
+            }
+        },
+        "models": {
+            "i18n": {
+                "type": "sap.ui.model.resource.ResourceModel",
+                "settings": {
+                    "bundleName": "hedgecontrol.i18n.i18n",
+                    "supportedLocales": ["pt_BR", ""],
+                    "fallbackLocale": ""
+                }
+            }
+        },
+        "resources": {
+            "css": [
+                {
+                    "uri": "css/style.css"
+                }
+            ]
+        },
+        "routing": {
+            "config": {
+                "routerClass": "sap.f.routing.Router",
+                "type": "View",
+                "viewType": "XML",
+                "path": "hedgecontrol.view",
+                "controlId": "fcl",
+                "controlAggregation": "beginColumnPages"
+            },
+            "routes": [
+                {
+                    "pattern": "",
+                    "name": "home",
+                    "target": "home"
+                },
+                {
+                    "pattern": "exposures",
+                    "name": "exposures",
+                    "target": "exposures"
+                },
+                {
+                    "pattern": "orders",
+                    "name": "orders",
+                    "target": "ordersList"
+                },
+                {
+                    "pattern": "orders/create/{type}",
+                    "name": "orderCreate",
+                    "target": [
+                        "ordersList",
+                        "orderCreate"
+                    ]
+                },
+                {
+                    "pattern": "orders/{orderId}",
+                    "name": "orderDetail",
+                    "target": [
+                        "ordersList",
+                        "orderDetail"
+                    ]
+                },
+                {
+                    "pattern": "rfq",
+                    "name": "rfq",
+                    "target": "rfqList"
+                },
+                {
+                    "pattern": "rfq/{rfqId}",
+                    "name": "rfqDetail",
+                    "target": [
+                        "rfqList",
+                        "rfqDetail"
+                    ]
+                },
+                {
+                    "pattern": "rfq/{rfqId}/doc",
+                    "name": "rfqDocument",
+                    "target": [
+                        "rfqList",
+                        "rfqDetail",
+                        "rfqDocument"
+                    ]
+                },
+                {
+                    "pattern": "contracts",
+                    "name": "contracts",
+                    "target": "contractsList"
+                },
+                {
+                    "pattern": "contracts/create",
+                    "name": "contractCreate",
+                    "target": [
+                        "contractsList",
+                        "contractCreate"
+                    ]
+                },
+                {
+                    "pattern": "contracts/{contractId}",
+                    "name": "contractDetail",
+                    "target": [
+                        "contractsList",
+                        "contractDetail"
+                    ]
+                },
+                {
+                    "pattern": "linkages",
+                    "name": "linkages",
+                    "target": "linkagesList"
+                },
+                {
+                    "pattern": "linkages/{linkageId}",
+                    "name": "linkageDetail",
+                    "target": [
+                        "linkagesList",
+                        "linkageDetail"
+                    ]
+                },
+                {
+                    "pattern": "cashflow",
+                    "name": "cashflow",
+                    "target": "cashflow"
+                },
+                {
+                    "pattern": "pnl",
+                    "name": "pnl",
+                    "target": "pnl"
+                },
+                {
+                    "pattern": "scenario",
+                    "name": "scenario",
+                    "target": "scenario"
+                },
+                {
+                    "pattern": "mtm",
+                    "name": "mtm",
+                    "target": "mtm"
+                },
+                {
+                    "pattern": "market-data",
+                    "name": "marketData",
+                    "target": "marketData"
+                },
+                {
+                    "pattern": ":catchAll:",
+                    "name": "notFound",
+                    "target": "notFound"
+                }
+            ],
+            "targets": {
+                "home": {
+                    "name": "Home",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "exposures": {
+                    "name": "Exposures",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "ordersList": {
+                    "name": "OrdersList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "orderCreate": {
+                    "name": "OrderCreate",
+                    "controlAggregation": "midColumnPages"
+                },
+                "orderDetail": {
+                    "name": "OrderDetail",
+                    "controlAggregation": "midColumnPages"
+                },
+                "rfqList": {
+                    "name": "RfqList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "rfqDetail": {
+                    "name": "RfqDetail",
+                    "controlAggregation": "midColumnPages"
+                },
+                "rfqDocument": {
+                    "name": "RfqDocument",
+                    "controlAggregation": "endColumnPages"
+                },
+                "contractsList": {
+                    "name": "ContractsList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "contractCreate": {
+                    "name": "ContractCreate",
+                    "controlAggregation": "midColumnPages"
+                },
+                "contractDetail": {
+                    "name": "ContractDetail",
+                    "controlAggregation": "midColumnPages"
+                },
+                "linkagesList": {
+                    "name": "LinkagesList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "linkageDetail": {
+                    "name": "LinkageDetail",
+                    "controlAggregation": "midColumnPages"
+                },
+                "cashflow": {
+                    "name": "Cashflow",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "pnl": {
+                    "name": "Pnl",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "scenario": {
+                    "name": "Scenario",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "mtm": {
+                    "name": "Mtm",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "marketData": {
+                    "name": "MarketData",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "blocked": {
+                    "name": "Blocked",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "notFound": {
+                    "name": "Blocked",
+                    "controlAggregation": "beginColumnPages"
+                }
+            }
+        }
     }
-  },
-  "sap.ui": {
-    "technology": "UI5",
-    "deviceTypes": {
-      "desktop": true,
-      "tablet": true,
-      "phone": true
-    },
-    "supportedThemes": ["sap_horizon"]
-  },
-  "sap.ui5": {
-    "rootView": {
-      "viewName": "hedgecontrol.view.App",
-      "type": "XML",
-      "async": true,
-      "id": "app"
-    },
-    "dependencies": {
-      "minUI5Version": "1.108.0",
-      "libs": {
-        "sap.m": {},
-        "sap.f": {},
-        "sap.tnt": {},
-        "sap.ui.core": {},
-        "sap.ui.layout": {},
-        "sap.ui.table": {},
-        "sap.ui.comp": {},
-        "sap.ui.integration": {}
-      }
-    },
-    "models": {
-      "i18n": {
-        "type": "sap.ui.model.resource.ResourceModel",
-        "settings": {
-          "bundleName": "hedgecontrol.i18n.i18n"
-        }
-      }
-    },
-    "resources": {
-      "css": [
-        {
-          "uri": "css/style.css"
-        }
-      ]
-    },
-    "routing": {
-      "config": {
-        "routerClass": "sap.m.routing.Router",
-        "viewType": "XML",
-        "viewPath": "hedgecontrol.view",
-        "controlId": "app",
-        "controlAggregation": "pages",
-        "async": true
-      },
-      "routes": [
-        {
-          "pattern": "",
-          "name": "home",
-          "target": "home"
-        },
-        {
-          "pattern": "observability",
-          "name": "observability",
-          "target": "observability"
-        },
-        {
-          "pattern": "audit",
-          "name": "audit",
-          "target": "audit"
-        },
-        {
-          "pattern": "exposures",
-          "name": "exposures",
-          "target": "exposures"
-        },
-        {
-          "pattern": "orders",
-          "name": "orders",
-          "target": "orders"
-        },
-        {
-          "pattern": "rfq",
-          "name": "rfq",
-          "target": "rfq"
-        },
-        {
-          "pattern": "contracts",
-          "name": "contracts",
-          "target": "contracts"
-        },
-        {
-          "pattern": "cashflow",
-          "name": "cashflow",
-          "target": "cashflow"
-        },
-        {
-          "pattern": "pnl",
-          "name": "pnl",
-          "target": "pnl"
-        },
-        {
-          "pattern": "scenario",
-          "name": "scenario",
-          "target": "scenario"
-        },
-        {
-          "pattern": "mtm",
-          "name": "mtm",
-          "target": "mtm"
-        },
-        {
-          "pattern": "market-data",
-          "name": "marketData",
-          "target": "marketData"
-        },
-        {
-          "pattern": ":catchAll:",
-          "name": "notFound",
-          "target": "notFound"
-        }
-      ],
-      "targets": {
-        "home": {
-          "viewName": "Home"
-        },
-        "observability": {
-          "viewName": "Observability"
-        },
-        "audit": {
-          "viewName": "Audit"
-        },
-        "exposures": {
-          "viewName": "Exposures"
-        },
-        "orders": {
-          "viewName": "Orders"
-        },
-        "rfq": {
-          "viewName": "Rfq"
-        },
-        "contracts": {
-          "viewName": "Contracts"
-        },
-        "cashflow": {
-          "viewName": "Cashflow"
-        },
-        "pnl": {
-          "viewName": "Pnl"
-        },
-        "scenario": {
-          "viewName": "Scenario"
-        },
-        "mtm": {
-          "viewName": "Mtm"
-        },
-        "marketData": {
-          "viewName": "MarketData"
-        },
-        "blocked": {
-          "viewName": "Blocked"
-        },
-        "notFound": {
-          "viewName": "Blocked"
-        }
-      }
-    }
-  }
 }

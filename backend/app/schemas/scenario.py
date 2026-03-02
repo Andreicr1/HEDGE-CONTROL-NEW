@@ -13,7 +13,7 @@ from app.schemas.mtm import MTMResultResponse
 
 
 class ScenarioDeltaBase(BaseModel):
-    delta_type: str
+    delta_type: str = Field(..., max_length=64)
 
 
 class AddUnlinkedHedgeContractDelta(ScenarioDeltaBase):
@@ -24,7 +24,7 @@ class AddUnlinkedHedgeContractDelta(ScenarioDeltaBase):
     variable_leg_side: Literal["buy", "sell"]
     fixed_price_value: Decimal
     fixed_price_unit: Literal["USD/MT"]
-    float_pricing_convention: str
+    float_pricing_convention: str = Field(..., max_length=64)
 
     @model_validator(mode="after")
     def validate_quantity(self) -> "AddUnlinkedHedgeContractDelta":
@@ -49,7 +49,7 @@ class AdjustOrderQuantityDelta(ScenarioDeltaBase):
 
 class AddCashSettlementPriceOverrideDelta(ScenarioDeltaBase):
     delta_type: Literal["add_cash_settlement_price_override"]
-    symbol: str
+    symbol: str = Field(..., max_length=64)
     settlement_date: date
     price_usd: Decimal
 

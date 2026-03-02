@@ -30,8 +30,8 @@ class CashFlowRead(CashFlowBase):
 
 
 class CashFlowItem(BaseModel):
-    object_type: str
-    object_id: str
+    object_type: str = Field(..., max_length=64)
+    object_id: str = Field(..., max_length=64)
     settlement_date: date
     amount_usd: Decimal
     mtm_value: Decimal
@@ -45,7 +45,7 @@ class CashFlowAnalyticResponse(BaseModel):
 
 class CashFlowBaselineSnapshotCreate(BaseModel):
     as_of_date: date
-    correlation_id: str
+    correlation_id: str = Field(..., max_length=64)
 
 
 class CashFlowBaselineSnapshotResponse(BaseModel):
@@ -56,7 +56,7 @@ class CashFlowBaselineSnapshotResponse(BaseModel):
     snapshot_data: dict
     total_net_cashflow: Decimal
     created_at: datetime
-    correlation_id: str
+    correlation_id: str = Field(..., max_length=64)
 
 
 class LedgerLegId(str, Enum):
@@ -84,7 +84,7 @@ class HedgeContractSettlementLeg(BaseModel):
 class HedgeContractSettlementCreate(BaseModel):
     source_event_id: UUID
     cashflow_date: date
-    currency: str | None = None
+    currency: str | None = Field(None, max_length=8)
     legs: list[HedgeContractSettlementLeg]
 
     @model_validator(mode="after")
@@ -100,7 +100,7 @@ class HedgeContractSettlementCreate(BaseModel):
 
 
 class LedgerEntriesQuery(BaseModel):
-    source_event_type: str = Field("HEDGE_CONTRACT_SETTLED")
+    source_event_type: str = Field("HEDGE_CONTRACT_SETTLED", max_length=64)
     source_event_id: UUID
 
 
@@ -118,12 +118,12 @@ class CashFlowLedgerEntryRead(BaseModel):
 
     id: UUID
     hedge_contract_id: UUID
-    source_event_type: str
+    source_event_type: str = Field(..., max_length=64)
     source_event_id: UUID | None
-    leg_id: str
+    leg_id: str = Field(..., max_length=16)
     cashflow_date: date
-    currency: str
-    direction: str
+    currency: str = Field(..., max_length=8)
+    direction: str = Field(..., max_length=8)
     amount: Decimal
     created_at: datetime
 

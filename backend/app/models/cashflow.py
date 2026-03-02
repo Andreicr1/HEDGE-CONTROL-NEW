@@ -2,7 +2,16 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, JSON, Numeric, String, UniqueConstraint, Table, MetaData, ForeignKey
+from sqlalchemy import (
+    Date,
+    DateTime,
+    JSON,
+    Numeric,
+    String,
+    UniqueConstraint,
+    MetaData,
+    ForeignKey,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -11,19 +20,26 @@ from app.models.base import Base
 
 metadata = MetaData()
 
+
 class CashFlowBaselineSnapshot(Base):
     __tablename__ = "cashflow_baseline_snapshots"
     __table_args__ = (
-        UniqueConstraint("as_of_date", name="uq_cashflow_baseline_snapshots_as_of_date"),
+        UniqueConstraint(
+            "as_of_date", name="uq_cashflow_baseline_snapshots_as_of_date"
+        ),
         {"extend_existing": True},
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
     snapshot_data: Mapped[dict] = mapped_column(JSON, nullable=False)
     total_net_cashflow: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(length=64), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class HedgeContractSettlementEvent(Base):
@@ -36,7 +52,9 @@ class HedgeContractSettlementEvent(Base):
         nullable=False,
     )
     cashflow_date: Mapped[date] = mapped_column(Date, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class CashFlowLedgerEntry(Base):
@@ -51,7 +69,9 @@ class CashFlowLedgerEntry(Base):
         ),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     hedge_contract_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("hedge_contracts.id", ondelete="RESTRICT"),
@@ -68,4 +88,6 @@ class CashFlowLedgerEntry(Base):
     currency: Mapped[str] = mapped_column(String(length=8), nullable=False)
     direction: Mapped[str] = mapped_column(String(length=8), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

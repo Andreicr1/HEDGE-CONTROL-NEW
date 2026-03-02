@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_any_role
 from app.core.database import get_session
+from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.schemas.scenario import ScenarioWhatIfRunRequest, ScenarioWhatIfRunResponse
 from app.services.scenario_whatif_service import run_what_if
 
@@ -12,8 +13,14 @@ from app.services.scenario_whatif_service import run_what_if
 router = APIRouter()
 
 
-@router.post("/what-if/run", response_model=ScenarioWhatIfRunResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/what-if/run",
+    response_model=ScenarioWhatIfRunResponse,
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit(RATE_LIMIT_MUTATION)
 def run_what_if_scenario(
+    request: Request,
     payload: ScenarioWhatIfRunRequest,
     _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),

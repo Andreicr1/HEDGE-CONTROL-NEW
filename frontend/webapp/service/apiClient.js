@@ -1,4 +1,6 @@
-sap.ui.define([], function () {
+sap.ui.define([
+  "hedgecontrol/util/config"
+], function (Config) {
   "use strict";
 
   var isAbsoluteUrl = function (value) {
@@ -27,11 +29,9 @@ sap.ui.define([], function () {
       // ignore URLSearchParams failures
     }
 
-    if (win.__HC_CONFIG__ && typeof win.__HC_CONFIG__.apiBaseUrl === "string") {
-      var fromWindow = win.__HC_CONFIG__.apiBaseUrl.trim();
-      if (fromWindow && fromWindow !== "__HC_API_BASE_URL__") {
-        return fromWindow;
-      }
+    var sConfigUrl = Config.getApiBaseUrl();
+    if (sConfigUrl && sConfigUrl !== "__HC_API_BASE_URL__") {
+      return sConfigUrl;
     }
 
     try {
@@ -70,7 +70,7 @@ sap.ui.define([], function () {
     var host = win && win.location ? String(win.location.hostname || "") : "";
     if (!baseUrl && host && /\.azurestaticapps\.net$/i.test(host)) {
       var configError = new Error(
-        "API base URL not configured. Append ?apiBaseUrl=https://<backend-host> once (it will be stored), or set window.__HC_CONFIG__.apiBaseUrl in index.html."
+        "API base URL not configured. Append ?apiBaseUrl=https://<backend-host> once (it will be stored), or configure util/config.js."
       );
       configError.status = 0;
       configError.statusText = "API_BASE_URL_NOT_CONFIGURED";
@@ -129,6 +129,41 @@ sap.ui.define([], function () {
       });
   };
 
+  var getAuthToken = function () {
+    var win = typeof window !== "undefined" ? window : undefined;
+    if (!win) {
+      return "";
+    }
+    try {
+      return (win.localStorage.getItem("hc.authToken") || "").trim();
+    } catch (e) {
+      return "";
+    }
+  };
+
+  var applyAuth = function (options) {
+    var token = getAuthToken();
+    if (token) {
+      options.headers = options.headers || {};
+      options.headers["Authorization"] = "Bearer " + token;
+    }
+    return options;
+  };
+
+  var handle401 = function (response) {
+    if (response && response.status === 401) {
+      var win = typeof window !== "undefined" ? window : undefined;
+      if (win) {
+        try {
+          win.localStorage.removeItem("hc.authToken");
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    return response;
+  };
+
   var request = function (path, options) {
     var url;
     try {
@@ -136,7 +171,7 @@ sap.ui.define([], function () {
     } catch (e) {
       return Promise.reject(e);
     }
-    return fetch(url, options);
+    return fetch(url, applyAuth(options)).then(handle401);
   };
 
   return {
@@ -164,6 +199,34 @@ sap.ui.define([], function () {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(body)
+      }).then(parseJson);
+    },
+    patchJson: function (path, body) {
+      return request(path, {
+        method: "PATCH",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body || {})
+      }).then(parseJson);
+    },
+    putJson: function (path, body) {
+      return request(path, {
+        method: "PUT",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      }).then(parseJson);
+    },
+    deleteJson: function (path) {
+      return request(path, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json"
+        }
       }).then(parseJson);
     }
   };

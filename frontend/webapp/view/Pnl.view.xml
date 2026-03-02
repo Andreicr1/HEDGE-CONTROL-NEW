@@ -2,45 +2,149 @@
   controllerName="hedgecontrol.controller.Pnl"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
   xmlns:form="sap.ui.layout.form"
-  class="sapUiResponsiveContentPadding">
-  <Page title="{i18n>navPnl}" busy="{pnl>/busy}">
-    <content>
-      <VBox class="sapUiSmallMargin">
-        <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-          <Label text="entity_type" />
-          <Input value="{pnl>/entityType}" width="100%" />
-          <Label text="entity_id (uuid)" />
-          <Input value="{pnl>/entityId}" width="100%" />
-          <Label text="period_start (YYYY-MM-DD)" />
-          <Input value="{pnl>/periodStart}" width="100%" />
-          <Label text="period_end (YYYY-MM-DD)" />
-          <Input value="{pnl>/periodEnd}" width="100%" />
-        </form:SimpleForm>
+  xmlns:layout="sap.ui.layout"
+  core:require="{ formatter: 'hedgecontrol/util/formatter' }">
 
-        <HBox wrap="Wrap" class="sapUiSmallMarginBottom">
-          <Button text="GET /pl/{entity_type}/{entity_id}" type="Emphasized" press=".onGetPl" />
-          <Button text="GET /pl/snapshots" class="sapUiSmallMarginBegin" press=".onGetSnapshot" />
-        </HBox>
+  <f:DynamicPage id="pnlPage" headerExpanded="true" showFooter="false">
 
-        <Panel headerText="Create Snapshot">
-          <content>
-            <TextArea value="{pnl>/snapshotCreateBody}" rows="10" width="100%" growing="true" />
-            <Button text="POST /pl/snapshots" type="Emphasized" press=".onCreateSnapshot" />
-          </content>
-        </Panel>
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{i18n>pnlTitle}" />
+        </f:heading>
+      </f:DynamicPageTitle>
+    </f:title>
 
-        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{pnl>/responseText}" width="100%" rows="14" editable="false" growing="true" />
-          </content>
-        </Panel>
-        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{pnl>/errorText}" width="100%" rows="6" editable="false" growing="true" />
-          </content>
-        </Panel>
-      </VBox>
-    </content>
-  </Page>
+    <f:content>
+      <IconTabBar id="pnlTabs" class="sapUiNoContentPadding">
+        <items>
+
+          <!-- P&L Calculation Tab -->
+          <IconTabFilter text="{i18n>plCalculation}" key="calc" icon="sap-icon://money-bills">
+            <VBox class="sapUiSmallMargin">
+              <form:Form editable="true">
+                <form:layout>
+                  <form:ColumnLayout columnsM="2" columnsL="2" columnsXL="2" />
+                </form:layout>
+                <form:formContainers>
+                  <form:FormContainer title="{i18n>parameters}">
+                    <form:formElements>
+                      <form:FormElement label="{i18n>entityType}">
+                        <Select id="plEntityType" selectedKey="{pl>/entityType}">
+                          <core:Item key="hedge_contract" text="{i18n>hedgeContract}" />
+                        </Select>
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>entityId}">
+                        <Input id="plEntityId" value="{pl>/entityId}" placeholder="UUID" required="true" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>periodStart}">
+                        <DatePicker id="plStart" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>periodEnd}">
+                        <DatePicker id="plEnd" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                      </form:FormElement>
+                    </form:formElements>
+                  </form:FormContainer>
+                </form:formContainers>
+              </form:Form>
+
+              <HBox class="sapUiSmallMarginTop sapUiSmallMarginBottom">
+                <Button text="{i18n>calculatePl}" type="Emphasized" press=".onCalculatePl" class="sapUiSmallMarginEnd" />
+                <Button text="{i18n>createSnapshot}" icon="sap-icon://add" press=".onCreatePlSnapshot" />
+              </HBox>
+
+              <Panel headerText="{i18n>results}" visible="{pl>/resultLoaded}" class="sapUiSmallMarginTop">
+                <form:Form editable="false">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="2" columnsL="2" columnsXL="2" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>realizedPl}">
+                          <ObjectNumber number="{ path: 'pl>/result/realized_pl', formatter: 'formatter.numberTwoDecimals' }" unit="USD"
+                            state="{ path: 'pl>/result/realized_pl', formatter: '.formatPlState' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>unrealizedMtm}">
+                          <ObjectNumber number="{ path: 'pl>/result/unrealized_mtm', formatter: 'formatter.numberTwoDecimals' }" unit="USD"
+                            state="{ path: 'pl>/result/unrealized_mtm', formatter: '.formatPlState' }" />
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+              </Panel>
+            </VBox>
+          </IconTabFilter>
+
+          <!-- Snapshot Tab -->
+          <IconTabFilter text="{i18n>snapshots}" key="snap" icon="sap-icon://history">
+            <VBox class="sapUiSmallMargin">
+              <form:Form editable="true">
+                <form:layout>
+                  <form:ColumnLayout columnsM="2" columnsL="2" columnsXL="2" />
+                </form:layout>
+                <form:formContainers>
+                  <form:FormContainer title="{i18n>querySnapshot}">
+                    <form:formElements>
+                      <form:FormElement label="{i18n>entityType}">
+                        <Select id="snapEntityType" selectedKey="{pl>/snapEntityType}">
+                          <core:Item key="hedge_contract" text="{i18n>hedgeContract}" />
+                        </Select>
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>entityId}">
+                        <Input id="snapEntityId" value="{pl>/snapEntityId}" placeholder="UUID" required="true" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>periodStart}">
+                        <DatePicker id="snapStart" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>periodEnd}">
+                        <DatePicker id="snapEnd" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                      </form:FormElement>
+                    </form:formElements>
+                  </form:FormContainer>
+                </form:formContainers>
+              </form:Form>
+
+              <Button text="{i18n>loadSnapshot}" type="Emphasized" press=".onLoadSnapshot" class="sapUiSmallMarginTop sapUiSmallMarginBottom" />
+
+              <Panel headerText="{i18n>snapshotResult}" visible="{pl>/snapLoaded}" class="sapUiSmallMarginTop">
+                <form:Form editable="false">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="2" columnsL="2" columnsXL="2" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>id}">
+                          <Text text="{ path: 'pl>/snapshot/id', formatter: 'formatter.shortUuid' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>realizedPl}">
+                          <ObjectNumber number="{ path: 'pl>/snapshot/realized_pl', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>unrealizedMtm}">
+                          <ObjectNumber number="{ path: 'pl>/snapshot/unrealized_mtm', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>correlationId}">
+                          <Text text="{pl>/snapshot/correlation_id}" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>createdAt}">
+                          <Text text="{ path: 'pl>/snapshot/created_at', formatter: 'formatter.dateTimeDisplay' }" />
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+              </Panel>
+            </VBox>
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+    </f:content>
+
+  </f:DynamicPage>
 </mvc:View>

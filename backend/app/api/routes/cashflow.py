@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
+from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.cashflow import CashFlowBaselineSnapshot
 from app.schemas.cashflow import (
@@ -28,7 +29,12 @@ def get_cashflow_analytic(
     return compute_cashflow_analytic(session, as_of_date=as_of_date)
 
 
-@router.post("/baseline/snapshots", response_model=CashFlowBaselineSnapshotResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/baseline/snapshots",
+    response_model=CashFlowBaselineSnapshotResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit(RATE_LIMIT_MUTATION)
 def create_baseline_snapshot(
     payload: CashFlowBaselineSnapshotCreate,
     request: Request,
@@ -55,7 +61,13 @@ def get_baseline_snapshot(
     _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> CashFlowBaselineSnapshotResponse:
-    snapshot = session.query(CashFlowBaselineSnapshot).filter(CashFlowBaselineSnapshot.as_of_date == as_of_date).first()
+    snapshot = (
+        session.query(CashFlowBaselineSnapshot)
+        .filter(CashFlowBaselineSnapshot.as_of_date == as_of_date)
+        .first()
+    )
     if snapshot is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Baseline snapshot not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Baseline snapshot not found"
+        )
     return CashFlowBaselineSnapshotResponse.model_validate(snapshot)

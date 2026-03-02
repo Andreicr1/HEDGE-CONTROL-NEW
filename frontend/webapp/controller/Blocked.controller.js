@@ -1,21 +1,24 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/core/UIComponent",
+  "hedgecontrol/controller/BaseController",
   "sap/ui/model/json/JSONModel"
-], function (Controller, UIComponent, JSONModel) {
+], function (BaseController, JSONModel) {
   "use strict";
 
-  return Controller.extend("hedgecontrol.controller.Blocked", {
+  return BaseController.extend("hedgecontrol.controller.Blocked", {
+    _aRouteNames: ["exposures", "orders", "rfq", "contracts", "cashflow", "pnl", "scenario", "notFound"],
+
     onInit: function () {
-      var router = UIComponent.getRouterFor(this);
-      router.getRoute("exposures").attachPatternMatched(this._onRouteMatched, this);
-      router.getRoute("orders").attachPatternMatched(this._onRouteMatched, this);
-      router.getRoute("rfq").attachPatternMatched(this._onRouteMatched, this);
-      router.getRoute("contracts").attachPatternMatched(this._onRouteMatched, this);
-      router.getRoute("cashflow").attachPatternMatched(this._onRouteMatched, this);
-      router.getRoute("pnl").attachPatternMatched(this._onRouteMatched, this);
-      router.getRoute("scenario").attachPatternMatched(this._onRouteMatched, this);
-      router.getRoute("notFound").attachPatternMatched(this._onRouteMatched, this);
+      var oRouter = this.getRouter();
+      this._aRouteNames.forEach(function (sRoute) {
+        oRouter.getRoute(sRoute).attachPatternMatched(this._onRouteMatched, this);
+      }, this);
+    },
+
+    onExit: function () {
+      var oRouter = this.getRouter();
+      this._aRouteNames.forEach(function (sRoute) {
+        oRouter.getRoute(sRoute).detachPatternMatched(this._onRouteMatched, this);
+      }, this);
     },
 
     _onRouteMatched: function (event) {
@@ -26,8 +29,7 @@ sap.ui.define([
     },
 
     onNavBack: function () {
-      var router = UIComponent.getRouterFor(this);
-      router.navTo("home");
+      this.getRouter().navTo("home");
     }
   });
 });

@@ -1,35 +1,68 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/core/UIComponent",
+  "hedgecontrol/controller/BaseController",
   "sap/ui/Device",
-  "sap/ui/model/json/JSONModel"
-], function (Controller, UIComponent, Device, JSONModel) {
+  "sap/f/library"
+], function (BaseController, Device, fioriLibrary) {
   "use strict";
 
-  return Controller.extend("hedgecontrol.controller.App", {
+  var LayoutType = fioriLibrary.LayoutType;
+
+  /**
+   * Map route names to the nav key that should be highlighted.
+   */
+  var ROUTE_TO_NAV = {
+    home: "home",
+    exposures: "exposures",
+    orders: "orders",
+    orderCreate: "orders",
+    orderDetail: "orders",
+    rfq: "rfq",
+    rfqCreate: "rfq",
+    rfqDetail: "rfq",
+    contracts: "contracts",
+    contractCreate: "contracts",
+    contractDetail: "contracts",
+    linkages: "linkages",
+    linkageDetail: "linkages",
+    cashflow: "cashflow",
+    pnl: "pnl",
+    scenario: "scenario",
+    mtm: "mtm",
+    marketData: "marketData"
+  };
+
+  /**
+   * Map route names to FCL layout.
+   */
+  var ROUTE_TO_LAYOUT = {
+    orderCreate: LayoutType.TwoColumnsMidExpanded,
+    orderDetail: LayoutType.TwoColumnsMidExpanded,
+    rfqCreate: LayoutType.TwoColumnsMidExpanded,
+    rfqDetail: LayoutType.TwoColumnsMidExpanded,
+    contractCreate: LayoutType.TwoColumnsMidExpanded,
+    contractDetail: LayoutType.TwoColumnsMidExpanded,
+    linkageDetail: LayoutType.TwoColumnsMidExpanded
+  };
+
+  return BaseController.extend("hedgecontrol.controller.App", {
     onInit: function () {
-      this._router = UIComponent.getRouterFor(this);
+      this._router = this.getRouter();
       this._router.attachRouteMatched(this._onRouteMatched, this);
-      this.getView().setModel(new JSONModel({
-        selectedKey: "home"
-      }), "appModel");
       this._applyInitialSideState();
     },
 
     _applyInitialSideState: function () {
       var toolPage = this.byId("toolPage");
-      if (!toolPage) {
-        return;
+      if (toolPage) {
+        toolPage.setSideExpanded(!Device.system.phone);
       }
-      toolPage.setSideExpanded(!Device.system.phone);
     },
 
     onMenuButtonPressed: function () {
       var toolPage = this.byId("toolPage");
-      if (!toolPage) {
-        return;
+      if (toolPage) {
+        toolPage.toggleSideContentMode();
       }
-      toolPage.toggleSideContentMode();
     },
 
     onNavigationItemSelect: function (event) {
@@ -41,6 +74,7 @@ sap.ui.define([
       if (!route) {
         return;
       }
+      this.getAppModel().setProperty("/layout", LayoutType.OneColumn);
       this._router.navTo(route, {}, false);
       if (Device.system.phone) {
         var toolPage = this.byId("toolPage");
@@ -52,11 +86,15 @@ sap.ui.define([
 
     _onRouteMatched: function (event) {
       var routeName = event.getParameter("name");
-      var model = this.getView().getModel("appModel");
-      if (!model) {
-        return;
-      }
-      model.setProperty("/selectedKey", routeName);
+      var appModel = this.getAppModel();
+
+      // Set FCL layout
+      var layout = ROUTE_TO_LAYOUT[routeName] || LayoutType.OneColumn;
+      appModel.setProperty("/layout", layout);
+
+      // Set nav highlight
+      var selectedKey = ROUTE_TO_NAV[routeName] || routeName;
+      appModel.setProperty("/selectedKey", selectedKey);
     }
   });
 });

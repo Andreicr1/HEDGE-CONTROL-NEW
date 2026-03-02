@@ -1,0 +1,79 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.OrderCreate"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:form="sap.ui.layout.form"
+  xmlns:core="sap.ui.core">
+  <f:DynamicPage id="orderCreatePage" showFooter="true" busy="{ordCrt>/busy}">
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{ordCrt>/pageTitle}" />
+        </f:heading>
+        <f:actions>
+          <Button icon="sap-icon://decline" press=".onCancel" tooltip="{i18n>cancel}" type="Transparent" />
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+    <f:content>
+      <VBox class="sapUiSmallMargin">
+        <MessageStrip
+          text="{ordCrt>/errorMessage}"
+          type="Error"
+          showIcon="true"
+          showCloseButton="true"
+          visible="{= !!${ordCrt>/errorMessage}}"
+          class="sapUiSmallMarginBottom" />
+        <form:Form id="orderForm" editable="true">
+          <form:layout>
+            <form:ColumnLayout columnsM="1" columnsL="1" columnsXL="1" />
+          </form:layout>
+          <form:formContainers>
+            <form:FormContainer title="{i18n>sectionOrderInfo}">
+              <form:formElements>
+                <form:FormElement label="{i18n>colPriceType}">
+                  <form:fields>
+                    <Select id="priceType" selectedKey="{ordCrt>/form/price_type}">
+                      <core:Item key="fixed" text="{i18n>priceTypeFixed}" />
+                      <core:Item key="variable" text="{i18n>priceTypeVariable}" />
+                    </Select>
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colQuantityMt}">
+                  <form:fields>
+                    <Input id="quantityMt" value="{ordCrt>/form/quantity_mt}" type="Number"
+                      placeholder="0.00" required="true" />
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colPricingConvention}">
+                  <form:fields>
+                    <Select id="pricingConvention" selectedKey="{ordCrt>/form/pricing_convention}">
+                      <core:Item key="" text="{i18n>none}" />
+                      <core:Item key="AVG" text="{i18n>optAvg}" />
+                      <core:Item key="AVGInter" text="{i18n>optAvgInter}" />
+                      <core:Item key="C2R" text="{i18n>optC2R}" />
+                    </Select>
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colAvgEntryPrice}" visible="{= ${ordCrt>/form/price_type} === 'fixed'}">
+                  <form:fields>
+                    <Input id="avgEntryPrice" value="{ordCrt>/form/avg_entry_price}" type="Number"
+                      placeholder="0.0000" />
+                  </form:fields>
+                </form:FormElement>
+              </form:formElements>
+            </form:FormContainer>
+          </form:formContainers>
+        </form:Form>
+      </VBox>
+    </f:content>
+    <f:footer>
+      <OverflowToolbar>
+        <ToolbarSpacer />
+        <Button text="{i18n>submit}" press=".onSubmit" type="Emphasized" />
+        <Button text="{i18n>cancel}" press=".onCancel" />
+      </OverflowToolbar>
+    </f:footer>
+  </f:DynamicPage>
+</mvc:View>

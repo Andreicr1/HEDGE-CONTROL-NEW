@@ -25,15 +25,14 @@
       </f:ShellBar>
     </tnt:header>
     <tnt:sideContent>
-      <tnt:SideNavigation id="sideNavigation" selectedKey="{appModel>/selectedKey}" itemSelect=".onNavigationItemSelect">
+      <tnt:SideNavigation id="sideNavigation" selectedKey="{app>/selectedKey}" itemSelect=".onNavigationItemSelect">
         <tnt:NavigationList>
           <tnt:NavigationListItem key="home" text="{i18n>navOverview}" icon="sap-icon://home" />
-          <tnt:NavigationListItem key="observability" text="{i18n>navObservability}" icon="sap-icon://activities" />
-          <tnt:NavigationListItem key="audit" text="{i18n>navAudit}" icon="sap-icon://activity-items" />
           <tnt:NavigationListItem key="exposures" text="{i18n>navExposures}" icon="sap-icon://product" />
           <tnt:NavigationListItem key="orders" text="{i18n>navOrders}" icon="sap-icon://sales-order" />
           <tnt:NavigationListItem key="rfq" text="{i18n>navRfq}" icon="sap-icon://request" />
           <tnt:NavigationListItem key="contracts" text="{i18n>navContracts}" icon="sap-icon://document" />
+          <tnt:NavigationListItem key="linkages" text="{i18n>navLinkages}" icon="sap-icon://chain-link" />
           <tnt:NavigationListItem key="cashflow" text="{i18n>navCashflow}" icon="sap-icon://money-bills" />
           <tnt:NavigationListItem key="pnl" text="{i18n>navPnl}" icon="sap-icon://line-chart" />
           <tnt:NavigationListItem key="scenario" text="{i18n>navScenario}" icon="sap-icon://simulate" />
@@ -43,7 +42,7 @@
       </tnt:SideNavigation>
     </tnt:sideContent>
     <tnt:mainContents>
-      <App id="app" />
+      <f:FlexibleColumnLayout id="fcl" layout="{app>/layout}" />
     </tnt:mainContents>
   </tnt:ToolPage>
 </mvc:View>

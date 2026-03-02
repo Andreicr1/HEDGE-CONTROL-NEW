@@ -1,0 +1,142 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.ContractDetail"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:uxap="sap.uxap"
+  xmlns:layout="sap.ui.layout"
+  xmlns:form="sap.ui.layout.form"
+  core:require="{ formatter: 'hedgecontrol/util/formatter' }">
+
+  <uxap:ObjectPageLayout id="contractDetailPage" busy="{ctrDet>/busy}" showTitleInHeaderContent="true">
+
+    <uxap:headerTitle>
+      <uxap:ObjectPageDynamicHeaderTitle>
+        <uxap:heading>
+          <HBox alignItems="Center">
+            <Title text="{i18n>hedgeContract}" class="sapUiSmallMarginEnd" />
+            <ObjectStatus text="{ path: 'ctrDet>/status', formatter: 'formatter.capitalize' }"
+              state="{ path: 'ctrDet>/status', formatter: 'formatter.statusState' }" />
+          </HBox>
+        </uxap:heading>
+        <uxap:actions>
+          <Button text="{i18n>archive}" icon="sap-icon://delete" type="Reject"
+            press=".onArchive" visible="{ path: 'ctrDet>/deleted_at', formatter: '.isNotArchived' }" />
+          <Button text="{i18n>close}" icon="sap-icon://decline" type="Default" press=".onClose" />
+        </uxap:actions>
+      </uxap:ObjectPageDynamicHeaderTitle>
+    </uxap:headerTitle>
+
+    <uxap:headerContent>
+      <HBox>
+        <VBox class="sapUiSmallMarginEnd">
+          <Label text="{i18n>id}" />
+          <Text text="{ path: 'ctrDet>/id', formatter: 'formatter.shortUuid' }" />
+        </VBox>
+        <VBox class="sapUiSmallMarginEnd">
+          <Label text="{i18n>commodity}" />
+          <Text text="{ctrDet>/commodity}" />
+        </VBox>
+        <VBox class="sapUiSmallMarginEnd">
+          <Label text="{i18n>quantityMt}" />
+          <ObjectNumber number="{ path: 'ctrDet>/quantity_mt', formatter: 'formatter.numberTwoDecimals' }" unit="MT" />
+        </VBox>
+        <VBox class="sapUiSmallMarginEnd">
+          <Label text="{i18n>classification}" />
+          <ObjectStatus text="{ path: 'ctrDet>/classification', formatter: 'formatter.capitalize' }"
+            state="{ path: 'ctrDet>/classification', formatter: '.formatClassificationState' }" />
+        </VBox>
+        <VBox>
+          <Label text="{i18n>createdAt}" />
+          <Text text="{ path: 'ctrDet>/created_at', formatter: 'formatter.dateTimeDisplay' }" />
+        </VBox>
+      </HBox>
+    </uxap:headerContent>
+
+    <uxap:sections>
+
+      <uxap:ObjectPageSection title="{i18n>contractInfo}">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <form:Form editable="false">
+                <form:layout>
+                  <form:ColumnLayout columnsM="2" columnsL="2" columnsXL="2" />
+                </form:layout>
+                <form:formContainers>
+
+                  <form:FormContainer title="{i18n>legs}">
+                    <form:formElements>
+                      <form:FormElement label="{i18n>fixedLegSide}">
+                        <Text text="{ path: 'ctrDet>/fixed_leg_side', formatter: 'formatter.capitalize' }" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>variableLegSide}">
+                        <Text text="{ path: 'ctrDet>/variable_leg_side', formatter: 'formatter.capitalize' }" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>fixedPrice}">
+                        <HBox>
+                          <ObjectNumber number="{ path: 'ctrDet>/fixed_price_value', formatter: 'formatter.priceFourDecimals' }"
+                            unit="{ctrDet>/fixed_price_unit}" />
+                        </HBox>
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>floatConvention}">
+                        <Text text="{ctrDet>/float_pricing_convention}" />
+                      </form:FormElement>
+                    </form:formElements>
+                  </form:FormContainer>
+
+                  <form:FormContainer title="{i18n>references}">
+                    <form:formElements>
+                      <form:FormElement label="{i18n>counterparty}">
+                        <Text text="{ctrDet>/counterparty_id}" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>rfqId}">
+                        <Text text="{ path: 'ctrDet>/rfq_id', formatter: 'formatter.shortUuid' }" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>rfqQuoteId}">
+                        <Text text="{ path: 'ctrDet>/rfq_quote_id', formatter: 'formatter.shortUuid' }" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>status}">
+                        <ObjectStatus text="{ path: 'ctrDet>/status', formatter: 'formatter.capitalize' }"
+                          state="{ path: 'ctrDet>/status', formatter: 'formatter.statusState' }" />
+                      </form:FormElement>
+                    </form:formElements>
+                  </form:FormContainer>
+
+                </form:formContainers>
+              </form:Form>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <uxap:ObjectPageSection title="{i18n>timestamps}">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <form:Form editable="false">
+                <form:layout>
+                  <form:ColumnLayout columnsM="2" columnsL="2" columnsXL="2" />
+                </form:layout>
+                <form:formContainers>
+                  <form:FormContainer>
+                    <form:formElements>
+                      <form:FormElement label="{i18n>createdAt}">
+                        <Text text="{ path: 'ctrDet>/created_at', formatter: 'formatter.dateTimeDisplay' }" />
+                      </form:FormElement>
+                      <form:FormElement label="{i18n>deletedAt}">
+                        <Text text="{ path: 'ctrDet>/deleted_at', formatter: 'formatter.dateTimeDisplay' }" />
+                      </form:FormElement>
+                    </form:formElements>
+                  </form:FormContainer>
+                </form:formContainers>
+              </form:Form>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+    </uxap:sections>
+
+  </uxap:ObjectPageLayout>
+</mvc:View>

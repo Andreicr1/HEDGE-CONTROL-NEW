@@ -1,7 +1,20 @@
 import enum
 import uuid
+from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, String
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,16 +38,73 @@ class OrderPricingConvention(enum.Enum):
     c2r = "C2R"
 
 
+class PricingType(enum.Enum):
+    fixed = "fixed"
+    average = "average"
+    avginter = "avginter"
+    fix = "fix"
+    c2r = "c2r"
+
+
 class Order(Base):
     __tablename__ = "orders"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_type: Mapped[OrderType] = mapped_column(Enum(OrderType, name="order_type"), nullable=False)
-    price_type: Mapped[PriceType] = mapped_column(Enum(PriceType, name="price_type"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    order_type: Mapped[OrderType] = mapped_column(
+        Enum(OrderType, name="order_type"), nullable=False
+    )
+    price_type: Mapped[PriceType] = mapped_column(
+        Enum(PriceType, name="price_type"), nullable=False
+    )
     quantity_mt: Mapped[float] = mapped_column(Float, nullable=False)
     pricing_convention: Mapped[OrderPricingConvention | None] = mapped_column(
         Enum(OrderPricingConvention, name="order_pricing_convention"),
         nullable=True,
     )
     avg_entry_price: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # --- New fields (1.2 enrichment) ---
+    counterparty_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("counterparties.id"),
+        nullable=True,
+    )
+    pricing_type: Mapped[PricingType | None] = mapped_column(
+        Enum(PricingType, name="pricing_type"), nullable=True
+    )
+    delivery_terms: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    delivery_date_start: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    delivery_date_end: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    payment_terms_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    deleted_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
+
+class SoPoLink(Base):
+    __tablename__ = "so_po_links"
+    __table_args__ = (
+        UniqueConstraint("sales_order_id", "purchase_order_id", name="uq_sopo_link"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    sales_order_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False
+    )
+    purchase_order_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False
+    )
+    linked_tons: Mapped[float] = mapped_column(Numeric(15, 3), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

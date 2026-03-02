@@ -1,7 +1,46 @@
+/* ── Shell ── */
 .appShell {
   min-height: 100vh;
 }
 
+.appHeaderBadge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--sapNeutralBackground);
+  color: var(--sapTextColor);
+  border: 1px solid var(--sapContent_ForegroundBorderColor);
+  pointer-events: none;
+}
+
+/* ── Side Navigation ── */
+.sideNav {
+  border-right: 1px solid var(--sapContent_ForegroundBorderColor);
+}
+
+/* ── Home Tiles ── */
+.homeTileContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* ── DynamicPage Panels ── */
+.sapFDynamicPage .sapMPanel {
+  margin-bottom: 0.5rem;
+}
+
+/* ── Tables ── */
+.sapMTable .sapMListTblCell {
+  vertical-align: middle;
+}
+
+/* ── ObjectPage Header Attributes ── */
+.sapUxAPObjectPageHeaderIdentifier .sapMObjectAttributeText {
+  word-break: break-all;
+}
+
+/* ── Responsive padding ── */
 .sapUiResponsiveContentPadding {
   padding: var(--sapContent_Space_S);
 }
@@ -16,27 +55,4 @@
   .sapUiResponsiveContentPadding {
     padding: var(--sapContent_Space_L);
   }
-}
-
-.appHeaderBadge {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  background: var(--sapNeutralBackground);
-  color: var(--sapTextColor);
-  border: 1px solid var(--sapContent_ForegroundBorderColor);
-  pointer-events: none;
-}
-
-#menuButton {
-  margin-right: 1rem;
-}
-
-.sapMSplitContainerMaster {
-  border-right: 1px solid var(--sapContent_ForegroundBorderColor);
-}
-
-#splitContainer .sapMSplitContainerMaster {
-  width: 15rem;
-  min-width: 15rem;
 }

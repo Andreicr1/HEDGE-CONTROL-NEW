@@ -1,0 +1,95 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.RfqCreate"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:form="sap.ui.layout.form"
+  xmlns:core="sap.ui.core">
+  <f:DynamicPage id="rfqCreatePage" showFooter="true" busy="{rfqCrt>/busy}">
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{i18n>newRfq}" />
+        </f:heading>
+        <f:actions>
+          <Button icon="sap-icon://decline" press=".onCancel" tooltip="{i18n>cancel}" type="Transparent" />
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+    <f:content>
+      <VBox class="sapUiSmallMargin">
+        <MessageStrip
+          text="{rfqCrt>/errorMessage}"
+          type="Error"
+          showIcon="true"
+          showCloseButton="true"
+          visible="{= !!${rfqCrt>/errorMessage}}"
+          class="sapUiSmallMarginBottom" />
+        <form:Form id="rfqForm" editable="true">
+          <form:layout>
+            <form:ColumnLayout columnsM="1" columnsL="2" columnsXL="2" />
+          </form:layout>
+          <form:formContainers>
+            <form:FormContainer title="{i18n>sectionRfqInfo}">
+              <form:formElements>
+                <form:FormElement label="{i18n>colIntent}">
+                  <form:fields>
+                    <Select id="intent" selectedKey="{rfqCrt>/form/intent}">
+                      <core:Item key="COMMERCIAL_HEDGE" text="{i18n>optCommercialHedge}" />
+                      <core:Item key="GLOBAL_POSITION" text="{i18n>optGlobalPosition}" />
+                      <core:Item key="SPREAD" text="{i18n>optSpread}" />
+                    </Select>
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colCommodity}">
+                  <form:fields>
+                    <Input value="{rfqCrt>/form/commodity}" placeholder="{i18n>placeholderCommodity}" required="true" />
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colDirection}">
+                  <form:fields>
+                    <Select id="direction" selectedKey="{rfqCrt>/form/direction}">
+                      <core:Item key="BUY" text="{i18n>optBuy}" />
+                      <core:Item key="SELL" text="{i18n>optSell}" />
+                    </Select>
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colQuantityMt}">
+                  <form:fields>
+                    <Input value="{rfqCrt>/form/quantity_mt}" type="Number" placeholder="0.00" required="true" />
+                  </form:fields>
+                </form:FormElement>
+              </form:formElements>
+            </form:FormContainer>
+            <form:FormContainer title="{i18n>sectionDeliveryWindow}">
+              <form:formElements>
+                <form:FormElement label="{i18n>colDeliveryStart}">
+                  <form:fields>
+                    <DatePicker id="deliveryStart" value="{rfqCrt>/form/delivery_window_start}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy" required="true" />
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colDeliveryEnd}">
+                  <form:fields>
+                    <DatePicker id="deliveryEnd" value="{rfqCrt>/form/delivery_window_end}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy" required="true" />
+                  </form:fields>
+                </form:FormElement>
+                <form:FormElement label="{i18n>colOrderId}">
+                  <form:fields>
+                    <Input value="{rfqCrt>/form/order_id}" placeholder="{i18n>optionalUuid}" />
+                  </form:fields>
+                </form:FormElement>
+              </form:formElements>
+            </form:FormContainer>
+          </form:formContainers>
+        </form:Form>
+      </VBox>
+    </f:content>
+    <f:footer>
+      <OverflowToolbar>
+        <ToolbarSpacer />
+        <Button text="{i18n>submit}" press=".onSubmit" type="Emphasized" />
+        <Button text="{i18n>cancel}" press=".onCancel" />
+      </OverflowToolbar>
+    </f:footer>
+  </f:DynamicPage>
+</mvc:View>

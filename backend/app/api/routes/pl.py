@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
+from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.pl import PLSnapshot
 from app.schemas.pl import PLResultResponse, PLSnapshotCreate, PLSnapshotResponse
@@ -30,7 +31,10 @@ def get_pl(
     return compute_pl(session, entity_type, entity_id, period_start, period_end)
 
 
-@router.post("/snapshots", response_model=PLSnapshotResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/snapshots", response_model=PLSnapshotResponse, status_code=status.HTTP_201_CREATED
+)
+@limiter.limit(RATE_LIMIT_MUTATION)
 def post_pl_snapshot(
     snapshot_in: PLSnapshotCreate,
     request: Request,
@@ -75,5 +79,7 @@ def get_pl_snapshot(
         .first()
     )
     if snapshot is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="P&L snapshot not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="P&L snapshot not found"
+        )
     return PLSnapshotResponse.model_validate(snapshot)

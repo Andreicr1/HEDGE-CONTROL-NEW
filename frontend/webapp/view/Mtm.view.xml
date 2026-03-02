@@ -2,61 +2,183 @@
   controllerName="hedgecontrol.controller.Mtm"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
   xmlns:form="sap.ui.layout.form"
-  class="sapUiResponsiveContentPadding">
-  <Page title="{i18n>navMtm}" busy="{mtm>/busy}">
-    <content>
-      <VBox class="sapUiSmallMargin">
-        <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-          <Label text="as_of_date (YYYY-MM-DD)" />
-          <Input value="{mtm>/asOfDate}" width="100%" />
-        </form:SimpleForm>
+  core:require="{ formatter: 'hedgecontrol/util/formatter' }">
 
-        <IconTabBar expanded="true">
-          <items>
-            <IconTabFilter text="Snapshots" key="snapshots">
-              <VBox class="sapUiSmallMargin">
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="object_type" />
-                  <Input value="{mtm>/objectType}" width="100%" />
-                  <Label text="object_id (uuid)" />
-                  <Input value="{mtm>/objectId}" width="100%" />
-                </form:SimpleForm>
-                <Button text="GET /mtm/snapshots" type="Emphasized" press=".onGetSnapshot" />
-              </VBox>
-            </IconTabFilter>
-            <IconTabFilter text="Hedge Contract" key="contract">
-              <VBox class="sapUiSmallMargin">
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="contract_id (uuid)" />
-                  <Input value="{mtm>/contractId}" width="100%" />
-                </form:SimpleForm>
-                <Button text="GET /mtm/hedge-contracts/{contract_id}" type="Emphasized" press=".onGetContractMtm" />
-              </VBox>
-            </IconTabFilter>
-            <IconTabFilter text="Order" key="order">
-              <VBox class="sapUiSmallMargin">
-                <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="order_id (uuid)" />
-                  <Input value="{mtm>/orderId}" width="100%" />
-                </form:SimpleForm>
-                <Button text="GET /mtm/orders/{order_id}" type="Emphasized" press=".onGetOrderMtm" />
-              </VBox>
-            </IconTabFilter>
-          </items>
-        </IconTabBar>
+  <f:DynamicPage id="mtmPage" headerExpanded="true">
 
-        <Panel headerText="Response (as-is)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{mtm>/responseText}" width="100%" rows="14" editable="false" growing="true" />
-          </content>
-        </Panel>
-        <Panel headerText="Error (deterministic)" class="sapUiSmallMarginTop">
-          <content>
-            <TextArea value="{mtm>/errorText}" width="100%" rows="6" editable="false" growing="true" />
-          </content>
-        </Panel>
-      </VBox>
-    </content>
-  </Page>
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{i18n>mtmTitle}" />
+        </f:heading>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <f:content>
+      <IconTabBar class="sapUiNoContentPadding">
+        <items>
+
+          <!-- Tab 1: Calculate MTM -->
+          <IconTabFilter text="{i18n>calculateMtm}" key="calc" icon="sap-icon://line-chart">
+            <VBox class="sapUiSmallMargin">
+              <Panel headerText="{i18n>parameters}">
+                <form:Form editable="true">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="2" columnsL="4" columnsXL="4" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>objectType}">
+                          <Select id="mtmObjectType" selectedKey="{mtm>/objectType}" width="100%"
+                            change=".onObjectTypeChange">
+                            <core:Item key="hedge_contract" text="{i18n>optHedgeContract}" />
+                            <core:Item key="order" text="{i18n>optOrder}" />
+                          </Select>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>objectId}">
+                          <Input id="mtmObjectId" value="{mtm>/objectId}" placeholder="{i18n>placeholderObjectId}" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>asOfDate}">
+                          <DatePicker id="mtmAsOfDate" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd"
+                            value="{mtm>/asOfDate}" placeholder="dd/MM/yyyy" />
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+
+                <OverflowToolbar>
+                  <ToolbarSpacer />
+                  <Button text="{i18n>calculate}" type="Emphasized" icon="sap-icon://simulate" press=".onCalculate" />
+                </OverflowToolbar>
+              </Panel>
+
+              <Panel headerText="{i18n>results}" visible="{mtm>/hasCalcResult}" class="sapUiSmallMarginTop">
+                <form:Form editable="false">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="2" columnsL="4" columnsXL="4" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>objectType}">
+                          <Text text="{mtm>/calcResult/object_type}" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>objectId}">
+                          <Text text="{ path: 'mtm>/calcResult/object_id', formatter: 'formatter.shortUuid' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>asOfDate}">
+                          <Text text="{ path: 'mtm>/calcResult/as_of_date', formatter: 'formatter.dateDisplay' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>mtmValue}">
+                          <ObjectNumber number="{ path: 'mtm>/calcResult/mtm_value', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>priceD1}">
+                          <ObjectNumber number="{ path: 'mtm>/calcResult/price_d1', formatter: 'formatter.priceFourDecimals' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>entryPrice}">
+                          <ObjectNumber number="{ path: 'mtm>/calcResult/entry_price', formatter: 'formatter.priceFourDecimals' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>quantityMt}">
+                          <ObjectNumber number="{ path: 'mtm>/calcResult/quantity_mt', formatter: 'formatter.numberTwoDecimals' }" unit="MT" />
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+              </Panel>
+            </VBox>
+          </IconTabFilter>
+
+          <!-- Tab 2: Snapshots -->
+          <IconTabFilter text="{i18n>snapshots}" key="snap" icon="sap-icon://history">
+            <VBox class="sapUiSmallMargin">
+              <Panel headerText="{i18n>querySnapshot}">
+                <form:Form editable="true">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="2" columnsL="4" columnsXL="4" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>objectType}">
+                          <Select id="mtmSnapObjectType" selectedKey="{mtm>/snapObjectType}" width="100%">
+                            <core:Item key="hedge_contract" text="{i18n>optHedgeContract}" />
+                            <core:Item key="order" text="{i18n>optOrder}" />
+                          </Select>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>objectId}">
+                          <Input id="mtmSnapObjectId" value="{mtm>/snapObjectId}" placeholder="{i18n>placeholderObjectId}" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>asOfDate}">
+                          <DatePicker id="mtmSnapAsOfDate" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd"
+                            value="{mtm>/snapAsOfDate}" placeholder="dd/MM/yyyy" />
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+
+                <OverflowToolbar>
+                  <ToolbarSpacer />
+                  <Button text="{i18n>loadSnapshot}" icon="sap-icon://search" press=".onLoadSnapshot" />
+                  <Button text="{i18n>createSnapshot}" type="Emphasized" icon="sap-icon://add" press=".onCreateSnapshot" />
+                </OverflowToolbar>
+              </Panel>
+
+              <Panel headerText="{i18n>snapshotResult}" visible="{mtm>/hasSnapResult}" class="sapUiSmallMarginTop">
+                <form:Form editable="false">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="2" columnsL="3" columnsXL="3" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>id}">
+                          <Text text="{ path: 'mtm>/snapResult/id', formatter: 'formatter.shortUuid' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>objectType}">
+                          <Text text="{mtm>/snapResult/object_type}" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>objectId}">
+                          <Text text="{ path: 'mtm>/snapResult/object_id', formatter: 'formatter.shortUuid' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>asOfDate}">
+                          <Text text="{ path: 'mtm>/snapResult/as_of_date', formatter: 'formatter.dateDisplay' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>mtmValue}">
+                          <ObjectNumber number="{ path: 'mtm>/snapResult/mtm_value', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>priceD1}">
+                          <ObjectNumber number="{ path: 'mtm>/snapResult/price_d1', formatter: 'formatter.priceFourDecimals' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>entryPrice}">
+                          <ObjectNumber number="{ path: 'mtm>/snapResult/entry_price', formatter: 'formatter.priceFourDecimals' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>quantityMt}">
+                          <ObjectNumber number="{ path: 'mtm>/snapResult/quantity_mt', formatter: 'formatter.numberTwoDecimals' }" unit="MT" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>correlationId}">
+                          <Text text="{ path: 'mtm>/snapResult/correlation_id', formatter: 'formatter.shortUuid' }" />
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>createdAt}">
+                          <Text text="{ path: 'mtm>/snapResult/created_at', formatter: 'formatter.dateTimeDisplay' }" />
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+              </Panel>
+            </VBox>
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+    </f:content>
+
+  </f:DynamicPage>
 </mvc:View>

@@ -1,105 +1,114 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/model/json/JSONModel",
-  "sap/m/MessageBox",
+  "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/plService",
-  "hedgecontrol/util/jsonUtil"
-], function (Controller, JSONModel, MessageBox, plService, jsonUtil) {
+  "sap/m/MessageBox",
+  "sap/m/MessageToast"
+], function (BaseController, plService, MessageBox, MessageToast) {
   "use strict";
 
-  return Controller.extend("hedgecontrol.controller.Pnl", {
+  return BaseController.extend("hedgecontrol.controller.Pnl", {
+
     onInit: function () {
-      var model = new JSONModel({
-        busy: false,
+      this.initViewModel("pl", {
         entityType: "hedge_contract",
         entityId: "",
-        periodStart: "",
-        periodEnd: "",
-        snapshotCreateBody: "{}",
-        responseText: "",
-        errorText: ""
+        result: {},
+        resultLoaded: false,
+        snapEntityType: "hedge_contract",
+        snapEntityId: "",
+        snapshot: {},
+        snapLoaded: false
       });
-      this.getView().setModel(model, "pnl");
+      this.getRouter().getRoute("pnl").attachPatternMatched(this._onRouteMatched, this);
     },
 
-    onGetPl: function () {
-      var args = this._requireArgs();
-      if (!args) {
-        return;
-      }
-      this._run(function () {
-        return plService.getPl(args.entityType, args.entityId, args.periodStart, args.periodEnd);
-      });
+    _onRouteMatched: function () {
+      // Reset on navigation
     },
 
-    onGetSnapshot: function () {
-      var args = this._requireArgs();
-      if (!args) {
-        return;
-      }
-      this._run(function () {
-        return plService.getSnapshot(args.entityType, args.entityId, args.periodStart, args.periodEnd);
-      });
-    },
+    onCalculatePl: function () {
+      var oModel = this.getViewModel();
+      var sEntityType = oModel.getProperty("/entityType");
+      var sEntityId = oModel.getProperty("/entityId").trim();
+      var sPeriodStart = this.byId("plStart").getValue();
+      var sPeriodEnd = this.byId("plEnd").getValue();
 
-    onCreateSnapshot: function () {
-      var model = this.getView().getModel("pnl");
-      var bodyText = model.getProperty("/snapshotCreateBody");
-      var payload;
-      try {
-        payload = jsonUtil.parse(bodyText);
-      } catch (e) {
-        MessageBox.error("Invalid JSON: " + e.message);
+      if (!sEntityId) {
+        MessageBox.warning(this.getI18nText("entityIdRequired"));
         return;
       }
-      if (payload === undefined) {
-        MessageBox.error("Request body is required");
-        return;
-      }
-      this._run(function () {
-        return plService.createSnapshot(payload);
+
+      oModel.setProperty("/busy", true);
+      plService.getPl(sEntityType, sEntityId, sPeriodStart, sPeriodEnd).then(function (oData) {
+        oModel.setProperty("/result", oData);
+        oModel.setProperty("/resultLoaded", true);
+      }).catch(function (oError) {
+        MessageBox.error(this._formatError(oError));
+        oModel.setProperty("/resultLoaded", false);
+      }.bind(this)).finally(function () {
+        oModel.setProperty("/busy", false);
       });
     },
 
-    _requireArgs: function () {
-      var model = this.getView().getModel("pnl");
-      var entityType = (model.getProperty("/entityType") || "").trim();
-      var entityId = (model.getProperty("/entityId") || "").trim();
-      var periodStart = (model.getProperty("/periodStart") || "").trim();
-      var periodEnd = (model.getProperty("/periodEnd") || "").trim();
-      if (!entityType) {
-        MessageBox.error("entity_type is required");
-        return null;
+    onCreatePlSnapshot: function () {
+      var oModel = this.getViewModel();
+      var sEntityType = oModel.getProperty("/entityType");
+      var sEntityId = oModel.getProperty("/entityId").trim();
+      var sPeriodStart = this.byId("plStart").getValue();
+      var sPeriodEnd = this.byId("plEnd").getValue();
+
+      if (!sEntityId || !sPeriodStart || !sPeriodEnd) {
+        MessageBox.warning(this.getI18nText("allFieldsRequired"));
+        return;
       }
-      if (!entityId) {
-        MessageBox.error("entity_id is required");
-        return null;
-      }
-      if (!periodStart || !periodEnd) {
-        MessageBox.error("period_start and period_end are required");
-        return null;
-      }
-      return { entityType: entityType, entityId: entityId, periodStart: periodStart, periodEnd: periodEnd };
+
+      var oPayload = {
+        entity_type: sEntityType,
+        entity_id: sEntityId,
+        period_start: sPeriodStart,
+        period_end: sPeriodEnd
+      };
+
+      var that = this;
+      plService.createSnapshot(oPayload).then(function (oData) {
+        MessageToast.show(that.getI18nText("snapshotCreated"));
+        oModel.setProperty("/snapshot", oData);
+        oModel.setProperty("/snapLoaded", true);
+      }).catch(function (oError) {
+        MessageBox.error(that._formatError(oError));
+      });
     },
 
-    _run: function (fn) {
-      var model = this.getView().getModel("pnl");
-      model.setProperty("/busy", true);
-      model.setProperty("/errorText", "");
-      fn()
-        .then(function (payload) {
-          model.setProperty("/responseText", jsonUtil.pretty(payload));
-        })
-        .catch(function (error) {
-          var status = error && error.status ? "HTTP " + error.status : "HTTP ?";
-          var details = error && error.details !== undefined ? "\n\n" + jsonUtil.pretty(error.details) : "";
-          var message = status + ": " + (error && error.message ? error.message : "Request failed") + details;
-          model.setProperty("/errorText", message);
-          MessageBox.error(message);
-        })
-        .finally(function () {
-          model.setProperty("/busy", false);
-        });
+    onLoadSnapshot: function () {
+      var oModel = this.getViewModel();
+      var sEntityType = oModel.getProperty("/snapEntityType");
+      var sEntityId = oModel.getProperty("/snapEntityId").trim();
+      var sPeriodStart = this.byId("snapStart").getValue();
+      var sPeriodEnd = this.byId("snapEnd").getValue();
+
+      if (!sEntityId) {
+        MessageBox.warning(this.getI18nText("entityIdRequired"));
+        return;
+      }
+
+      oModel.setProperty("/busy", true);
+      plService.getSnapshot(sEntityType, sEntityId, sPeriodStart, sPeriodEnd).then(function (oData) {
+        oModel.setProperty("/snapshot", oData);
+        oModel.setProperty("/snapLoaded", true);
+      }).catch(function (oError) {
+        MessageBox.error(this._formatError(oError));
+        oModel.setProperty("/snapLoaded", false);
+      }.bind(this)).finally(function () {
+        oModel.setProperty("/busy", false);
+      });
+    },
+
+    formatPlState: function (fValue) {
+      if (fValue === undefined || fValue === null) { return "None"; }
+      var n = parseFloat(fValue);
+      if (n > 0) { return "Success"; }
+      if (n < 0) { return "Error"; }
+      return "None";
     }
   });
 });

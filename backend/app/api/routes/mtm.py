@@ -6,12 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
+from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.mtm import MTMObjectType, MTMSnapshot
 from app.schemas.mtm import MTMResultResponse, MTMSnapshotCreate, MTMSnapshotResponse
 from app.services.mtm_contract_service import compute_mtm_for_contract
 from app.services.mtm_order_service import compute_mtm_for_order
-from app.services.mtm_snapshot_service import create_mtm_snapshot_for_contract, create_mtm_snapshot_for_order
+from app.services.mtm_snapshot_service import (
+    create_mtm_snapshot_for_contract,
+    create_mtm_snapshot_for_order,
+)
 
 
 router = APIRouter()
@@ -24,7 +28,9 @@ def get_mtm_for_hedge_contract(
     _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> MTMResultResponse:
-    return compute_mtm_for_contract(session, contract_id=contract_id, as_of_date=as_of_date)
+    return compute_mtm_for_contract(
+        session, contract_id=contract_id, as_of_date=as_of_date
+    )
 
 
 @router.get("/orders/{order_id}", response_model=MTMResultResponse)
@@ -37,7 +43,12 @@ def get_mtm_for_order(
     return compute_mtm_for_order(session, order_id=order_id, as_of_date=as_of_date)
 
 
-@router.post("/snapshots", response_model=MTMSnapshotResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/snapshots",
+    response_model=MTMSnapshotResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit(RATE_LIMIT_MUTATION)
 def create_mtm_snapshot(
     payload: MTMSnapshotCreate,
     request: Request,
@@ -65,7 +76,9 @@ def create_mtm_snapshot(
             correlation_id=payload.correlation_id,
         )
     else:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported object_type")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported object_type"
+        )
     mark_audit_success(request, snapshot.id)
     request.state.audit_commit()
     return MTMSnapshotResponse.model_validate(snapshot)
@@ -89,5 +102,7 @@ def get_mtm_snapshot(
         .first()
     )
     if snapshot is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MTM snapshot not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="MTM snapshot not found"
+        )
     return MTMSnapshotResponse.model_validate(snapshot)

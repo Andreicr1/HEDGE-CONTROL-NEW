@@ -15,8 +15,8 @@
         illustrationSize="Auto">
         <additionalContent>
           <VBox class="sapUiSmallMarginTop">
-            <Title level="H5" text="Blockers" />
-            <List items="{blocked>/blockers}" noDataText="No blockers">
+            <Title level="H5" text="{i18n>blockedBlockersTitle}" />
+            <List items="{blocked>/blockers}" noDataText="{i18n>blockedNoBlockers}">
               <StandardListItem title="{blocked>}" icon="sap-icon://warning" />
             </List>
           </VBox>

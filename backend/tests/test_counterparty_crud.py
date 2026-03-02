@@ -1,0 +1,171 @@
+"""Tests for Counterparty CRUD — component 1.1."""
+
+import pytest
+from uuid import uuid4
+
+
+ENDPOINT = "/counterparties"
+
+VALID_COUNTERPARTY = {
+    "type": "customer",
+    "name": "Aluminium Corp",
+    "short_name": "AluCorp",
+    "tax_id": "BR123456789",
+    "country": "BRA",
+    "city": "São Paulo",
+    "contact_name": "João Silva",
+    "contact_email": "joao@alucorp.com",
+    "payment_terms_days": 45,
+    "credit_limit_usd": 500000.00,
+    "kyc_status": "approved",
+    "risk_rating": "low",
+}
+
+
+def test_create_counterparty(client):
+    r = client.post(ENDPOINT, json=VALID_COUNTERPARTY)
+    assert r.status_code == 201
+    body = r.json()
+    assert body["name"] == "Aluminium Corp"
+    assert body["type"] == "customer"
+    assert body["kyc_status"] == "approved"
+    assert body["is_deleted"] is False
+
+
+def test_create_counterparty_defaults(client):
+    r = client.post(
+        ENDPOINT, json={"type": "broker", "name": "Metal Broker", "country": "USA"}
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["kyc_status"] == "pending"
+    assert body["sanctions_status"] == "clear"
+    assert body["risk_rating"] == "medium"
+    assert body["payment_terms_days"] == 30
+
+
+def test_list_counterparties(client):
+    client.post(ENDPOINT, json={"type": "customer", "name": "C1", "country": "USA"})
+    client.post(ENDPOINT, json={"type": "supplier", "name": "S1", "country": "DEU"})
+    r = client.get(ENDPOINT)
+    assert r.status_code == 200
+    assert len(r.json()["items"]) == 2
+
+
+def test_list_filter_by_type(client):
+    client.post(ENDPOINT, json={"type": "customer", "name": "C1", "country": "USA"})
+    client.post(ENDPOINT, json={"type": "supplier", "name": "S1", "country": "DEU"})
+    r = client.get(ENDPOINT, params={"type": "customer"})
+    assert r.status_code == 200
+    items = r.json()["items"]
+    assert len(items) == 1
+    assert items[0]["type"] == "customer"
+
+
+def test_list_filter_by_kyc_status(client):
+    client.post(
+        ENDPOINT,
+        json={
+            "type": "customer",
+            "name": "C1",
+            "country": "USA",
+            "kyc_status": "approved",
+        },
+    )
+    client.post(
+        ENDPOINT,
+        json={
+            "type": "customer",
+            "name": "C2",
+            "country": "USA",
+            "kyc_status": "pending",
+        },
+    )
+    r = client.get(ENDPOINT, params={"kyc_status": "approved"})
+    items = r.json()["items"]
+    assert len(items) == 1
+    assert items[0]["name"] == "C1"
+
+
+def test_get_counterparty(client):
+    r1 = client.post(ENDPOINT, json=VALID_COUNTERPARTY)
+    cp_id = r1.json()["id"]
+    r2 = client.get(f"{ENDPOINT}/{cp_id}")
+    assert r2.status_code == 200
+    assert r2.json()["id"] == cp_id
+
+
+def test_get_counterparty_not_found(client):
+    r = client.get(f"{ENDPOINT}/{uuid4()}")
+    assert r.status_code == 404
+
+
+def test_update_counterparty(client):
+    r1 = client.post(ENDPOINT, json=VALID_COUNTERPARTY)
+    cp_id = r1.json()["id"]
+    r2 = client.patch(
+        f"{ENDPOINT}/{cp_id}", json={"name": "New Name", "credit_limit_usd": 1000000.0}
+    )
+    assert r2.status_code == 200
+    assert r2.json()["name"] == "New Name"
+    assert r2.json()["credit_limit_usd"] == 1000000.0
+
+
+def test_soft_delete_counterparty(client):
+    r1 = client.post(ENDPOINT, json=VALID_COUNTERPARTY)
+    cp_id = r1.json()["id"]
+    r2 = client.delete(f"{ENDPOINT}/{cp_id}")
+    assert r2.status_code == 200
+    assert r2.json()["is_deleted"] is True
+    assert r2.json()["deleted_at"] is not None
+    # Cannot find after soft delete
+    r3 = client.get(f"{ENDPOINT}/{cp_id}")
+    assert r3.status_code == 404
+
+
+def test_duplicate_tax_id_rejected(client):
+    client.post(ENDPOINT, json=VALID_COUNTERPARTY)
+    r = client.post(ENDPOINT, json={**VALID_COUNTERPARTY, "name": "Other Corp"})
+    assert r.status_code == 409
+    assert "tax_id" in r.json()["detail"]
+
+
+def test_update_tax_id_duplicate_rejected(client):
+    client.post(ENDPOINT, json=VALID_COUNTERPARTY)
+    r2 = client.post(
+        ENDPOINT,
+        json={
+            "type": "supplier",
+            "name": "S2",
+            "country": "USA",
+            "tax_id": "UNIQUE999",
+        },
+    )
+    cp2_id = r2.json()["id"]
+    r3 = client.patch(f"{ENDPOINT}/{cp2_id}", json={"tax_id": "BR123456789"})
+    assert r3.status_code == 409
+
+
+def test_list_filter_by_is_active(client):
+    client.post(
+        ENDPOINT,
+        json={
+            "type": "customer",
+            "name": "Active",
+            "country": "USA",
+            "is_active": True,
+        },
+    )
+    client.post(
+        ENDPOINT,
+        json={
+            "type": "customer",
+            "name": "Inactive",
+            "country": "USA",
+            "is_active": False,
+        },
+    )
+    r = client.get(ENDPOINT, params={"is_active": True})
+    items = r.json()["items"]
+    assert len(items) == 1
+    assert items[0]["name"] == "Active"

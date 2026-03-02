@@ -25,6 +25,15 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     },
     reject: function (rfqId, payload) {
       return apiClient.postJson("/rfqs/" + encodeURIComponent(rfqId) + "/actions/reject", payload);
+    },
+    list: function () {
+      return apiClient.getJson("/rfqs");
+    },
+    listQuotes: function (rfqId) {
+      return apiClient.getJson("/rfqs/" + encodeURIComponent(rfqId) + "/quotes");
+    },
+    archive: function (rfqId) {
+      return apiClient.patchJson("/rfqs/" + encodeURIComponent(rfqId) + "/archive");
     }
   };
 });

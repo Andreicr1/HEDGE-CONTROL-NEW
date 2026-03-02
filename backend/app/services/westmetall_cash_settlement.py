@@ -1,17 +1,84 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime
+
+from app.core.utils import now_utc
 import hashlib
+import logging
 import re
+import threading
+import time
 
 import httpx
+import structlog
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+    before_sleep_log,
+)
 
 
-WESTMETALL_DAILY_URL = "https://www.westmetall.com/en/markdaten.php?action=table&field=LME_Al_cash"
+WESTMETALL_DAILY_URL = (
+    "https://www.westmetall.com/en/markdaten.php?action=table&field=LME_Al_cash"
+)
 
 SYMBOL_DAILY = "LME_ALU_CASH_SETTLEMENT_DAILY"
 SOURCE_WESTMETALL = "westmetall"
+
+logger = structlog.get_logger(__name__)
+
+# ── Circuit breaker state ──────────────────────────────────────────────
+_CB_LOCK = threading.Lock()
+_CB_FAILURE_COUNT = 0
+_CB_OPEN_UNTIL: float = 0.0
+CB_FAILURE_THRESHOLD = 5
+CB_COOLDOWN_SECONDS = 60.0
+
+
+class CircuitOpenError(RuntimeError):
+    """Raised when the circuit breaker is open."""
+
+    pass
+
+
+def _cb_record_success() -> None:
+    global _CB_FAILURE_COUNT, _CB_OPEN_UNTIL  # noqa: PLW0603
+    with _CB_LOCK:
+        _CB_FAILURE_COUNT = 0
+        _CB_OPEN_UNTIL = 0.0
+
+
+def _cb_record_failure() -> None:
+    global _CB_FAILURE_COUNT, _CB_OPEN_UNTIL  # noqa: PLW0603
+    with _CB_LOCK:
+        _CB_FAILURE_COUNT += 1
+        if _CB_FAILURE_COUNT >= CB_FAILURE_THRESHOLD:
+            _CB_OPEN_UNTIL = time.monotonic() + CB_COOLDOWN_SECONDS
+            logger.warning(
+                "circuit_breaker_opened",
+                failure_count=_CB_FAILURE_COUNT,
+                cooldown_seconds=CB_COOLDOWN_SECONDS,
+            )
+
+
+def _cb_check() -> None:
+    with _CB_LOCK:
+        if _CB_OPEN_UNTIL and time.monotonic() < _CB_OPEN_UNTIL:
+            raise CircuitOpenError(
+                f"Circuit breaker open — {CB_FAILURE_THRESHOLD} consecutive failures. "
+                f"Try again in {int(_CB_OPEN_UNTIL - time.monotonic())}s."
+            )
+
+
+def reset_circuit_breaker() -> None:
+    """Reset circuit breaker state — for testing only."""
+    global _CB_FAILURE_COUNT, _CB_OPEN_UNTIL  # noqa: PLW0603
+    with _CB_LOCK:
+        _CB_FAILURE_COUNT = 0
+        _CB_OPEN_UNTIL = 0.0
 
 
 class WestmetallLayoutError(RuntimeError):
@@ -31,13 +98,41 @@ class WestmetallDailyRow:
     price_usd: float
 
 
-def fetch_westmetall_html(url: str, *, timeout_seconds: float = 30.0) -> tuple[bytes, WestmetallFetchEvidence]:
-    fetched_at = datetime.now(timezone.utc)
+def fetch_westmetall_html(
+    url: str, *, timeout_seconds: float = 30.0
+) -> tuple[bytes, WestmetallFetchEvidence]:
+    """Fetch HTML from Westmetall with retry + circuit breaker.
+
+    * 3 attempts with exponential back-off (1 → 2 → 4 s, capped at 10 s).
+    * Circuit breaker opens after 5 consecutive failures for 60 s (HTTP 503).
+    """
+    _cb_check()  # raises CircuitOpenError if open
+    try:
+        return _fetch_with_retry(url, timeout_seconds=timeout_seconds)
+    except Exception:
+        _cb_record_failure()
+        raise
+
+
+@retry(
+    retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TransportError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    reraise=True,
+)
+def _fetch_with_retry(
+    url: str, *, timeout_seconds: float = 30.0
+) -> tuple[bytes, WestmetallFetchEvidence]:
+    fetched_at = now_utc()
     response = httpx.get(url, timeout=timeout_seconds)
     response.raise_for_status()
     html = response.content
     html_sha256 = hashlib.sha256(html).hexdigest()
-    evidence = WestmetallFetchEvidence(source_url=url, html_sha256=html_sha256, fetched_at=fetched_at)
+    evidence = WestmetallFetchEvidence(
+        source_url=url, html_sha256=html_sha256, fetched_at=fetched_at
+    )
+    _cb_record_success()
     return html, evidence
 
 
@@ -85,9 +180,10 @@ def parse_westmetall_daily_rows(html: bytes) -> list[WestmetallDailyRow]:
         parsed_price = _parse_float(cells[1])
         if parsed_price is None:
             continue
-        rows.append(WestmetallDailyRow(settlement_date=parsed_date, price_usd=parsed_price))
+        rows.append(
+            WestmetallDailyRow(settlement_date=parsed_date, price_usd=parsed_price)
+        )
 
     if not rows:
         raise WestmetallLayoutError("no_daily_rows_parsed")
     return rows
-
