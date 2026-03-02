@@ -80,6 +80,9 @@
     <beginButton>
       <Button text="{i18n>submit}" type="Emphasized" press=".onSubmitRfq" />
     </beginButton>
+    <buttons>
+      <Button text="{i18n>previewText}" icon="sap-icon://document-text" press=".onPreviewRfqText" type="Ghost" />
+    </buttons>
     <endButton>
       <Button text="{i18n>cancel}" press=".onCancelCreateRfq" />
     </endButton>

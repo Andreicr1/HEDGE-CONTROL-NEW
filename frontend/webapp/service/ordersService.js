@@ -16,6 +16,12 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     },
     archive: function (orderId) {
       return apiClient.patchJson("/orders/" + encodeURIComponent(orderId) + "/archive");
+    },
+    createLink: function (oPayload) {
+      return apiClient.postJson("/orders/links", oPayload);
+    },
+    listLinks: function () {
+      return apiClient.getJson("/orders/links");
     }
   };
 });

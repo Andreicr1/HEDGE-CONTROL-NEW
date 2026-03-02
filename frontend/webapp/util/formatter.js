@@ -90,13 +90,13 @@ sap.ui.define([], function () {
 				return "None";
 			}
 			var s = sStatus.toLowerCase();
-			if (s === "active" || s === "awarded" || s === "settled" || s === "completed") {
+			if (s === "active" || s === "awarded" || s === "settled" || s === "completed" || s === "approved" || s === "clear") {
 				return "Success";
 			}
-			if (s === "pending" || s === "open" || s === "draft" || s === "created") {
+			if (s === "pending" || s === "open" || s === "draft" || s === "created" || s === "flagged") {
 				return "Warning";
 			}
-			if (s === "rejected" || s === "cancelled" || s === "error" || s === "failed" || s === "archived") {
+			if (s === "rejected" || s === "cancelled" || s === "error" || s === "failed" || s === "archived" || s === "expired" || s === "blocked") {
 				return "Error";
 			}
 			return "Information";

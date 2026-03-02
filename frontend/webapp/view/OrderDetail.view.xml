@@ -106,6 +106,42 @@
           </uxap:ObjectPageSubSection>
         </uxap:subSections>
       </uxap:ObjectPageSection>
+      <uxap:ObjectPageSection title="{i18n>sectionSoPoLinks}" titleUppercase="false">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <VBox>
+                <Table items="{ordDet>/links}" noDataText="{i18n>noSoPoLinks}">
+                  <headerToolbar>
+                    <OverflowToolbar>
+                      <Title text="{i18n>sectionSoPoLinks}" level="H3" />
+                      <ToolbarSpacer />
+                      <Button text="{i18n>addSoPoLink}" icon="sap-icon://add" press=".onAddLink" type="Emphasized"
+                        visible="{= !${ordDet>/detail/deleted_at}}" />
+                    </OverflowToolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column><header><Text text="{i18n>colSalesOrderId}" /></header></Column>
+                    <Column><header><Text text="{i18n>colPurchaseOrderId}" /></header></Column>
+                    <Column hAlign="End"><header><Text text="{i18n>linkedTons}" /></header></Column>
+                    <Column><header><Text text="{i18n>colCreatedAt}" /></header></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <Text text="{path: 'ordDet>sales_order_id', formatter: 'formatter.shortUuid'}" />
+                        <Text text="{path: 'ordDet>purchase_order_id', formatter: 'formatter.shortUuid'}" />
+                        <Text text="{path: 'ordDet>linked_tons', formatter: 'formatter.numberTwoDecimals'}" />
+                        <Text text="{path: 'ordDet>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
       <uxap:ObjectPageSection title="{i18n>sectionActions}">
         <uxap:subSections>
           <uxap:ObjectPageSubSection>

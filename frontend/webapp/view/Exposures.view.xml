@@ -12,7 +12,7 @@
           <Title text="{i18n>exposuresTitle}" />
         </f:heading>
         <f:actions>
-          <Button text="{i18n>refresh}" icon="sap-icon://refresh" press=".onRefresh" type="Emphasized" />
+          <Button text="{i18n>refresh}" icon="sap-icon://refresh" press=".onRefresh" />
         </f:actions>
       </f:DynamicPageTitle>
     </f:title>
@@ -25,9 +25,22 @@
           showCloseButton="true"
           visible="{= !!${exp>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
+
+        <!-- Reconcile result banner -->
+        <MessageStrip
+          text="{= ${exp>/reconcileResult} ? ${exp>/reconcileResult/message} + ' (criados: ' + ${exp>/reconcileResult/created} + ', atualizados: ' + ${exp>/reconcileResult/updated} + ')' : ''}"
+          type="Success"
+          showIcon="true"
+          showCloseButton="true"
+          visible="{= !!${exp>/reconcileResult}}"
+          class="sapUiSmallMarginBottom" />
+
         <IconTabBar id="exposuresTabBar" select=".onTabSelect" selectedKey="commercial">
           <items>
-            <IconTabFilter key="commercial" text="{i18n>exposuresCommercial}" count="{= ${exp>/commercial} ? ${exp>/commercial}.length : 0}">
+
+            <!-- Tab 1: Commercial (legacy) -->
+            <IconTabFilter key="commercial" text="{i18n>exposuresCommercial}" icon="sap-icon://sales-order"
+              count="{= ${exp>/commercial} ? ${exp>/commercial}.length : 0}">
               <Table id="commercialTable" items="{exp>/commercial}" growing="true" growingThreshold="50"
                 noDataText="{i18n>noData}" mode="None">
                 <headerToolbar>
@@ -40,7 +53,7 @@
                 <columns>
                   <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
                   <Column><header><Text text="{i18n>colDirection}" /></header></Column>
-                  <Column><header><Text text="{i18n>colQuantity}" /></header></Column>
+                  <Column hAlign="End"><header><Text text="{i18n>colQuantity}" /></header></Column>
                   <Column><header><Text text="{i18n>colUnit}" /></header></Column>
                   <Column><header><Text text="{i18n>colDeliveryMonth}" /></header></Column>
                   <Column><header><Text text="{i18n>colEntity}" /></header></Column>
@@ -59,7 +72,10 @@
                 </items>
               </Table>
             </IconTabFilter>
-            <IconTabFilter key="global" text="{i18n>exposuresGlobal}" count="{= ${exp>/global} ? ${exp>/global}.length : 0}">
+
+            <!-- Tab 2: Global (legacy) -->
+            <IconTabFilter key="global" text="{i18n>exposuresGlobal}" icon="sap-icon://world"
+              count="{= ${exp>/global} ? ${exp>/global}.length : 0}">
               <Table id="globalTable" items="{exp>/global}" growing="true" growingThreshold="50"
                 noDataText="{i18n>noData}" mode="None">
                 <headerToolbar>
@@ -71,7 +87,7 @@
                 </headerToolbar>
                 <columns>
                   <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
-                  <Column><header><Text text="{i18n>colNetPosition}" /></header></Column>
+                  <Column hAlign="End"><header><Text text="{i18n>colNetPosition}" /></header></Column>
                   <Column><header><Text text="{i18n>colUnit}" /></header></Column>
                   <Column><header><Text text="{i18n>colHedgeRatio}" /></header></Column>
                   <Column><header><Text text="{i18n>colDeliveryMonth}" /></header></Column>
@@ -89,6 +105,115 @@
                 </items>
               </Table>
             </IconTabFilter>
+
+            <!-- Tab 3: Exposure Engine -->
+            <IconTabFilter key="engine" text="{i18n>exposuresEngine}" icon="sap-icon://machine"
+              count="{= ${exp>/engineItems} ? ${exp>/engineItems}.length : 0}">
+              <VBox>
+                <!-- Net Exposure Summary -->
+                <Panel headerText="{i18n>netExposureSummary}" expandable="true" expanded="true" class="sapUiSmallMarginBottom">
+                  <Table items="{exp>/netItems}" noDataText="{i18n>noNetExposure}">
+                    <columns>
+                      <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
+                      <Column hAlign="End"><header><Text text="{i18n>colLongTons}" /></header></Column>
+                      <Column hAlign="End"><header><Text text="{i18n>colShortTons}" /></header></Column>
+                      <Column hAlign="End"><header><Text text="{i18n>colNetTons}" /></header></Column>
+                    </columns>
+                    <items>
+                      <ColumnListItem>
+                        <cells>
+                          <Text text="{path: 'exp>commodity', formatter: 'formatter.capitalize'}" />
+                          <ObjectNumber number="{path: 'exp>long_tons', formatter: 'formatter.numberTwoDecimals'}" state="Success" />
+                          <ObjectNumber number="{path: 'exp>short_tons', formatter: 'formatter.numberTwoDecimals'}" state="Error" />
+                          <ObjectNumber number="{path: 'exp>net_tons', formatter: 'formatter.numberTwoDecimals'}"
+                            state="{= ${exp>net_tons} >= 0 ? 'Success' : 'Error'}" emphasized="true" />
+                        </cells>
+                      </ColumnListItem>
+                    </items>
+                  </Table>
+                </Panel>
+
+                <!-- Exposure detail list -->
+                <Table id="engineTable" items="{exp>/engineItems}" growing="true" growingThreshold="50"
+                  noDataText="{i18n>noData}" mode="None">
+                  <headerToolbar>
+                    <OverflowToolbar>
+                      <Title text="{i18n>exposuresList}" level="H3" />
+                      <ToolbarSpacer />
+                      <SearchField width="15rem" search=".onSearchEngine" />
+                      <Button text="{i18n>reconcile}" icon="sap-icon://synchronize" press=".onReconcile" type="Emphasized" />
+                    </OverflowToolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column width="8rem"><header><Text text="{i18n>colId}" /></header></Column>
+                    <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
+                    <Column width="5rem"><header><Text text="{i18n>colDirection}" /></header></Column>
+                    <Column><header><Text text="{i18n>colSourceType}" /></header></Column>
+                    <Column hAlign="End"><header><Text text="{i18n>colOriginalTons}" /></header></Column>
+                    <Column hAlign="End"><header><Text text="{i18n>colOpenTons}" /></header></Column>
+                    <Column><header><Text text="{i18n>colSettlementMonth}" /></header></Column>
+                    <Column width="8rem"><header><Text text="{i18n>colStatus}" /></header></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <Text text="{path: 'exp>id', formatter: 'formatter.shortUuid'}" />
+                        <Text text="{path: 'exp>commodity', formatter: 'formatter.capitalize'}" />
+                        <ObjectStatus text="{path: 'exp>direction', formatter: 'formatter.capitalize'}"
+                          state="{= ${exp>direction} === 'long' ? 'Success' : 'Error'}" />
+                        <Text text="{path: 'exp>source_type', formatter: 'formatter.capitalize'}" />
+                        <Text text="{path: 'exp>original_tons', formatter: 'formatter.numberTwoDecimals'}" />
+                        <ObjectNumber number="{path: 'exp>open_tons', formatter: 'formatter.numberTwoDecimals'}"
+                          state="{= ${exp>open_tons} > 0 ? 'Warning' : 'Success'}" />
+                        <Text text="{exp>settlement_month}" />
+                        <ObjectStatus text="{path: 'exp>status', formatter: 'formatter.capitalize'}"
+                          state="{path: 'exp>status', formatter: 'formatter.statusState'}" />
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+              </VBox>
+            </IconTabFilter>
+
+            <!-- Tab 4: Hedge Tasks -->
+            <IconTabFilter key="tasks" text="{i18n>hedgeTasks}" icon="sap-icon://task"
+              count="{= ${exp>/tasks} ? ${exp>/tasks}.length : 0}">
+              <Table id="tasksTable" items="{exp>/tasks}" growing="true" growingThreshold="50"
+                noDataText="{i18n>noTasks}" mode="None">
+                <headerToolbar>
+                  <OverflowToolbar>
+                    <Title text="{i18n>hedgeTasks}" level="H3" />
+                    <ToolbarSpacer />
+                  </OverflowToolbar>
+                </headerToolbar>
+                <columns>
+                  <Column width="8rem"><header><Text text="{i18n>colId}" /></header></Column>
+                  <Column><header><Text text="{i18n>colExposureId}" /></header></Column>
+                  <Column><header><Text text="{i18n>colRecommendedAction}" /></header></Column>
+                  <Column hAlign="End"><header><Text text="{i18n>colRecommendedTons}" /></header></Column>
+                  <Column width="8rem"><header><Text text="{i18n>colStatus}" /></header></Column>
+                  <Column><header><Text text="{i18n>colCreatedAt}" /></header></Column>
+                  <Column width="6rem" hAlign="Center"><header><Text text="" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <Text text="{path: 'exp>id', formatter: 'formatter.shortUuid'}" />
+                      <Text text="{path: 'exp>exposure_id', formatter: 'formatter.shortUuid'}" />
+                      <ObjectStatus text="{path: 'exp>recommended_action', formatter: 'formatter.capitalize'}"
+                        state="{= ${exp>recommended_action} === 'hedge_new' ? 'Information' : (${exp>recommended_action} === 'cancel' ? 'Error' : 'Warning')}" />
+                      <Text text="{path: 'exp>recommended_tons', formatter: 'formatter.numberTwoDecimals'}" />
+                      <ObjectStatus text="{path: 'exp>status', formatter: 'formatter.capitalize'}"
+                        state="{path: 'exp>status', formatter: 'formatter.statusState'}" />
+                      <Text text="{path: 'exp>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                      <Button text="{i18n>execute}" icon="sap-icon://accept" press=".onExecuteTask" type="Emphasized"
+                        visible="{= ${exp>status} === 'pending'}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </IconTabFilter>
+
           </items>
         </IconTabBar>
       </VBox>

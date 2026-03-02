@@ -32,11 +32,16 @@
           <tnt:NavigationListItem key="orders" text="{i18n>navOrders}" icon="sap-icon://sales-order" />
           <tnt:NavigationListItem key="rfq" text="{i18n>navRfq}" icon="sap-icon://request" />
           <tnt:NavigationListItem key="contracts" text="{i18n>navContracts}" icon="sap-icon://document" />
+          <tnt:NavigationListItem key="hedges" text="{i18n>navHedges}" icon="sap-icon://shield" />
+          <tnt:NavigationListItem key="deals" text="{i18n>navDeals}" icon="sap-icon://business-objects-experience" />
+          <tnt:NavigationListItem key="counterparties" text="{i18n>navCounterparties}" icon="sap-icon://supplier" />
           <tnt:NavigationListItem key="linkages" text="{i18n>navLinkages}" icon="sap-icon://chain-link" />
           <tnt:NavigationListItem key="cashflow" text="{i18n>navCashflow}" icon="sap-icon://money-bills" />
           <tnt:NavigationListItem key="pnl" text="{i18n>navPnl}" icon="sap-icon://line-chart" />
           <tnt:NavigationListItem key="scenario" text="{i18n>navScenario}" icon="sap-icon://simulate" />
           <tnt:NavigationListItem key="mtm" text="{i18n>navMtm}" icon="sap-icon://business-objects-experience" />
+          <tnt:NavigationListItem key="auditTrail" text="{i18n>navAudit}" icon="sap-icon://inspect" />
+          <tnt:NavigationListItem key="financePipeline" text="{i18n>navPipeline}" icon="sap-icon://process" />
           <tnt:NavigationListItem key="marketData" text="{i18n>navMarketData}" icon="sap-icon://database" />
         </tnt:NavigationList>
       </tnt:SideNavigation>

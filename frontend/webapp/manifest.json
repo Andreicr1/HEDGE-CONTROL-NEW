@@ -181,6 +181,79 @@
                     "target": "mtm"
                 },
                 {
+                    "pattern": "hedges",
+                    "name": "hedges",
+                    "target": "hedgesList"
+                },
+                {
+                    "pattern": "hedges/create",
+                    "name": "hedgeCreate",
+                    "target": [
+                        "hedgesList",
+                        "hedgeCreate"
+                    ]
+                },
+                {
+                    "pattern": "hedges/{hedgeId}",
+                    "name": "hedgeDetail",
+                    "target": [
+                        "hedgesList",
+                        "hedgeDetail"
+                    ]
+                },
+                {
+                    "pattern": "deals",
+                    "name": "deals",
+                    "target": "dealsList"
+                },
+                {
+                    "pattern": "deals/create",
+                    "name": "dealCreate",
+                    "target": [
+                        "dealsList",
+                        "dealCreate"
+                    ]
+                },
+                {
+                    "pattern": "deals/{dealId}",
+                    "name": "dealDetail",
+                    "target": [
+                        "dealsList",
+                        "dealDetail"
+                    ]
+                },
+                {
+                    "pattern": "counterparties",
+                    "name": "counterparties",
+                    "target": "counterpartiesList"
+                },
+                {
+                    "pattern": "counterparties/create",
+                    "name": "counterpartyCreate",
+                    "target": [
+                        "counterpartiesList",
+                        "counterpartyCreate"
+                    ]
+                },
+                {
+                    "pattern": "counterparties/{counterpartyId}",
+                    "name": "counterpartyDetail",
+                    "target": [
+                        "counterpartiesList",
+                        "counterpartyDetail"
+                    ]
+                },
+                {
+                    "pattern": "audit",
+                    "name": "auditTrail",
+                    "target": "auditTrail"
+                },
+                {
+                    "pattern": "finance-pipeline",
+                    "name": "financePipeline",
+                    "target": "financePipeline"
+                },
+                {
                     "pattern": "market-data",
                     "name": "marketData",
                     "target": "marketData"
@@ -258,6 +331,50 @@
                 },
                 "mtm": {
                     "name": "Mtm",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "hedgesList": {
+                    "name": "HedgesList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "hedgeCreate": {
+                    "name": "HedgeCreate",
+                    "controlAggregation": "midColumnPages"
+                },
+                "hedgeDetail": {
+                    "name": "HedgeDetail",
+                    "controlAggregation": "midColumnPages"
+                },
+                "dealsList": {
+                    "name": "DealsList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "dealCreate": {
+                    "name": "DealCreate",
+                    "controlAggregation": "midColumnPages"
+                },
+                "dealDetail": {
+                    "name": "DealDetail",
+                    "controlAggregation": "midColumnPages"
+                },
+                "counterpartiesList": {
+                    "name": "CounterpartiesList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "counterpartyCreate": {
+                    "name": "CounterpartyCreate",
+                    "controlAggregation": "midColumnPages"
+                },
+                "counterpartyDetail": {
+                    "name": "CounterpartyDetail",
+                    "controlAggregation": "midColumnPages"
+                },
+                "auditTrail": {
+                    "name": "AuditTrail",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "financePipeline": {
+                    "name": "FinancePipeline",
                     "controlAggregation": "beginColumnPages"
                 },
                 "marketData": {

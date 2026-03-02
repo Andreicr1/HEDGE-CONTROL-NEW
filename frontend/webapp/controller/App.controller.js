@@ -22,12 +22,23 @@ sap.ui.define([
     contracts: "contracts",
     contractCreate: "contracts",
     contractDetail: "contracts",
+    hedges: "hedges",
+    hedgeCreate: "hedges",
+    hedgeDetail: "hedges",
+    deals: "deals",
+    dealCreate: "deals",
+    dealDetail: "deals",
+    counterparties: "counterparties",
+    counterpartyCreate: "counterparties",
+    counterpartyDetail: "counterparties",
     linkages: "linkages",
     linkageDetail: "linkages",
     cashflow: "cashflow",
     pnl: "pnl",
     scenario: "scenario",
     mtm: "mtm",
+    auditTrail: "auditTrail",
+    financePipeline: "financePipeline",
     marketData: "marketData"
   };
 
@@ -41,6 +52,12 @@ sap.ui.define([
     rfqDetail: LayoutType.TwoColumnsMidExpanded,
     contractCreate: LayoutType.TwoColumnsMidExpanded,
     contractDetail: LayoutType.TwoColumnsMidExpanded,
+    hedgeCreate: LayoutType.TwoColumnsMidExpanded,
+    hedgeDetail: LayoutType.TwoColumnsMidExpanded,
+    dealCreate: LayoutType.TwoColumnsMidExpanded,
+    dealDetail: LayoutType.TwoColumnsMidExpanded,
+    counterpartyCreate: LayoutType.TwoColumnsMidExpanded,
+    counterpartyDetail: LayoutType.TwoColumnsMidExpanded,
     linkageDetail: LayoutType.TwoColumnsMidExpanded
   };
 

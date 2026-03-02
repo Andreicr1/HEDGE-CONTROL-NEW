@@ -3,10 +3,11 @@ sap.ui.define([
   "hedgecontrol/service/rfqService",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
+  "sap/ui/model/json/JSONModel",
   "sap/ui/core/Fragment",
   "sap/m/MessageBox",
   "sap/m/MessageToast"
-], function (BaseController, rfqService, Filter, FilterOperator, Fragment, MessageBox, MessageToast) {
+], function (BaseController, rfqService, Filter, FilterOperator, JSONModel, Fragment, MessageBox, MessageToast) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.RfqList", {
@@ -22,14 +23,16 @@ sap.ui.define([
     },
 
     _initCreateModel: function () {
-      var oModel = new sap.ui.model.json.JSONModel({
-        intent: "SPREAD",
-        commodity: "",
-        direction: "BUY",
-        quantity_mt: "",
-        delivery_window_start: "",
-        delivery_window_end: "",
-        order_id: ""
+      var oModel = new JSONModel({
+        form: {
+          intent: "SPREAD",
+          commodity: "",
+          direction: "BUY",
+          quantity_mt: "",
+          delivery_window_start: "",
+          delivery_window_end: "",
+          order_id: ""
+        }
       });
       this.getView().setModel(oModel, "rfqCrt");
     },
@@ -96,7 +99,7 @@ sap.ui.define([
     },
 
     _resetCreateModel: function () {
-      this.getView().getModel("rfqCrt").setData({
+      this.getView().getModel("rfqCrt").setProperty("/form", {
         intent: "SPREAD",
         commodity: "",
         direction: "BUY",
@@ -109,9 +112,8 @@ sap.ui.define([
 
     onSubmitRfq: function () {
       var that = this;
-      var oData = this.getView().getModel("rfqCrt").getData();
+      var oData = this.getView().getModel("rfqCrt").getProperty("/form");
 
-      // Basic validation
       if (!oData.commodity || !oData.quantity_mt || !oData.delivery_window_start || !oData.delivery_window_end) {
         MessageBox.warning(this.getI18nText("validationRequiredFields"));
         return;
@@ -137,6 +139,41 @@ sap.ui.define([
             that.navToDetail("rfqDetail", { rfqId: oResult.id });
           }
         }
+      });
+    },
+
+    onPreviewRfqText: function () {
+      var oData = this.getView().getModel("rfqCrt").getProperty("/form");
+
+      if (!oData.commodity || !oData.quantity_mt) {
+        MessageBox.warning(this.getI18nText("validationRequiredFields"));
+        return;
+      }
+
+      var oPayload = {
+        trade_type: "SWAP",
+        leg1: {
+          commodity: oData.commodity,
+          direction: oData.direction,
+          quantity_mt: parseFloat(oData.quantity_mt)
+        },
+        channel_type: "BROKER_LME"
+      };
+      if (oData.delivery_window_start) {
+        oPayload.leg1.prompt_start = oData.delivery_window_start;
+      }
+      if (oData.delivery_window_end) {
+        oPayload.leg1.prompt_end = oData.delivery_window_end;
+      }
+
+      rfqService.previewText(oPayload).then(function (oResult) {
+        if (oResult && oResult.text) {
+          MessageBox.information(oResult.text, {
+            title: "RFQ Preview"
+          });
+        }
+      }).catch(function (oError) {
+        MessageBox.error(oError.message || "Preview failed");
       });
     },
 

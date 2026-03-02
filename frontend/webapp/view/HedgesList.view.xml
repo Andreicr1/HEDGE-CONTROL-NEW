@@ -1,0 +1,68 @@
+<mvc:View
+  controllerName="hedgecontrol.controller.HedgesList"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  core:require="{ formatter: 'hedgecontrol/util/formatter' }">
+  <f:DynamicPage id="hedgesListPage" showFooter="false" busy="{hdg>/busy}">
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <Title text="{i18n>hedgesTitle}" />
+        </f:heading>
+        <f:actions>
+          <Button text="{i18n>newHedge}" icon="sap-icon://add" press=".onCreateHedge" type="Emphasized" />
+          <Button icon="sap-icon://refresh" press=".onRefresh" tooltip="{i18n>refresh}" />
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+    <f:content>
+      <VBox class="sapUiSmallMargin">
+        <MessageStrip
+          text="{hdg>/errorMessage}"
+          type="Error"
+          showIcon="true"
+          showCloseButton="true"
+          visible="{= !!${hdg>/errorMessage}}"
+          class="sapUiSmallMarginBottom" />
+        <Table id="hedgesTable" items="{hdg>/items}" growing="true" growingThreshold="50"
+          noDataText="{i18n>noData}" mode="SingleSelectMaster" selectionChange=".onHedgeSelect">
+          <headerToolbar>
+            <OverflowToolbar>
+              <Title text="{i18n>hedgesTitle}" level="H3" />
+              <ToolbarSpacer />
+              <SearchField width="15rem" search=".onSearch" />
+            </OverflowToolbar>
+          </headerToolbar>
+          <columns>
+            <Column width="8rem"><header><Text text="{i18n>colReference}" /></header></Column>
+            <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
+            <Column width="5rem"><header><Text text="{i18n>colDirection}" /></header></Column>
+            <Column hAlign="End"><header><Text text="{i18n>colTons}" /></header></Column>
+            <Column hAlign="End"><header><Text text="{i18n>colPricePerTon}" /></header></Column>
+            <Column><header><Text text="{i18n>colSettlementDate}" /></header></Column>
+            <Column width="8rem"><header><Text text="{i18n>colStatus}" /></header></Column>
+            <Column width="6rem"><header><Text text="{i18n>colSource}" /></header></Column>
+          </columns>
+          <items>
+            <ColumnListItem type="Navigation">
+              <cells>
+                <Text text="{hdg>reference}" />
+                <Text text="{path: 'hdg>commodity', formatter: 'formatter.capitalize'}" />
+                <ObjectStatus text="{path: 'hdg>direction', formatter: 'formatter.capitalize'}"
+                  state="{= ${hdg>direction} === 'buy' ? 'Information' : 'Warning'}" />
+                <Text text="{path: 'hdg>tons', formatter: 'formatter.numberTwoDecimals'}" />
+                <Text text="{path: 'hdg>price_per_ton', formatter: 'formatter.priceFourDecimals'}" />
+                <Text text="{path: 'hdg>settlement_date', formatter: 'formatter.dateDisplay'}" />
+                <ObjectStatus text="{path: 'hdg>status', formatter: 'formatter.capitalize'}"
+                  state="{path: 'hdg>status', formatter: 'formatter.statusState'}" />
+                <Text text="{path: 'hdg>source_type', formatter: 'formatter.capitalize'}" />
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+      </VBox>
+    </f:content>
+  </f:DynamicPage>
+</mvc:View>
