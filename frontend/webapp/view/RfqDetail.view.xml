@@ -217,24 +217,33 @@
 
       <!-- Section: Ranking -->
       <uxap:ObjectPageSection title="{i18n>sectionRanking}" id="rankingSection" titleUppercase="false"
-        visible="{= ${rfqDet>/ranking/ranking} &amp;&amp; ${rfqDet>/ranking/ranking}.length > 0}">
+        visible="{= ${rfqDet>/rankingRows} &amp;&amp; ${rfqDet>/rankingRows}.length > 0}">
         <uxap:subSections>
           <uxap:ObjectPageSubSection>
             <uxap:blocks>
               <VBox>
-                <ObjectStatus text="{rfqDet>/ranking/status}" class="sapUiSmallMarginBottom" />
-                <Table items="{rfqDet>/ranking/ranking}" noDataText="{i18n>noData}" mode="None">
+                <MessageStrip
+                  text="{= ${rfqDet>/ranking/status} === 'SUCCESS' ? '' : (${rfqDet>/ranking/failure_reason} || ${rfqDet>/ranking/status})}"
+                  type="{= ${rfqDet>/ranking/status} === 'SUCCESS' ? 'Success' : 'Warning'}"
+                  showIcon="true"
+                  visible="{= ${rfqDet>/ranking/status} !== 'SUCCESS'}"
+                  class="sapUiSmallMarginBottom" />
+                <Table items="{rfqDet>/rankingRows}" noDataText="{i18n>noData}" mode="None">
                   <columns>
                     <Column width="4rem"><header><Text text="{i18n>colRank}" /></header></Column>
                     <Column><header><Text text="{i18n>colCounterpartyId}" /></header></Column>
-                    <Column hAlign="End"><header><Text text="{i18n>colSpreadValue}" /></header></Column>
+                    <Column hAlign="End"><header><Text text="{i18n>colPrice}" /></header></Column>
+                    <Column><header><Text text="{i18n>colUnit}" /></header></Column>
+                    <Column><header><Text text="{i18n>colFloatConvention}" /></header></Column>
                   </columns>
                   <items>
-                    <ColumnListItem>
+                    <ColumnListItem highlight="{= ${rfqDet>rank} === 1 ? 'Success' : 'None'}">
                       <cells>
-                        <Text text="{rfqDet>rank}" />
+                        <ObjectNumber number="{rfqDet>rank}" emphasized="{= ${rfqDet>rank} === 1}" />
                         <Text text="{rfqDet>counterparty_id}" />
-                        <Text text="{path: 'rfqDet>spread_value', formatter: 'formatter.priceFourDecimals'}" />
+                        <Text text="{path: 'rfqDet>price', formatter: 'formatter.priceFourDecimals'}" />
+                        <Text text="{rfqDet>unit}" />
+                        <Text text="{rfqDet>convention}" />
                       </cells>
                     </ColumnListItem>
                   </items>

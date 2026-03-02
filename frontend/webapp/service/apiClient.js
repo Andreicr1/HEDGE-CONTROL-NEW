@@ -174,7 +174,21 @@ sap.ui.define([
     return fetch(url, applyAuth(options)).then(handle401);
   };
 
+  var getCurrentUserId = function () {
+    var token = getAuthToken();
+    if (!token) { return "anonymous"; }
+    try {
+      var parts = token.split(".");
+      if (parts.length < 2) { return "anonymous"; }
+      var payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+      return payload.oid || payload.sub || payload.preferred_username || "anonymous";
+    } catch (e) {
+      return "anonymous";
+    }
+  };
+
   return {
+    getCurrentUserId: getCurrentUserId,
     getJson: function (path) {
       return request(path, {
         method: "GET",

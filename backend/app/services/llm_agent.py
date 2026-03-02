@@ -22,6 +22,12 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.core.logging import get_logger
 from app.schemas.llm import LLMClassifyResult, MessageIntent, ParsedQuote
@@ -56,12 +62,18 @@ Respond ONLY with a JSON object:
   "fixed_price_value": <number or null>,
   "fixed_price_unit": "<string like USD/MT or null>",
   "float_pricing_convention": "<avg|avginter|c2r or null>",
+  "premium_discount": <number or null — premium/discount over LME reference, positive = premium, negative = discount>,
   "counterparty_name": "<name>",
   "notes": "<any additional notes or null>"
 }
 
-If you cannot reliably parse the quote, set confidence below 0.85.
-Support both Portuguese (PT-BR) and English messages.
+Rules:
+- If the message contains an absolute price (e.g. "2450 USD/MT"), set fixed_price_value.
+- If the message contains a premium/discount (e.g. "+15", "-10 USD/MT", "flat"), set premium_discount.
+  "flat" means premium_discount = 0.
+- float_pricing_convention: "avg" for monthly average, "avginter" for inter-month average, "c2r" for cash-to-reference.
+- If you cannot reliably parse the quote, set confidence below 0.85.
+- Support both Portuguese (PT-BR) and English messages.
 """
 
 _GENERATE_TEMPLATES = {
@@ -73,7 +85,7 @@ _GENERATE_TEMPLATES = {
         "- Janela de entrega: {delivery_start} a {delivery_end}\n"
         "- Direção: {direction}\n"
         "- Referência: {rfq_number}\n\n"
-        "Favor enviar sua cotação até {deadline}.\n"
+        "Aguardamos sua cotação o mais breve possível.\n"
         "Atenciosamente."
     ),
     "rfq_request_en": (
@@ -84,7 +96,7 @@ _GENERATE_TEMPLATES = {
         "- Delivery window: {delivery_start} to {delivery_end}\n"
         "- Direction: {direction}\n"
         "- Reference: {rfq_number}\n\n"
-        "Please submit your quote by {deadline}.\n"
+        "Please submit your quote at your earliest convenience.\n"
         "Best regards."
     ),
     "refresh": (
@@ -144,13 +156,33 @@ def _get_deployment() -> str:
     return os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
 
 
+@retry(
+    retry=retry_if_exception_type((httpx.TimeoutException, httpx.HTTPStatusError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
+def _call_openai_with_retry(
+    url: str,
+    headers: dict[str, str],
+    body: dict[str, Any],
+) -> dict[str, Any]:
+    """HTTP call with exponential-backoff retry on transient failures."""
+    resp = httpx.post(url, json=body, headers=headers, timeout=30.0)
+    resp.raise_for_status()
+    data = resp.json()
+    content = data["choices"][0]["message"]["content"]
+    return json.loads(content)
+
+
 def _call_openai(
     system_prompt: str,
     user_prompt: str,
 ) -> dict[str, Any]:
     """Call Azure OpenAI chat completions and return the parsed JSON response.
 
-    Raises ``LLMUnavailableError`` if the call fails.
+    Retries up to 3 times with exponential backoff on transient failures.
+    Raises ``LLMUnavailableError`` if all attempts fail.
     """
     endpoint = _get_endpoint()
     api_key = _get_api_key()
@@ -178,16 +210,12 @@ def _call_openai(
     }
 
     try:
-        resp = httpx.post(url, json=body, headers=headers, timeout=30.0)
-        resp.raise_for_status()
-        data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-        return json.loads(content)
+        return _call_openai_with_retry(url, headers, body)
     except httpx.TimeoutException:
-        logger.error("llm_timeout")
-        raise LLMUnavailableError("Azure OpenAI request timed out")
+        logger.error("llm_timeout_after_retries")
+        raise LLMUnavailableError("Azure OpenAI request timed out after retries")
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as exc:
-        logger.error("llm_call_failed", error=str(exc), exc_info=True)
+        logger.error("llm_call_failed_after_retries", error=str(exc), exc_info=True)
         raise LLMUnavailableError(f"Azure OpenAI call failed: {exc}") from exc
 
 
@@ -273,12 +301,21 @@ class LLMAgent:
             except (InvalidOperation, ValueError):
                 fixed_price_value = None
 
+        premium_discount = None
+        raw_premium = result.get("premium_discount")
+        if raw_premium is not None:
+            try:
+                premium_discount = Decimal(str(raw_premium))
+            except (InvalidOperation, ValueError):
+                premium_discount = None
+
         return ParsedQuote(
             intent=intent,
             confidence=confidence,
             fixed_price_value=fixed_price_value,
             fixed_price_unit=result.get("fixed_price_unit"),
             float_pricing_convention=result.get("float_pricing_convention"),
+            premium_discount=premium_discount,
             counterparty_name=result.get("counterparty_name", sender_name),
             notes=result.get("notes"),
         )
@@ -316,9 +353,19 @@ class LLMAgent:
         if not template:
             return f"[{action}] {kwargs.get('rfq_number', 'N/A')}"
 
+        from string import Formatter
+
+        field_names = {
+            fname
+            for _, fname, _, _ in Formatter().parse(template)
+            if fname is not None
+        }
+        safe_kwargs = {k: kwargs.get(k, "") for k in field_names}
+        safe_kwargs.update(kwargs)
+
         try:
-            return template.format(**kwargs)
-        except KeyError as exc:
+            return template.format(**safe_kwargs)
+        except (KeyError, IndexError) as exc:
             logger.warning(
                 "llm_template_missing_var",
                 action=action,
@@ -329,9 +376,15 @@ class LLMAgent:
     @staticmethod
     def should_auto_create_quote(parsed: ParsedQuote) -> bool:
         """Return ``True`` if the parsed quote has high enough confidence
-        for automatic quote creation (>= 0.85 threshold)."""
+        for automatic quote creation (>= 0.85 threshold).
+
+        Accepts either a fixed price or a premium/discount (for spreads).
+        """
         return (
             parsed.intent == MessageIntent.quote
             and parsed.confidence >= CONFIDENCE_THRESHOLD
-            and parsed.fixed_price_value is not None
+            and (
+                parsed.fixed_price_value is not None
+                or parsed.premium_discount is not None
+            )
         )

@@ -1,6 +1,7 @@
 sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/rfqService",
+  "hedgecontrol/service/apiClient",
   "sap/m/MessageBox",
   "sap/m/Dialog",
   "sap/m/Button",
@@ -11,7 +12,7 @@ sap.ui.define([
   "sap/m/VBox",
   "sap/m/MessageToast",
   "sap/f/library"
-], function (BaseController, rfqService, MessageBox, Dialog, Button, Label, Input, Select, Item, VBox, MessageToast, fioriLibrary) {
+], function (BaseController, rfqService, apiClient, MessageBox, Dialog, Button, Label, Input, Select, Item, VBox, MessageToast, fioriLibrary) {
   "use strict";
 
   var LayoutType = fioriLibrary.LayoutType;
@@ -112,25 +113,70 @@ sap.ui.define([
       var that = this;
       var oModel = this.getViewModel();
       var sIntent = oModel.getProperty("/detail/intent");
-      var fnRanking = sIntent === "SPREAD"
-        ? function () { return rfqService.getRanking(oModel.getProperty("/detail/id")); }
-        : function () { return rfqService.getTradeRanking(oModel.getProperty("/detail/id")); };
+      var bSpread = sIntent === "SPREAD";
+      var sId = oModel.getProperty("/detail/id");
+      var fnRanking = bSpread
+        ? function () { return rfqService.getRanking(sId); }
+        : function () { return rfqService.getTradeRanking(sId); };
 
       fnRanking().then(function (oRanking) {
         oModel.setProperty("/ranking", oRanking || {});
+
+        var aRows = [];
+        if (oRanking && oRanking.ranking) {
+          oRanking.ranking.forEach(function (item) {
+            if (bSpread) {
+              aRows.push({
+                rank: item.rank,
+                counterparty_id: item.counterparty_id,
+                price: item.spread_value,
+                unit: "spread",
+                convention: ""
+              });
+            } else {
+              var q = item.quote || {};
+              aRows.push({
+                rank: item.rank,
+                counterparty_id: q.counterparty_id,
+                price: q.fixed_price_value,
+                unit: q.fixed_price_unit || "USD/MT",
+                convention: q.float_pricing_convention || ""
+              });
+            }
+          });
+        }
+        oModel.setProperty("/rankingRows", aRows);
+        oModel.setProperty("/rankingIntent", bSpread ? "SPREAD" : "TRADE");
       }).catch(function () {
         oModel.setProperty("/ranking", {});
+        oModel.setProperty("/rankingRows", []);
         MessageBox.error(that.getI18nText("msgRankingFailed"));
       });
     },
 
+    _userPayload: function () {
+      return { user_id: apiClient.getCurrentUserId() };
+    },
+
     onAward: function () {
       var that = this;
-      MessageBox.confirm(this.getI18nText("confirmAward"), {
+      var oRanking = this.getViewModel().getProperty("/ranking");
+      if (!oRanking || !oRanking.ranking || oRanking.ranking.length === 0) {
+        MessageBox.warning(this.getI18nText("msgLoadRankingFirst"));
+        return;
+      }
+
+      var oTop = oRanking.ranking[0];
+      var sMsg = this.getI18nText("confirmAwardWithDetails", [
+        oTop.counterparty_id || oTop.counterparty_name || "—",
+        oTop.spread_value || oTop.quote && oTop.quote.fixed_price_value || "—"
+      ]);
+
+      MessageBox.confirm(sMsg, {
         onClose: function (sAction) {
           if (sAction === MessageBox.Action.OK) {
             that.submitData(function () {
-              return rfqService.award(that._sRfqId, {});
+              return rfqService.award(that._sRfqId, that._userPayload());
             }, that.getI18nText("rfqAwarded")).then(function (oData) {
               if (oData) { that._loadRfq(that._sRfqId); }
             });
@@ -145,7 +191,7 @@ sap.ui.define([
         onClose: function (sAction) {
           if (sAction === MessageBox.Action.OK) {
             that.submitData(function () {
-              return rfqService.reject(that._sRfqId, {});
+              return rfqService.reject(that._sRfqId, that._userPayload());
             }, that.getI18nText("rfqRejected")).then(function (oData) {
               if (oData) { that._loadRfq(that._sRfqId); }
             });
@@ -160,7 +206,7 @@ sap.ui.define([
         onClose: function (sAction) {
           if (sAction === MessageBox.Action.OK) {
             that.submitData(function () {
-              return rfqService.refresh(that._sRfqId, {});
+              return rfqService.refresh(that._sRfqId, that._userPayload());
             }, that.getI18nText("rfqRefreshed")).then(function (oData) {
               if (oData) { that._loadRfq(that._sRfqId); }
             });

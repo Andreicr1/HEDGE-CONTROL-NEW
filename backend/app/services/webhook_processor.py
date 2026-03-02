@@ -30,9 +30,26 @@ logger = get_logger()
 
 _message_queue: deque[WhatsAppInboundMessage] = deque(maxlen=10_000)
 
+_SEEN_IDS_MAX = 5_000
+_seen_message_ids: deque[str] = deque(maxlen=_SEEN_IDS_MAX)
+_seen_set: set[str] = set()
+
 
 def enqueue_message(msg: WhatsAppInboundMessage) -> None:
-    """Add a parsed inbound message to the processing queue."""
+    """Add a parsed inbound message to the processing queue.
+
+    Silently drops duplicates (WhatsApp may redeliver webhooks).
+    """
+    if msg.message_id in _seen_set:
+        logger.debug("webhook_duplicate_skipped", message_id=msg.message_id)
+        return
+
+    if len(_seen_message_ids) >= _SEEN_IDS_MAX:
+        evicted = _seen_message_ids[0]
+        _seen_set.discard(evicted)
+    _seen_message_ids.append(msg.message_id)
+    _seen_set.add(msg.message_id)
+
     _message_queue.append(msg)
     logger.info(
         "webhook_message_enqueued",

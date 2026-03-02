@@ -31,7 +31,7 @@ from app.models.rfqs import (
     RFQInvitationStatus,
     RFQState,
 )
-from app.schemas.llm import ParsedQuote
+from app.schemas.llm import MessageIntent, ParsedQuote
 from app.schemas.rfq import RFQQuoteCreate, FloatPricingConvention
 from app.schemas.whatsapp import WhatsAppInboundMessage
 from app.services.llm_agent import LLMAgent, LLMUnavailableError
@@ -200,7 +200,36 @@ class RFQOrchestrator:
                 session, rfq, invitation, msg, parsed
             )
 
-        # Below confidence threshold — flag for human review
+        if parsed.intent == MessageIntent.rejection:
+            invitation.send_status = RFQInvitationStatus.failed
+            session.flush()
+            logger.info(
+                "orchestrator_counterparty_declined",
+                rfq_id=str(rfq.id),
+                counterparty=invitation.recipient_id,
+            )
+            return {
+                "message_id": msg.message_id,
+                "status": "counterparty_declined",
+                "rfq_id": str(rfq.id),
+                "counterparty": invitation.recipient_id,
+            }
+
+        if parsed.intent == MessageIntent.question:
+            logger.info(
+                "orchestrator_counterparty_question",
+                rfq_id=str(rfq.id),
+                counterparty=invitation.recipient_id,
+                text=msg.text[:200],
+            )
+            return {
+                "message_id": msg.message_id,
+                "status": "counterparty_question",
+                "rfq_id": str(rfq.id),
+                "counterparty": invitation.recipient_id,
+                "text": msg.text,
+            }
+
         return {
             "message_id": msg.message_id,
             "status": "needs_human_review",
@@ -225,10 +254,14 @@ class RFQOrchestrator:
         except ValueError:
             float_conv = FloatPricingConvention.avg
 
+        price_value = parsed.fixed_price_value
+        if price_value is None and parsed.premium_discount is not None:
+            price_value = parsed.premium_discount
+
         quote_payload = RFQQuoteCreate(
             rfq_id=rfq.id,
             counterparty_id=invitation.recipient_id,
-            fixed_price_value=float(parsed.fixed_price_value or 0),
+            fixed_price_value=float(price_value or 0),
             fixed_price_unit=parsed.fixed_price_unit or "USD/MT",
             float_pricing_convention=float_conv,
             received_at=msg.timestamp,
@@ -342,10 +375,12 @@ class RFQOrchestrator:
     def check_rfq_timeouts(
         session: Session,
         timeout_hours: int = 24,
-    ) -> list[str]:
-        """Find RFQs past their response deadline and trigger ranking.
+    ) -> list[dict]:
+        """Find RFQs past their response deadline and flag them.
 
-        Returns a list of RFQ IDs that were auto-ranked due to timeout.
+        Does NOT auto-transition state — the trader decides.
+        Returns a list of dicts with rfq_id, rfq_number, quotes_count
+        for observability and UI alerting.
         """
         from datetime import timedelta
 
@@ -361,64 +396,39 @@ class RFQOrchestrator:
             .all()
         )
 
-        timed_out_ids: list[str] = []
+        flagged: list[dict] = []
         for rfq in stale_rfqs:
             latest_quotes = RFQService.get_latest_trade_quotes(session, rfq.id)
-            if latest_quotes:
-                # Has some quotes — move to QUOTED for ranking
-                rfq.state = RFQState.quoted
-                from app.models.rfqs import RFQStateEvent
+            flagged.append({
+                "rfq_id": str(rfq.id),
+                "rfq_number": rfq.rfq_number,
+                "quotes_count": len(latest_quotes),
+                "has_quotes": bool(latest_quotes),
+                "hours_elapsed": timeout_hours,
+            })
 
-                session.add(
-                    RFQStateEvent(
-                        rfq_id=rfq.id,
-                        from_state=RFQState.sent,
-                        to_state=RFQState.quoted,
-                        trigger="TIMEOUT_PARTIAL_RANKING",
-                        event_timestamp=now_utc(),
-                        reason=f"Timeout after {timeout_hours}h — partial quotes available",
-                    )
-                )
-            else:
-                # No quotes at all — close
-                rfq.state = RFQState.closed
-                from app.models.rfqs import RFQStateEvent
-
-                session.add(
-                    RFQStateEvent(
-                        rfq_id=rfq.id,
-                        from_state=RFQState.sent,
-                        to_state=RFQState.closed,
-                        trigger="TIMEOUT_NO_QUOTES",
-                        event_timestamp=now_utc(),
-                        reason=f"Timeout after {timeout_hours}h — no quotes received",
-                    )
-                )
-
-            timed_out_ids.append(str(rfq.id))
-
-        if timed_out_ids:
-            session.commit()
-            logger.info(
-                "orchestrator_timeout_check",
-                timed_out_count=len(timed_out_ids),
-                rfq_ids=timed_out_ids,
+        if flagged:
+            logger.warning(
+                "orchestrator_timeout_flagged",
+                flagged_count=len(flagged),
+                rfq_numbers=[f["rfq_number"] for f in flagged],
             )
 
-        return timed_out_ids
+        return flagged
 
     # ------------------------------------------------------------------
     # 5. Send reminders for RFQs with low response rate
     # ------------------------------------------------------------------
 
     @staticmethod
-    def send_reminders(
+    def check_low_response_rfqs(
         session: Session,
         min_response_rate: float = 0.5,
-    ) -> list[str]:
-        """Send reminders for SENT RFQs where < 50% have responded.
+    ) -> list[dict]:
+        """Identify SENT RFQs where < 50% of counterparties have responded.
 
-        Returns a list of RFQ IDs for which reminders were sent.
+        Does NOT auto-send reminders — the trader decides via the
+        Refresh action in the UI.  Returns observability data.
         """
         sent_rfqs = (
             session.query(RFQ)
@@ -429,7 +439,7 @@ class RFQOrchestrator:
             .all()
         )
 
-        reminded_ids: list[str] = []
+        flagged: list[dict] = []
         for rfq in sent_rfqs:
             invitations = (
                 session.query(RFQInvitation)
@@ -442,33 +452,25 @@ class RFQOrchestrator:
             unique_recipients = {inv.recipient_id for inv in invitations}
             quotes = RFQService.get_latest_trade_quotes(session, rfq.id)
             responded = set(quotes.keys())
-            response_rate = len(responded) / len(unique_recipients)
+            response_rate = len(responded) / len(unique_recipients) if unique_recipients else 0
 
             if response_rate >= min_response_rate:
                 continue
 
-            # Send reminder to non-responders via WhatsApp
-            for inv in invitations:
-                if (
-                    inv.recipient_id not in responded
-                    and inv.channel == RFQInvitationChannel.whatsapp
-                ):
-                    message = LLMAgent.generate_outbound_message(
-                        action="refresh",
-                        recipient_name=inv.recipient_name,
-                        rfq_number=rfq.rfq_number,
-                    )
-                    WhatsAppService.send_text_message(
-                        phone=inv.recipient_id,
-                        text=message,
-                    )
+            flagged.append({
+                "rfq_id": str(rfq.id),
+                "rfq_number": rfq.rfq_number,
+                "total_recipients": len(unique_recipients),
+                "responded": len(responded),
+                "response_rate": round(response_rate, 2),
+                "non_responders": len(unique_recipients - responded),
+            })
 
-            reminded_ids.append(str(rfq.id))
+        if flagged:
             logger.info(
-                "orchestrator_reminder_sent",
-                rfq_id=str(rfq.id),
-                response_rate=response_rate,
-                non_responders=len(unique_recipients - responded),
+                "orchestrator_low_response_flagged",
+                flagged_count=len(flagged),
+                rfq_numbers=[f["rfq_number"] for f in flagged],
             )
 
-        return reminded_ids
+        return flagged

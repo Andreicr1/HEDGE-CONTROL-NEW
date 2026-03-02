@@ -29,7 +29,11 @@ from app.schemas.rfq import (
     TradeRankingFailureCode,
     TradeRankingRead,
 )
+from app.core.logging import get_logger
+from app.services.rfq_orchestrator import RFQOrchestrator
 from app.services.rfq_service import RFQService
+
+logger = get_logger()
 
 router = APIRouter()
 
@@ -273,10 +277,16 @@ def reject_rfq(
     __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
-    RFQService.reject(session, rfq_id, payload.user_id)
+    rfq = RFQService.reject(session, rfq_id, payload.user_id)
     session.commit()
     mark_audit_success(request, rfq_id)
     request.state.audit_commit()
+
+    try:
+        RFQOrchestrator.notify_reject(session, rfq)
+    except Exception:
+        logger.exception("reject_notification_failed", rfq_id=str(rfq_id))
+
     return _build_rfq_read(session, rfq_id)
 
 
@@ -317,10 +327,34 @@ def award_rfq(
     __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
-    RFQService.award(session, rfq_id, payload.user_id)
+    rfq = RFQService.award(session, rfq_id, payload.user_id)
     session.commit()
     mark_audit_success(request, rfq_id)
     request.state.audit_commit()
+
+    try:
+        from app.models.rfqs import RFQStateEvent as _SE
+
+        award_event = (
+            session.query(_SE)
+            .filter(
+                _SE.rfq_id == rfq_id,
+                _SE.to_state == RFQState.awarded,
+            )
+            .order_by(_SE.event_timestamp.desc())
+            .first()
+        )
+        if award_event and award_event.winning_counterparty_ids:
+            import json as _json
+
+            winners = _json.loads(award_event.winning_counterparty_ids)
+            for cp_id in winners:
+                RFQOrchestrator.notify_award(
+                    session, rfq, cp_id, price=0.0, unit="USD/MT"
+                )
+    except Exception:
+        logger.exception("award_notification_failed", rfq_id=str(rfq_id))
+
     return _build_rfq_read(session, rfq_id)
 
 

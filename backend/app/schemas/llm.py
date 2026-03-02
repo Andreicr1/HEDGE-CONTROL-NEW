@@ -27,6 +27,10 @@ class ParsedQuote(BaseModel):
     fixed_price_value: Decimal | None = None
     fixed_price_unit: str | None = Field(None, max_length=32)
     float_pricing_convention: str | None = Field(None, max_length=32)
+    premium_discount: Decimal | None = Field(
+        None,
+        description="Premium/discount over LME reference (for SPREAD quotes)",
+    )
     counterparty_name: str = Field(..., max_length=200)
     notes: str | None = Field(None, max_length=1000)
 

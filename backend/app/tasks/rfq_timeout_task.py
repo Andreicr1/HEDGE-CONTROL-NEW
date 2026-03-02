@@ -20,8 +20,12 @@ logger = get_logger()
 def run_rfq_timeout_check() -> None:
     """Entry-point called by APScheduler every hour (default).
 
-    1. Send reminders for RFQs below the response threshold.
-    2. Close or promote RFQs that exceeded the timeout window.
+    Flags (but does NOT auto-transition) RFQs that:
+    1. Have low counterparty response rates.
+    2. Have exceeded the response timeout window.
+
+    The trader reviews flagged RFQs in the UI and decides to
+    refresh, award, or reject.
     """
     timeout_hours = int(os.getenv("RFQ_TIMEOUT_HOURS", "24"))
     reminder_threshold = float(os.getenv("RFQ_REMINDER_THRESHOLD", "0.5"))
@@ -34,21 +38,19 @@ def run_rfq_timeout_check() -> None:
 
     session = SessionLocal()
     try:
-        reminded = RFQOrchestrator.send_reminders(
+        low_response = RFQOrchestrator.check_low_response_rfqs(
             session, min_response_rate=reminder_threshold
         )
         timed_out = RFQOrchestrator.check_rfq_timeouts(
             session, timeout_hours=timeout_hours
         )
-        session.commit()
 
         logger.info(
             "rfq_timeout_task_done",
-            reminded_count=len(reminded),
+            low_response_count=len(low_response),
             timed_out_count=len(timed_out),
         )
     except Exception:
-        session.rollback()
         logger.exception("rfq_timeout_task_error")
     finally:
         session.close()
