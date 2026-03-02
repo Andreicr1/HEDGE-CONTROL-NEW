@@ -32,6 +32,10 @@
             visible="{= ${rfqDet>/detail/state} === 'QUOTED'}" />
           <Button text="{i18n>reject}" icon="sap-icon://decline" press=".onReject" type="Reject"
             visible="{= ${rfqDet>/detail/state} !== 'CLOSED' &amp;&amp; ${rfqDet>/detail/state} !== 'AWARDED'}" />
+          <Button text="{i18n>refresh}" icon="sap-icon://refresh" press=".onRefresh" type="Default"
+            visible="{= ${rfqDet>/detail/state} === 'QUOTED' || ${rfqDet>/detail/state} === 'SENT'}" />
+          <Button text="{i18n>archive}" icon="sap-icon://delete" press=".onArchive" type="Reject"
+            visible="{= ${rfqDet>/detail/state} === 'CLOSED' || ${rfqDet>/detail/state} === 'AWARDED'}" />
           <Button text="{i18n>viewDocuments}" icon="sap-icon://document" press=".onViewDocuments" type="Transparent" />
         </uxap:actions>
         <uxap:navigationActions>

@@ -33,8 +33,7 @@
                     <form:FormContainer>
                       <form:formElements>
                         <form:FormElement label="{i18n>objectType}">
-                          <Select id="mtmObjectType" selectedKey="{mtm>/objectType}" width="100%"
-                            change=".onObjectTypeChange">
+                          <Select id="mtmObjectType" selectedKey="{mtm>/objectType}" width="100%">
                             <core:Item key="hedge_contract" text="{i18n>optHedgeContract}" />
                             <core:Item key="order" text="{i18n>optOrder}" />
                           </Select>

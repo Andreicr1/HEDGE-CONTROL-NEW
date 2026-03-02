@@ -154,6 +154,36 @@ sap.ui.define([
       });
     },
 
+    onRefresh: function () {
+      var that = this;
+      MessageBox.confirm(this.getI18nText("confirmRefreshRfq"), {
+        onClose: function (sAction) {
+          if (sAction === MessageBox.Action.OK) {
+            that.submitData(function () {
+              return rfqService.refresh(that._sRfqId, {});
+            }, that.getI18nText("rfqRefreshed")).then(function (oData) {
+              if (oData) { that._loadRfq(that._sRfqId); }
+            });
+          }
+        }
+      });
+    },
+
+    onArchive: function () {
+      var that = this;
+      MessageBox.confirm(this.getI18nText("confirmArchiveRfq"), {
+        onClose: function (sAction) {
+          if (sAction === MessageBox.Action.OK) {
+            that.submitData(function () {
+              return rfqService.archive(that._sRfqId);
+            }, that.getI18nText("rfqArchived")).then(function () {
+              that.navToList("rfq");
+            });
+          }
+        }
+      });
+    },
+
     /* ─── FCL Navigation ─── */
 
     onViewDocuments: function () {

@@ -20,6 +20,8 @@
           </HBox>
         </uxap:heading>
         <uxap:actions>
+          <Button text="{i18n>settle}" icon="sap-icon://money-bills" type="Emphasized"
+            press=".onSettle" visible="{= ${ctrDet>/status} === 'active' &amp;&amp; !${ctrDet>/deleted_at}}" />
           <Button text="{i18n>archive}" icon="sap-icon://delete" type="Reject"
             press=".onArchive" visible="{ path: 'ctrDet>/deleted_at', formatter: '.isNotArchived' }" />
           <Button text="{i18n>close}" icon="sap-icon://decline" type="Default" press=".onClose" />
