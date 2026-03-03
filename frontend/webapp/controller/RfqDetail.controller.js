@@ -23,6 +23,8 @@ sap.ui.define([
         detail: {},
         quotes: [],
         ranking: {},
+        rankingRows: [],
+        documents: [],
         midFullScreen: false
       });
       this.getRouter().getRoute("rfqDetail").attachPatternMatched(this._onRouteMatched, this);
@@ -228,6 +230,16 @@ sap.ui.define([
           }
         }
       });
+    },
+
+    /* ─── Documents ─── */
+
+    onUploadDocument: function () {
+      MessageToast.show("Upload de documentos será integrado com Azure Blob Storage.");
+    },
+
+    onDocumentPress: function () {
+      MessageToast.show("Download do documento.");
     },
 
     /* ─── FCL Navigation ─── */

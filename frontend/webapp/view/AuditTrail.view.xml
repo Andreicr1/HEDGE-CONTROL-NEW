@@ -72,7 +72,7 @@
                 <Text text="{path: 'audit>entity_id', formatter: 'formatter.shortUuid'}" />
                 <ObjectStatus text="{audit>event_type}"
                   state="{= ${audit>event_type} === 'created' ? 'Success' : (${audit>event_type} === 'deleted' ? 'Error' : 'Information')}" />
-                <Icon src="{= ${audit>signature} ? 'sap-icon://accept' : 'sap-icon://alert'}"
+                <core:Icon src="{= ${audit>signature} ? 'sap-icon://accept' : 'sap-icon://alert'}"
                   color="{= ${audit>signature} ? '#107E3E' : '#E78C07'}" />
                 <Button text="{i18n>verify}" icon="sap-icon://inspect" press=".onVerify" type="Transparent" />
               </cells>

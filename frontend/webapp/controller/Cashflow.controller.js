@@ -3,10 +3,25 @@ sap.ui.define([
   "hedgecontrol/service/cashflowAnalyticService",
   "hedgecontrol/service/cashflowBaselineSnapshotsService",
   "hedgecontrol/service/cashflowLedgerService",
+  "hedgecontrol/service/cashflowProjectionService",
   "sap/m/MessageBox",
   "sap/m/MessageToast"
-], function (BaseController, analyticService, baselineService, ledgerService, MessageBox, MessageToast) {
+], function (BaseController, analyticService, baselineService, ledgerService, projectionService, MessageBox, MessageToast) {
   "use strict";
+
+  var INSTRUMENT_LABELS = {
+    sales_order: "instrSalesOrder",
+    purchase_order: "instrPurchaseOrder",
+    hedge_buy: "instrHedgeBuy",
+    hedge_sell: "instrHedgeSell",
+    hedge_contract: "instrHedgeContract"
+  };
+
+  var PRICE_SOURCE_LABELS = {
+    fixed: "priceSourceFixed",
+    market: "priceSourceMarket",
+    entry: "priceSourceEntry"
+  };
 
   return BaseController.extend("hedgecontrol.controller.Cashflow", {
 
@@ -18,7 +33,10 @@ sap.ui.define([
         baselineLoaded: false,
         baselineError: "",
         ledger: { entries: [] },
-        ledgerBusy: false
+        ledgerBusy: false,
+        projection: { items: [], summary: { total_inflows: 0, total_outflows: 0, net_cashflow: 0, instrument_count: 0 } },
+        projectionBusy: false,
+        projectionLoaded: false
       });
       this.getRouter().getRoute("cashflow").attachPatternMatched(this._onRouteMatched, this);
     },
@@ -104,6 +122,25 @@ sap.ui.define([
       });
     },
 
+    onLoadProjection: function () {
+      var sDate = this.byId("projectionDate").getValue();
+      if (!sDate) {
+        MessageBox.warning(this.getI18nText("dateRequired"));
+        return;
+      }
+      var oModel = this.getViewModel();
+      oModel.setProperty("/projectionBusy", true);
+      oModel.setProperty("/projectionLoaded", false);
+      projectionService.get(sDate).then(function (oData) {
+        oModel.setProperty("/projection", oData);
+        oModel.setProperty("/projectionLoaded", true);
+      }).catch(function (oError) {
+        MessageBox.error(this._formatError(oError));
+      }.bind(this)).finally(function () {
+        oModel.setProperty("/projectionBusy", false);
+      });
+    },
+
     onTabSelect: function () {
       // Tab change handler — no action needed
     },
@@ -111,6 +148,28 @@ sap.ui.define([
     formatDirectionState: function (sDirection) {
       if (sDirection === "IN") { return "Success"; }
       if (sDirection === "OUT") { return "Error"; }
+      return "None";
+    },
+
+    formatInstrumentType: function (sType) {
+      var sKey = INSTRUMENT_LABELS[sType];
+      return sKey ? this.getI18nText(sKey) : sType;
+    },
+
+    formatPriceSource: function (sSource) {
+      var sKey = PRICE_SOURCE_LABELS[sSource];
+      return sKey ? this.getI18nText(sKey) : sSource;
+    },
+
+    formatAmountState: function (fAmount) {
+      if (fAmount > 0) { return "Success"; }
+      if (fAmount < 0) { return "Error"; }
+      return "None";
+    },
+
+    formatAmountHighlight: function (fAmount) {
+      if (fAmount > 0) { return "Success"; }
+      if (fAmount < 0) { return "Error"; }
       return "None";
     },
 

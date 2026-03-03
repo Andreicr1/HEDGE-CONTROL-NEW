@@ -2,12 +2,8 @@ sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/rfqService",
   "sap/ui/model/Filter",
-  "sap/ui/model/FilterOperator",
-  "sap/ui/model/json/JSONModel",
-  "sap/ui/core/Fragment",
-  "sap/m/MessageBox",
-  "sap/m/MessageToast"
-], function (BaseController, rfqService, Filter, FilterOperator, JSONModel, Fragment, MessageBox, MessageToast) {
+  "sap/ui/model/FilterOperator"
+], function (BaseController, rfqService, Filter, FilterOperator) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.RfqList", {
@@ -15,26 +11,9 @@ sap.ui.define([
       this.initViewModel("rfq", {
         items: []
       });
-      // Create model also used by the creation dialog
-      this._initCreateModel();
       this.getRouter().getRoute("rfq").attachPatternMatched(this._onRouteMatched, this);
       this.getRouter().getRoute("rfqDetail").attachPatternMatched(this._onRouteMatched, this);
       this.getRouter().getRoute("rfqDocument").attachPatternMatched(this._onRouteMatched, this);
-    },
-
-    _initCreateModel: function () {
-      var oModel = new JSONModel({
-        form: {
-          intent: "SPREAD",
-          commodity: "",
-          direction: "BUY",
-          quantity_mt: "",
-          delivery_window_start: "",
-          delivery_window_end: "",
-          order_id: ""
-        }
-      });
-      this.getView().setModel(oModel, "rfqCrt");
     },
 
     _onRouteMatched: function () {
@@ -69,116 +48,22 @@ sap.ui.define([
           and: false
         })];
       }
-      this.byId("rfqTable").getBinding("items").filter(aFilters);
+      var oList = this.byId("rfqTable");
+      if (oList && oList.getBinding("items")) {
+        oList.getBinding("items").filter(aFilters);
+      }
     },
 
     onRfqSelect: function (oEvent) {
       var oItem = oEvent.getParameter("listItem");
+      if (!oItem) { return; }
       var sId = oItem.getBindingContext("rfq").getProperty("id");
       this.navToDetail("rfqDetail", { rfqId: sId });
     },
 
-    /* ─── Create RFQ Dialog ─── */
-
     onCreateRfq: function () {
-      var that = this;
-      if (!this._pCreateDialog) {
-        this._pCreateDialog = Fragment.load({
-          id: this.getView().getId(),
-          name: "hedgecontrol.view.fragment.RfqCreateDialog",
-          controller: this
-        }).then(function (oDialog) {
-          that.getView().addDependent(oDialog);
-          return oDialog;
-        });
-      }
-      this._pCreateDialog.then(function (oDialog) {
-        that._resetCreateModel();
-        oDialog.open();
-      });
-    },
-
-    _resetCreateModel: function () {
-      this.getView().getModel("rfqCrt").setProperty("/form", {
-        intent: "SPREAD",
-        commodity: "",
-        direction: "BUY",
-        quantity_mt: "",
-        delivery_window_start: "",
-        delivery_window_end: "",
-        order_id: ""
-      });
-    },
-
-    onSubmitRfq: function () {
-      var that = this;
-      var oData = this.getView().getModel("rfqCrt").getProperty("/form");
-
-      if (!oData.commodity || !oData.quantity_mt || !oData.delivery_window_start || !oData.delivery_window_end) {
-        MessageBox.warning(this.getI18nText("validationRequiredFields"));
-        return;
-      }
-
-      var oPayload = {
-        intent: oData.intent,
-        commodity: oData.commodity,
-        direction: oData.direction,
-        quantity_mt: parseFloat(oData.quantity_mt),
-        delivery_window_start: oData.delivery_window_start,
-        delivery_window_end: oData.delivery_window_end,
-        order_id: oData.order_id || undefined
-      };
-
-      this.submitData(function () {
-        return rfqService.create(oPayload);
-      }, this.getI18nText("rfqCreated")).then(function (oResult) {
-        if (oResult) {
-          that._pCreateDialog.then(function (oDialog) { oDialog.close(); });
-          that._loadRfqs();
-          if (oResult.id) {
-            that.navToDetail("rfqDetail", { rfqId: oResult.id });
-          }
-        }
-      });
-    },
-
-    onPreviewRfqText: function () {
-      var oData = this.getView().getModel("rfqCrt").getProperty("/form");
-
-      if (!oData.commodity || !oData.quantity_mt) {
-        MessageBox.warning(this.getI18nText("validationRequiredFields"));
-        return;
-      }
-
-      var oPayload = {
-        trade_type: "SWAP",
-        leg1: {
-          commodity: oData.commodity,
-          direction: oData.direction,
-          quantity_mt: parseFloat(oData.quantity_mt)
-        },
-        channel_type: "BROKER_LME"
-      };
-      if (oData.delivery_window_start) {
-        oPayload.leg1.prompt_start = oData.delivery_window_start;
-      }
-      if (oData.delivery_window_end) {
-        oPayload.leg1.prompt_end = oData.delivery_window_end;
-      }
-
-      rfqService.previewText(oPayload).then(function (oResult) {
-        if (oResult && oResult.text) {
-          MessageBox.information(oResult.text, {
-            title: "RFQ Preview"
-          });
-        }
-      }).catch(function (oError) {
-        MessageBox.error(oError.message || "Preview failed");
-      });
-    },
-
-    onCancelCreateRfq: function () {
-      this._pCreateDialog.then(function (oDialog) { oDialog.close(); });
+      this.setLayout("OneColumn");
+      this.getRouter().navTo("rfqCreate");
     }
   });
 });

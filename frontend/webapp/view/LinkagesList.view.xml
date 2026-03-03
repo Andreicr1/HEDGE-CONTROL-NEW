@@ -6,7 +6,7 @@
   xmlns:f="sap.f"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
 
-  <f:DynamicPage id="linkagesListPage" headerExpanded="true" showFooter="false">
+  <f:DynamicPage id="linkagesListPage" headerExpanded="true" showFooter="false" busy="{lnk>/busy}">
 
     <f:title>
       <f:DynamicPageTitle>
@@ -28,33 +28,28 @@
     </f:header>
 
     <f:content>
-      <Table id="linkagesTable"
+      <List id="linkagesList"
         items="{ path: 'lnk>/items', sorter: { path: 'created_at', descending: true } }"
         growing="true"
         growingThreshold="50"
         mode="SingleSelectMaster"
         selectionChange=".onLinkageSelect"
-        noDataText="{i18n>noLinkages}"
-        busy="{lnk>/busy}">
-
-        <columns>
-          <Column><header><Text text="{i18n>id}" /></header></Column>
-          <Column><header><Text text="{i18n>orderId}" /></header></Column>
-          <Column><header><Text text="{i18n>contractId}" /></header></Column>
-          <Column><header><Text text="{i18n>quantityMt}" /></header></Column>
-          <Column><header><Text text="{i18n>createdAt}" /></header></Column>
-        </columns>
-
+        noDataText="{i18n>noLinkages}">
         <items>
-          <ColumnListItem type="Navigation">
-            <Text text="{ path: 'lnk>id', formatter: 'formatter.shortUuid' }" />
-            <Text text="{ path: 'lnk>order_id', formatter: 'formatter.shortUuid' }" />
-            <Text text="{ path: 'lnk>contract_id', formatter: 'formatter.shortUuid' }" />
-            <ObjectNumber number="{ path: 'lnk>quantity_mt', formatter: 'formatter.numberTwoDecimals' }" unit="MT" />
-            <Text text="{ path: 'lnk>created_at', formatter: 'formatter.dateDisplay' }" />
-          </ColumnListItem>
+          <ObjectListItem
+            title="{path: 'lnk>id', formatter: 'formatter.shortUuid'}"
+            type="Navigation"
+            number="{path: 'lnk>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
+            numberUnit="MT"
+            icon="sap-icon://chain-link">
+            <attributes>
+              <ObjectAttribute text="{i18n>orderId}: {path: 'lnk>order_id', formatter: 'formatter.shortUuid'}" />
+              <ObjectAttribute text="{i18n>contractId}: {path: 'lnk>contract_id', formatter: 'formatter.shortUuid'}" />
+              <ObjectAttribute text="{path: 'lnk>created_at', formatter: 'formatter.dateDisplay'}" />
+            </attributes>
+          </ObjectListItem>
         </items>
-      </Table>
+      </List>
     </f:content>
 
   </f:DynamicPage>

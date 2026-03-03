@@ -44,8 +44,8 @@ sap.ui.define([
 
     onSearch: function (oEvent) {
       var sQuery = oEvent.getParameter("newValue");
-      var oTable = this.byId("linkagesTable");
-      var oBinding = oTable.getBinding("items");
+      var oList = this.byId("linkagesList");
+      var oBinding = oList.getBinding("items");
       if (!sQuery) {
         oBinding.filter([]);
         return;

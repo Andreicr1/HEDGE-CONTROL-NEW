@@ -167,8 +167,14 @@ def preview_rfq_text(
     )
 
     try:
-        text = build_rfq_message(
-            channel_type=payload.channel_type,
+        text_en = build_rfq_message(
+            channel_type="BROKER_LME",
+            trade=trade,
+            company_header=payload.company_header,
+            company_label_for_payoff=payload.company_label_for_payoff,
+        )
+        text_pt = build_rfq_message(
+            channel_type="BANK",
             trade=trade,
             company_header=payload.company_header,
             company_label_for_payoff=payload.company_label_for_payoff,
@@ -179,7 +185,9 @@ def preview_rfq_text(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return RFQTextPreviewResponse(
-        text=text,
+        text=text_en,
+        text_en=text_en,
+        text_pt=text_pt,
         leg1_ppt=ppts["leg1_ppt"],
         leg2_ppt=ppts["leg2_ppt"],
         trade_ppt=ppts["trade_ppt"],

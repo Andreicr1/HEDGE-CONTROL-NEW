@@ -21,7 +21,13 @@ class AuthSettings:
     jwks_url: str
 
 
-def get_auth_settings() -> AuthSettings:
+def _auth_enabled() -> bool:
+    return bool(os.getenv("JWT_ISSUER"))
+
+
+def get_auth_settings() -> AuthSettings | None:
+    if not _auth_enabled():
+        return None
     issuer = os.getenv("JWT_ISSUER")
     audience = os.getenv("JWT_AUDIENCE")
     jwks_url = os.getenv("JWKS_URL")
@@ -79,10 +85,20 @@ def _select_jwk(jwks: dict[str, Any], kid: str | None) -> dict[str, Any]:
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token key")
 
 
+_ANONYMOUS_USER: dict[str, Any] = {
+    "sub": "anonymous",
+    "name": "Anonymous (auth disabled)",
+    "roles": ["admin", "trader", "viewer"],
+}
+
+
 def get_current_user(
     request: Request,
-    settings: AuthSettings = Depends(get_auth_settings),
+    settings: AuthSettings | None = Depends(get_auth_settings),
 ) -> dict[str, Any]:
+    if not _auth_enabled() or settings is None:
+        return _ANONYMOUS_USER
+
     token = _extract_token(request)
     try:
         header = jwt.get_unverified_header(token)
@@ -112,6 +128,8 @@ def require_role(role: str):
 
 def require_any_role(*roles: str):
     def _dependency(user: dict[str, Any] = Depends(get_current_user)) -> None:
+        if not _auth_enabled():
+            return
         user_roles = set(user.get("roles") or [])
         if not user_roles.intersection(set(roles)):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")

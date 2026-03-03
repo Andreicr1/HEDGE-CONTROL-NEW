@@ -12,9 +12,11 @@ from app.schemas.cashflow import (
     CashFlowAnalyticResponse,
     CashFlowBaselineSnapshotCreate,
     CashFlowBaselineSnapshotResponse,
+    CashFlowProjectionResponse,
 )
 from app.services.cashflow_analytic_service import compute_cashflow_analytic
 from app.services.cashflow_baseline_service import create_cashflow_baseline_snapshot
+from app.services.cashflow_projection_service import compute_cashflow_projection
 
 
 router = APIRouter()
@@ -53,6 +55,15 @@ def create_baseline_snapshot(
     mark_audit_success(request, snapshot.id)
     request.state.audit_commit()
     return CashFlowBaselineSnapshotResponse.model_validate(snapshot)
+
+
+@router.get("/projection", response_model=CashFlowProjectionResponse)
+def get_cashflow_projection(
+    as_of_date: date = Query(...),
+    _: None = Depends(require_any_role("risk_manager", "auditor", "trader")),
+    session: Session = Depends(get_session),
+) -> CashFlowProjectionResponse:
+    return compute_cashflow_projection(session, as_of_date=as_of_date)
 
 
 @router.get("/baseline/snapshots", response_model=CashFlowBaselineSnapshotResponse)

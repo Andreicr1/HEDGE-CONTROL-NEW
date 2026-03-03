@@ -17,8 +17,15 @@
         </f:actions>
       </f:DynamicPageTitle>
     </f:title>
+    <f:header>
+      <f:DynamicPageHeader>
+        <HBox alignItems="Center">
+          <SearchField width="20rem" search=".onSearch" placeholder="{i18n>search}" />
+        </HBox>
+      </f:DynamicPageHeader>
+    </f:header>
     <f:content>
-      <VBox class="sapUiSmallMargin">
+      <VBox>
         <MessageStrip
           text="{cpty>/errorMessage}"
           type="Error"
@@ -26,41 +33,32 @@
           showCloseButton="true"
           visible="{= !!${cpty>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
-        <Table id="counterpartiesTable" items="{cpty>/items}" growing="true" growingThreshold="50"
+        <List id="counterpartiesList" items="{cpty>/items}" growing="true" growingThreshold="50"
           noDataText="{i18n>noData}" mode="SingleSelectMaster" selectionChange=".onCounterpartySelect">
-          <headerToolbar>
-            <OverflowToolbar>
-              <Title text="{i18n>counterpartiesTitle}" level="H3" />
-              <ToolbarSpacer />
-              <SearchField width="15rem" search=".onSearch" />
-            </OverflowToolbar>
-          </headerToolbar>
-          <columns>
-            <Column><header><Text text="{i18n>colName}" /></header></Column>
-            <Column width="6rem"><header><Text text="{i18n>colType}" /></header></Column>
-            <Column><header><Text text="{i18n>colCountry}" /></header></Column>
-            <Column><header><Text text="{i18n>colTaxId}" /></header></Column>
-            <Column width="7rem"><header><Text text="{i18n>colKycStatus}" /></header></Column>
-            <Column width="7rem"><header><Text text="{i18n>colRiskRating}" /></header></Column>
-            <Column width="5rem" hAlign="Center"><header><Text text="{i18n>colActive}" /></header></Column>
-          </columns>
           <items>
-            <ColumnListItem type="Navigation">
-              <cells>
-                <Text text="{cpty>name}" />
-                <ObjectStatus text="{path: 'cpty>type', formatter: 'formatter.capitalize'}" />
-                <Text text="{cpty>country}" />
-                <Text text="{cpty>tax_id}" />
+            <ObjectListItem
+              title="{cpty>name}"
+              intro="{path: 'cpty>type', formatter: 'formatter.capitalize'}"
+              type="Navigation"
+              number="{path: 'cpty>risk_rating', formatter: 'formatter.capitalize'}"
+              numberUnit="Risk"
+              numberState="{= ${cpty>risk_rating} === 'low' ? 'Success' : (${cpty>risk_rating} === 'high' ? 'Error' : 'Warning')}"
+              icon="{= ${cpty>is_active} ? 'sap-icon://accept' : 'sap-icon://decline'}">
+              <attributes>
+                <ObjectAttribute text="{cpty>country}" />
+                <ObjectAttribute text="{i18n>colTaxId}: {cpty>tax_id}" />
+              </attributes>
+              <firstStatus>
                 <ObjectStatus text="{path: 'cpty>kyc_status', formatter: 'formatter.capitalize'}"
                   state="{path: 'cpty>kyc_status', formatter: 'formatter.statusState'}" />
-                <ObjectStatus text="{path: 'cpty>risk_rating', formatter: 'formatter.capitalize'}"
-                  state="{= ${cpty>risk_rating} === 'low' ? 'Success' : (${cpty>risk_rating} === 'high' ? 'Error' : 'Warning')}" />
-                <Icon src="{= ${cpty>is_active} ? 'sap-icon://accept' : 'sap-icon://decline'}"
-                  color="{= ${cpty>is_active} ? '#107E3E' : '#BB0000'}" />
-              </cells>
-            </ColumnListItem>
+              </firstStatus>
+              <secondStatus>
+                <ObjectStatus text="{= ${cpty>is_active} ? 'Ativa' : 'Inativa'}"
+                  state="{= ${cpty>is_active} ? 'Success' : 'Error'}" />
+              </secondStatus>
+            </ObjectListItem>
           </items>
-        </Table>
+        </List>
       </VBox>
     </f:content>
   </f:DynamicPage>

@@ -46,7 +46,7 @@ sap.ui.define([
           and: false
         })];
       }
-      this.byId("dealsTable").getBinding("items").filter(aFilters);
+      this.byId("dealsList").getBinding("items").filter(aFilters);
     },
 
     onDealSelect: function (oEvent) {
@@ -56,7 +56,7 @@ sap.ui.define([
     },
 
     onCreateDeal: function () {
-      this.navToDetail("dealCreate");
+      this.getRouter().navTo("dealCreate");
     }
   });
 });

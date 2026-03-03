@@ -131,3 +131,43 @@ class CashFlowLedgerEntryRead(BaseModel):
 class HedgeContractSettlementResponse(BaseModel):
     event: HedgeContractSettlementEventRead
     ledger_entries: list[CashFlowLedgerEntryRead]
+
+
+# ---------------------------------------------------------------------------
+# Cashflow Projection (forward-looking)
+# ---------------------------------------------------------------------------
+
+
+class ProjectionInstrumentType(str, Enum):
+    sales_order = "sales_order"
+    purchase_order = "purchase_order"
+    hedge_buy = "hedge_buy"
+    hedge_sell = "hedge_sell"
+    hedge_contract = "hedge_contract"
+
+
+class CashFlowProjectionItem(BaseModel):
+    instrument_type: ProjectionInstrumentType
+    instrument_id: str = Field(..., max_length=64)
+    reference: str = Field("", max_length=100)
+    counterparty: str = Field("", max_length=200)
+    commodity: str = Field("", max_length=20)
+    settlement_date: date
+    quantity_mt: Decimal
+    price_per_mt: Decimal
+    amount_usd: Decimal
+    price_source: str = Field("", max_length=30)
+    deal_id: str | None = Field(None, max_length=64)
+
+
+class CashFlowProjectionSummary(BaseModel):
+    total_inflows: Decimal
+    total_outflows: Decimal
+    net_cashflow: Decimal
+    instrument_count: int
+
+
+class CashFlowProjectionResponse(BaseModel):
+    as_of_date: date
+    items: list[CashFlowProjectionItem]
+    summary: CashFlowProjectionSummary

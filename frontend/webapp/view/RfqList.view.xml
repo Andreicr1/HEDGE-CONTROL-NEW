@@ -36,29 +36,25 @@
           showCloseButton="true"
           visible="{= !!${rfq>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
-        <Table id="rfqTable" items="{rfq>/items}" growing="true" growingThreshold="50"
+        <List id="rfqTable" items="{rfq>/items}" growing="true" growingThreshold="50"
           noDataText="{i18n>noData}" mode="SingleSelectMaster" selectionChange=".onRfqSelect">
-          <columns>
-            <Column width="8rem"><header><Text text="{i18n>colRfqNumber}" /></header></Column>
-            <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
-            <Column><header><Text text="{i18n>colDirection}" /></header></Column>
-            <Column hAlign="End"><header><Text text="{i18n>colQuantityMt}" /></header></Column>
-            <Column><header><Text text="{i18n>colState}" /></header></Column>
-            <Column><header><Text text="{i18n>colCreatedAt}" /></header></Column>
-          </columns>
           <items>
-            <ColumnListItem type="Navigation">
-              <cells>
-                <Text text="{rfq>rfq_number}" />
-                <Text text="{rfq>commodity}" />
-                <ObjectStatus text="{rfq>direction}" state="{= ${rfq>direction} === 'BUY' ? 'Success' : 'Error'}" />
-                <Text text="{path: 'rfq>quantity_mt', formatter: 'formatter.numberTwoDecimals'}" />
-                <ObjectStatus text="{rfq>state}" state="{path: 'rfq>state', formatter: 'formatter.statusState'}" />
-                <Text text="{path: 'rfq>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-              </cells>
-            </ColumnListItem>
+            <ObjectListItem
+              title="{rfq>rfq_number}"
+              type="Navigation"
+              number="{rfq>quantity_mt}"
+              numberUnit="MT">
+              <attributes>
+                <ObjectAttribute text="{rfq>commodity}" />
+                <ObjectAttribute text="{ path: 'rfq>created_at', formatter: 'formatter.dateDisplay' }" />
+              </attributes>
+              <firstStatus>
+                <ObjectStatus text="{rfq>state}"
+                  state="{= ${rfq>state} === 'AWARDED' ? 'Success' : (${rfq>state} === 'CLOSED' ? 'None' : 'Information')}" />
+              </firstStatus>
+            </ObjectListItem>
           </items>
-        </Table>
+        </List>
       </VBox>
     </f:content>
   </f:DynamicPage>

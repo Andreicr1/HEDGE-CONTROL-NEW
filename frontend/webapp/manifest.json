@@ -91,10 +91,7 @@
                 {
                     "pattern": "orders/create/{type}",
                     "name": "orderCreate",
-                    "target": [
-                        "ordersList",
-                        "orderCreate"
-                    ]
+                    "target": "orderCreate"
                 },
                 {
                     "pattern": "orders/{orderId}",
@@ -108,6 +105,11 @@
                     "pattern": "rfq",
                     "name": "rfq",
                     "target": "rfqList"
+                },
+                {
+                    "pattern": "rfq/create",
+                    "name": "rfqCreate",
+                    "target": "rfqCreate"
                 },
                 {
                     "pattern": "rfq/{rfqId}",
@@ -134,10 +136,7 @@
                 {
                     "pattern": "contracts/create",
                     "name": "contractCreate",
-                    "target": [
-                        "contractsList",
-                        "contractCreate"
-                    ]
+                    "target": "contractCreate"
                 },
                 {
                     "pattern": "contracts/{contractId}",
@@ -188,10 +187,7 @@
                 {
                     "pattern": "hedges/create",
                     "name": "hedgeCreate",
-                    "target": [
-                        "hedgesList",
-                        "hedgeCreate"
-                    ]
+                    "target": "hedgeCreate"
                 },
                 {
                     "pattern": "hedges/{hedgeId}",
@@ -209,10 +205,7 @@
                 {
                     "pattern": "deals/create",
                     "name": "dealCreate",
-                    "target": [
-                        "dealsList",
-                        "dealCreate"
-                    ]
+                    "target": "dealCreate"
                 },
                 {
                     "pattern": "deals/{dealId}",
@@ -230,10 +223,7 @@
                 {
                     "pattern": "counterparties/create",
                     "name": "counterpartyCreate",
-                    "target": [
-                        "counterpartiesList",
-                        "counterpartyCreate"
-                    ]
+                    "target": "counterpartyCreate"
                 },
                 {
                     "pattern": "counterparties/{counterpartyId}",
@@ -279,7 +269,7 @@
                 },
                 "orderCreate": {
                     "name": "OrderCreate",
-                    "controlAggregation": "midColumnPages"
+                    "controlAggregation": "endColumnPages"
                 },
                 "orderDetail": {
                     "name": "OrderDetail",
@@ -287,6 +277,10 @@
                 },
                 "rfqList": {
                     "name": "RfqList",
+                    "controlAggregation": "beginColumnPages"
+                },
+                "rfqCreate": {
+                    "name": "RfqCreate",
                     "controlAggregation": "beginColumnPages"
                 },
                 "rfqDetail": {
@@ -303,7 +297,7 @@
                 },
                 "contractCreate": {
                     "name": "ContractCreate",
-                    "controlAggregation": "midColumnPages"
+                    "controlAggregation": "endColumnPages"
                 },
                 "contractDetail": {
                     "name": "ContractDetail",
@@ -339,7 +333,7 @@
                 },
                 "hedgeCreate": {
                     "name": "HedgeCreate",
-                    "controlAggregation": "midColumnPages"
+                    "controlAggregation": "endColumnPages"
                 },
                 "hedgeDetail": {
                     "name": "HedgeDetail",
@@ -351,7 +345,7 @@
                 },
                 "dealCreate": {
                     "name": "DealCreate",
-                    "controlAggregation": "midColumnPages"
+                    "controlAggregation": "endColumnPages"
                 },
                 "dealDetail": {
                     "name": "DealDetail",
@@ -363,7 +357,7 @@
                 },
                 "counterpartyCreate": {
                     "name": "CounterpartyCreate",
-                    "controlAggregation": "midColumnPages"
+                    "controlAggregation": "endColumnPages"
                 },
                 "counterpartyDetail": {
                     "name": "CounterpartyDetail",

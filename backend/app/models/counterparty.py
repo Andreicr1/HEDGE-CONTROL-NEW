@@ -16,6 +16,12 @@ class CounterpartyType(enum.Enum):
     broker = "broker"
 
 
+class RfqChannelType(enum.Enum):
+    broker_lme = "broker_lme"
+    banco_br = "banco_br"
+    none = "none"
+
+
 class KycStatus(enum.Enum):
     pending = "pending"
     approved = "approved"
@@ -71,6 +77,11 @@ class Counterparty(Base):
         Enum(RiskRating, name="risk_rating"),
         nullable=False,
         default=RiskRating.medium,
+    )
+    rfq_channel_type: Mapped[RfqChannelType] = mapped_column(
+        Enum(RfqChannelType, name="rfq_channel_type"),
+        nullable=False,
+        default=RfqChannelType.none,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

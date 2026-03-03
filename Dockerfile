@@ -14,6 +14,10 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --create-home appuser
 
 COPY --from=builder /wheels /wheels

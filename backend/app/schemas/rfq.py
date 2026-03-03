@@ -282,6 +282,8 @@ class RFQTextPreviewRequest(BaseModel):
 class RFQTextPreviewResponse(BaseModel):
     """Response from the RFQ text preview endpoint."""
     text: str
+    text_en: str = ""
+    text_pt: str = ""
     leg1_ppt: date | None = None
     leg2_ppt: date | None = None
     trade_ppt: date | None = None

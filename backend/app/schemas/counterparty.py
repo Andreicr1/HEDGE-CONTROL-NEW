@@ -11,6 +11,12 @@ class CounterpartyType(str, Enum):
     broker = "broker"
 
 
+class RfqChannelType(str, Enum):
+    broker_lme = "broker_lme"
+    banco_br = "banco_br"
+    none = "none"
+
+
 class KycStatus(str, Enum):
     pending = "pending"
     approved = "approved"
@@ -43,6 +49,7 @@ class CounterpartyCreate(BaseModel):
     contact_phone: str | None = Field(None, max_length=50)
     payment_terms_days: int = 30
     credit_limit_usd: float | None = None
+    rfq_channel_type: RfqChannelType = RfqChannelType.none
     kyc_status: KycStatus = KycStatus.pending
     sanctions_status: SanctionsStatus = SanctionsStatus.clear
     risk_rating: RiskRating = RiskRating.medium
@@ -62,6 +69,7 @@ class CounterpartyUpdate(BaseModel):
     contact_phone: str | None = Field(None, max_length=50)
     payment_terms_days: int | None = None
     credit_limit_usd: float | None = None
+    rfq_channel_type: RfqChannelType | None = None
     kyc_status: KycStatus | None = None
     sanctions_status: SanctionsStatus | None = None
     risk_rating: RiskRating | None = None
@@ -85,6 +93,7 @@ class CounterpartyRead(BaseModel):
     contact_phone: str | None = None
     payment_terms_days: int
     credit_limit_usd: float | None = None
+    rfq_channel_type: RfqChannelType
     kyc_status: KycStatus
     sanctions_status: SanctionsStatus
     risk_rating: RiskRating

@@ -7,6 +7,7 @@ from app.models.counterparty import (
     Counterparty,
     CounterpartyType,
     KycStatus,
+    RfqChannelType,
     SanctionsStatus,
     RiskRating,
 )
@@ -28,6 +29,7 @@ class CounterpartyService:
             contact_phone=data.get("contact_phone"),
             payment_terms_days=data.get("payment_terms_days", 30),
             credit_limit_usd=data.get("credit_limit_usd"),
+            rfq_channel_type=RfqChannelType(data.get("rfq_channel_type", "none")),
             kyc_status=KycStatus(data.get("kyc_status", "pending")),
             sanctions_status=SanctionsStatus(data.get("sanctions_status", "clear")),
             risk_rating=RiskRating(data.get("risk_rating", "medium")),
@@ -75,6 +77,8 @@ class CounterpartyService:
                     setattr(cp, key, SanctionsStatus(value))
                 elif key == "risk_rating":
                     setattr(cp, key, RiskRating(value))
+                elif key == "rfq_channel_type":
+                    setattr(cp, key, RfqChannelType(value))
                 else:
                     setattr(cp, key, value)
         session.commit()

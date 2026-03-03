@@ -64,7 +64,7 @@ else:
     cors_allow_origins = [
         "http://localhost:5173",
         "http://localhost:8080",
-        "https://mango-cliff-077560a10.6.azurestaticapps.net",
+        "https://happy-sand-0b5701c0f.1.azurestaticapps.net",
     ]
 
 app.add_middleware(
@@ -117,13 +117,14 @@ def readiness() -> dict[str, str]:
         logger.error("readiness_db_failed", error=str(exc))
         raise HTTPException(status_code=503, detail="db_unavailable") from exc
 
-    try:
-        settings = get_auth_settings()
-        response = httpx.get(settings.jwks_url, timeout=5.0)
-        response.raise_for_status()
-    except Exception as exc:  # pragma: no cover - explicit readiness failure path
-        logger.error("readiness_jwks_failed", error=str(exc))
-        raise HTTPException(status_code=503, detail="jwks_unavailable") from exc
+    if os.getenv("JWT_ISSUER"):
+        try:
+            settings = get_auth_settings()
+            response = httpx.get(settings.jwks_url, timeout=5.0)
+            response.raise_for_status()
+        except Exception as exc:  # pragma: no cover
+            logger.error("readiness_jwks_failed", error=str(exc))
+            raise HTTPException(status_code=503, detail="jwks_unavailable") from exc
 
     return {"status": "ready"}
 

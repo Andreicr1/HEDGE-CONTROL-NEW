@@ -6,7 +6,7 @@
   xmlns:f="sap.f"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
 
-  <f:DynamicPage id="contractsListPage" headerExpanded="true" showFooter="false">
+  <f:DynamicPage id="contractsListPage" headerExpanded="true" showFooter="false" busy="{ctr>/busy}">
 
     <f:title>
       <f:DynamicPageTitle>
@@ -28,46 +28,33 @@
     </f:header>
 
     <f:content>
-      <Table id="contractsTable"
+      <List id="contractsList"
         items="{ path: 'ctr>/items', sorter: { path: 'created_at', descending: true } }"
         growing="true"
         growingThreshold="50"
         mode="SingleSelectMaster"
         selectionChange=".onContractSelect"
-        noDataText="{i18n>noContracts}"
-        busy="{ctr>/busy}">
-
-        <columns>
-          <Column><header><Text text="{i18n>id}" /></header></Column>
-          <Column><header><Text text="{i18n>commodity}" /></header></Column>
-          <Column><header><Text text="{i18n>quantityMt}" /></header></Column>
-          <Column><header><Text text="{i18n>classification}" /></header></Column>
-          <Column><header><Text text="{i18n>fixedLegSide}" /></header></Column>
-          <Column><header><Text text="{i18n>variableLegSide}" /></header></Column>
-          <Column><header><Text text="{i18n>counterparty}" /></header></Column>
-          <Column><header><Text text="{i18n>fixedPrice}" /></header></Column>
-          <Column><header><Text text="{i18n>status}" /></header></Column>
-          <Column><header><Text text="{i18n>createdAt}" /></header></Column>
-        </columns>
-
+        noDataText="{i18n>noContracts}">
         <items>
-          <ColumnListItem type="Navigation">
-            <Text text="{ path: 'ctr>id', formatter: 'formatter.shortUuid' }" />
-            <Text text="{ctr>commodity}" />
-            <ObjectNumber number="{ path: 'ctr>quantity_mt', formatter: 'formatter.numberTwoDecimals' }" unit="MT" />
-            <ObjectStatus text="{ path: 'ctr>classification', formatter: 'formatter.capitalize' }"
-              state="{ path: 'ctr>classification', formatter: '.formatClassificationState' }" />
-            <Text text="{ path: 'ctr>fixed_leg_side', formatter: 'formatter.capitalize' }" />
-            <Text text="{ path: 'ctr>variable_leg_side', formatter: 'formatter.capitalize' }" />
-            <Text text="{ctr>counterparty_id}" />
-            <ObjectNumber number="{ path: 'ctr>fixed_price_value', formatter: 'formatter.priceFourDecimals' }"
-              unit="{ctr>fixed_price_unit}" />
-            <ObjectStatus text="{ path: 'ctr>status', formatter: 'formatter.capitalize' }"
-              state="{ path: 'ctr>status', formatter: 'formatter.statusState' }" />
-            <Text text="{ path: 'ctr>created_at', formatter: 'formatter.dateDisplay' }" />
-          </ColumnListItem>
+          <ObjectListItem
+            title="{ctr>commodity} — {path: 'ctr>classification', formatter: 'formatter.capitalize'}"
+            intro="{path: 'ctr>id', formatter: 'formatter.shortUuid'}"
+            type="Navigation"
+            number="{path: 'ctr>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
+            numberUnit="MT"
+            icon="sap-icon://document-text">
+            <attributes>
+              <ObjectAttribute text="{i18n>fixedPrice}: {path: 'ctr>fixed_price_value', formatter: 'formatter.priceFourDecimals'} {ctr>fixed_price_unit}" />
+              <ObjectAttribute text="{i18n>counterparty}: {ctr>counterparty_id}" />
+              <ObjectAttribute text="{path: 'ctr>created_at', formatter: 'formatter.dateDisplay'}" />
+            </attributes>
+            <firstStatus>
+              <ObjectStatus text="{path: 'ctr>status', formatter: 'formatter.capitalize'}"
+                state="{path: 'ctr>status', formatter: 'formatter.statusState'}" />
+            </firstStatus>
+          </ObjectListItem>
         </items>
-      </Table>
+      </List>
     </f:content>
 
   </f:DynamicPage>

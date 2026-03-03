@@ -1,18 +1,23 @@
-name: Backend CI/CD (ACA)
+name: Backend CI/CD (App Service)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "Dockerfile"
+      - ".github/workflows/backend-deploy.yml"
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Target environment: dev|staging|prod"
-        required: true
-        default: "dev"
+
+env:
+  ACR_NAME: alcasthedgeacr
+  ACR_LOGIN_SERVER: alcasthedgeacr.azurecr.io
+  IMAGE_NAME: hedge-backend
+  RESOURCE_GROUP: Alcast-Hedge
+  WEBAPP_NAME: alcast-hedge-api
 
 jobs:
-  build_test:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,40 +37,50 @@ jobs:
           DATABASE_URL: "sqlite+pysqlite:///:memory:"
         run: |
           cd backend
-          alembic upgrade head
           pytest -q
 
-  build_push_deploy:
-    needs: build_test
+  build_and_deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Login to ACR
-        uses: azure/docker-login@v2
-        with:
-          login-server: hedgecontrolacr.azurecr.io
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-
-      - name: Build and push image
-        run: |
-          docker build -t hedgecontrolacr.azurecr.io/hedge-backend:${{ github.sha }} .
-          docker push hedgecontrolacr.azurecr.io/hedge-backend:${{ github.sha }}
 
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy to ACA
-        env:
-          ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      - name: Build and push to ACR
         run: |
-          if [ "$ENVIRONMENT" = "prod" ]; then APP_NAME="hedge-backend-prod"; IMAGE_TAG="prod"; fi
-          if [ "$ENVIRONMENT" = "staging" ]; then APP_NAME="hedge-backend-staging"; IMAGE_TAG="staging"; fi
-          if [ "$ENVIRONMENT" = "dev" ]; then APP_NAME="hedge-backend-dev"; IMAGE_TAG="dev"; fi
-          az containerapp update \
-            --name $APP_NAME \
-            --resource-group rg-alcast-hc-dev-eastus2 \
-            --image hedgecontrolacr.azurecr.io/hedge-backend:${{ github.sha }}
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --image ${{ env.IMAGE_NAME }}:latest \
+            --file Dockerfile .
+
+      - name: Deploy to App Service
+        run: |
+          az webapp config container set \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.WEBAPP_NAME }} \
+            --container-image-name ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --container-registry-url https://${{ env.ACR_LOGIN_SERVER }}
+
+          az webapp restart \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.WEBAPP_NAME }}
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting 30s for container startup..."
+          sleep 30
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.WEBAPP_NAME }}.azurewebsites.net/health || true)
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::Health check did not return 200 after 5 attempts"

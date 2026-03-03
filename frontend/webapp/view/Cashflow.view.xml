@@ -148,6 +148,71 @@
             </VBox>
           </IconTabFilter>
 
+          <!-- Projection Tab -->
+          <IconTabFilter text="{i18n>projection}" key="projection" icon="sap-icon://future">
+            <VBox class="sapUiSmallMargin">
+              <HBox alignItems="End" class="sapUiSmallMarginBottom">
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>asOfDate}" />
+                  <DatePicker id="projectionDate" displayFormat="dd/MM/yyyy" valueFormat="yyyy-MM-dd" placeholder="dd/MM/yyyy" />
+                </VBox>
+                <Button text="{i18n>projectionLoadBtn}" type="Emphasized" press=".onLoadProjection" />
+              </HBox>
+
+              <!-- Summary cards -->
+              <HBox class="sapUiSmallMarginBottom" visible="{cf>/projectionLoaded}">
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>projectionTotalInflows}" />
+                  <ObjectNumber number="{ path: 'cf>/projection/summary/total_inflows', formatter: 'formatter.numberTwoDecimals' }"
+                    unit="USD" state="Success" emphasized="true" />
+                </VBox>
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>projectionTotalOutflows}" />
+                  <ObjectNumber number="{ path: 'cf>/projection/summary/total_outflows', formatter: 'formatter.numberTwoDecimals' }"
+                    unit="USD" state="Error" emphasized="true" />
+                </VBox>
+                <VBox class="sapUiSmallMarginEnd">
+                  <Label text="{i18n>projectionNetCashflow}" />
+                  <ObjectNumber number="{ path: 'cf>/projection/summary/net_cashflow', formatter: 'formatter.numberTwoDecimals' }"
+                    unit="USD" emphasized="true" />
+                </VBox>
+                <VBox>
+                  <Label text="{i18n>projectionInstrumentCount}" />
+                  <ObjectNumber number="{cf>/projection/summary/instrument_count}" />
+                </VBox>
+              </HBox>
+
+              <Table items="{cf>/projection/items}" noDataText="{i18n>projectionNoItems}" busy="{cf>/projectionBusy}"
+                growing="true" growingThreshold="50">
+                <columns>
+                  <Column width="9rem"><header><Text text="{i18n>colInstrumentType}" /></header></Column>
+                  <Column width="7rem"><header><Text text="{i18n>colInstrumentId}" /></header></Column>
+                  <Column width="6rem"><header><Text text="{i18n>colCommodity}" /></header></Column>
+                  <Column width="8rem"><header><Text text="{i18n>colSettlementDate}" /></header></Column>
+                  <Column width="7rem" hAlign="End"><header><Text text="{i18n>colQuantityMt}" /></header></Column>
+                  <Column width="7rem" hAlign="End"><header><Text text="{i18n>colPricePerMt}" /></header></Column>
+                  <Column width="8rem" hAlign="End"><header><Text text="{i18n>colAmountUsd}" /></header></Column>
+                  <Column width="5rem"><header><Text text="{i18n>colPriceSource}" /></header></Column>
+                  <Column width="7rem"><header><Text text="{i18n>colDealId}" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem highlight="{ path: 'cf>amount_usd', formatter: '.formatAmountHighlight' }">
+                    <Text text="{ path: 'cf>instrument_type', formatter: '.formatInstrumentType' }" />
+                    <Text text="{ path: 'cf>instrument_id', formatter: 'formatter.shortUuid' }" />
+                    <Text text="{cf>commodity}" />
+                    <Text text="{ path: 'cf>settlement_date', formatter: 'formatter.dateDisplay' }" />
+                    <ObjectNumber number="{ path: 'cf>quantity_mt', formatter: 'formatter.numberTwoDecimals' }" unit="MT" />
+                    <ObjectNumber number="{ path: 'cf>price_per_mt', formatter: 'formatter.numberTwoDecimals' }" unit="USD" />
+                    <ObjectNumber number="{ path: 'cf>amount_usd', formatter: 'formatter.numberTwoDecimals' }" unit="USD"
+                      state="{ path: 'cf>amount_usd', formatter: '.formatAmountState' }" />
+                    <Text text="{ path: 'cf>price_source', formatter: '.formatPriceSource' }" />
+                    <Text text="{ path: 'cf>deal_id', formatter: 'formatter.shortUuid' }" />
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
+
         </items>
       </IconTabBar>
     </f:content>

@@ -45,7 +45,7 @@ sap.ui.define([
           and: false
         })];
       }
-      this.byId("hedgesTable").getBinding("items").filter(aFilters);
+      this.byId("hedgesList").getBinding("items").filter(aFilters);
     },
 
     onHedgeSelect: function (oEvent) {
@@ -55,7 +55,7 @@ sap.ui.define([
     },
 
     onCreateHedge: function () {
-      this.navToDetail("hedgeCreate");
+      this.getRouter().navTo("hedgeCreate");
     }
   });
 });

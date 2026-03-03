@@ -12,7 +12,6 @@ sap.ui.define([
       this.initViewModel("ctr", { items: [] });
       this.getRouter().getRoute("contracts").attachPatternMatched(this._onRouteMatched, this);
       this.getRouter().getRoute("contractDetail").attachPatternMatched(this._onRouteMatched, this);
-      this.getRouter().getRoute("contractCreate").attachPatternMatched(this._onRouteMatched, this);
     },
 
     _onRouteMatched: function () {
@@ -33,8 +32,8 @@ sap.ui.define([
 
     onSearch: function (oEvent) {
       var sQuery = oEvent.getParameter("newValue");
-      var oTable = this.byId("contractsTable");
-      var oBinding = oTable.getBinding("items");
+      var oList = this.byId("contractsList");
+      var oBinding = oList.getBinding("items");
       if (!sQuery) {
         oBinding.filter([]);
         return;
@@ -55,7 +54,7 @@ sap.ui.define([
     },
 
     onCreateContract: function () {
-      this.navToDetail("contractCreate", {});
+      this.getRouter().navTo("contractCreate");
     },
 
     formatClassificationState: function (sClassification) {

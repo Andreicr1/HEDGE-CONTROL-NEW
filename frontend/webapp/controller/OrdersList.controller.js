@@ -45,7 +45,7 @@ sap.ui.define([
           and: false
         })];
       }
-      this.byId("ordersTable").getBinding("items").filter(aFilters);
+      this.byId("ordersList").getBinding("items").filter(aFilters);
     },
 
     onOrderSelect: function (oEvent) {
@@ -55,11 +55,11 @@ sap.ui.define([
     },
 
     onCreateSales: function () {
-      this.navToDetail("orderCreate", { type: "sales" });
+      this.getRouter().navTo("orderCreate", { type: "sales" });
     },
 
     onCreatePurchase: function () {
-      this.navToDetail("orderCreate", { type: "purchase" });
+      this.getRouter().navTo("orderCreate", { type: "purchase" });
     }
   });
 });

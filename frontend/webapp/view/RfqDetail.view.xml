@@ -254,6 +254,40 @@
         </uxap:subSections>
       </uxap:ObjectPageSection>
 
+      <!-- Section: Documents -->
+      <uxap:ObjectPageSection title="Documentos" id="documentsSection" titleUppercase="false">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <VBox>
+                <OverflowToolbar>
+                  <Title text="Documentos Associados" level="H4" />
+                  <ToolbarSpacer />
+                  <Button text="Upload" icon="sap-icon://upload" press=".onUploadDocument" type="Ghost" />
+                </OverflowToolbar>
+                <List items="{rfqDet>/documents}" noDataText="Nenhum documento associado." mode="None">
+                  <items>
+                    <ObjectListItem
+                      title="{rfqDet>name}"
+                      type="Active"
+                      press=".onDocumentPress"
+                      icon="sap-icon://document">
+                      <attributes>
+                        <ObjectAttribute text="{rfqDet>type}" />
+                        <ObjectAttribute text="{rfqDet>uploaded_at}" />
+                      </attributes>
+                      <firstStatus>
+                        <ObjectStatus text="{rfqDet>size}" />
+                      </firstStatus>
+                    </ObjectListItem>
+                  </items>
+                </List>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
     </uxap:sections>
 
     <!-- ═══ Footer ═══ -->

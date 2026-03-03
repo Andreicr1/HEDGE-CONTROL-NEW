@@ -46,18 +46,18 @@ sap.ui.define([
    * Map route names to FCL layout.
    */
   var ROUTE_TO_LAYOUT = {
-    orderCreate: LayoutType.TwoColumnsMidExpanded,
     orderDetail: LayoutType.TwoColumnsMidExpanded,
-    rfqCreate: LayoutType.TwoColumnsMidExpanded,
+    orderCreate: LayoutType.EndColumnFullScreen,
     rfqDetail: LayoutType.TwoColumnsMidExpanded,
-    contractCreate: LayoutType.TwoColumnsMidExpanded,
+    rfqDocument: LayoutType.ThreeColumnsMidExpanded,
     contractDetail: LayoutType.TwoColumnsMidExpanded,
-    hedgeCreate: LayoutType.TwoColumnsMidExpanded,
+    contractCreate: LayoutType.EndColumnFullScreen,
     hedgeDetail: LayoutType.TwoColumnsMidExpanded,
-    dealCreate: LayoutType.TwoColumnsMidExpanded,
+    hedgeCreate: LayoutType.EndColumnFullScreen,
     dealDetail: LayoutType.TwoColumnsMidExpanded,
-    counterpartyCreate: LayoutType.TwoColumnsMidExpanded,
+    dealCreate: LayoutType.EndColumnFullScreen,
     counterpartyDetail: LayoutType.TwoColumnsMidExpanded,
+    counterpartyCreate: LayoutType.EndColumnFullScreen,
     linkageDetail: LayoutType.TwoColumnsMidExpanded
   };
 

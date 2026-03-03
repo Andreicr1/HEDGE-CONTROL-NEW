@@ -46,7 +46,7 @@ sap.ui.define([
           and: false
         })];
       }
-      this.byId("counterpartiesTable").getBinding("items").filter(aFilters);
+      this.byId("counterpartiesList").getBinding("items").filter(aFilters);
     },
 
     onCounterpartySelect: function (oEvent) {
@@ -56,7 +56,7 @@ sap.ui.define([
     },
 
     onCreateCounterparty: function () {
-      this.navToDetail("counterpartyCreate");
+      this.getRouter().navTo("counterpartyCreate");
     }
   });
 });

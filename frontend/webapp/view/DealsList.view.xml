@@ -17,8 +17,15 @@
         </f:actions>
       </f:DynamicPageTitle>
     </f:title>
+    <f:header>
+      <f:DynamicPageHeader>
+        <HBox alignItems="Center">
+          <SearchField width="20rem" search=".onSearch" placeholder="{i18n>search}" />
+        </HBox>
+      </f:DynamicPageHeader>
+    </f:header>
     <f:content>
-      <VBox class="sapUiSmallMargin">
+      <VBox>
         <MessageStrip
           text="{deals>/errorMessage}"
           type="Error"
@@ -26,45 +33,29 @@
           showCloseButton="true"
           visible="{= !!${deals>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
-        <Table id="dealsTable" items="{deals>/items}" growing="true" growingThreshold="50"
+        <List id="dealsList" items="{deals>/items}" growing="true" growingThreshold="50"
           noDataText="{i18n>noData}" mode="SingleSelectMaster" selectionChange=".onDealSelect">
-          <headerToolbar>
-            <OverflowToolbar>
-              <Title text="{i18n>dealsTitle}" level="H3" />
-              <ToolbarSpacer />
-              <SearchField width="15rem" search=".onSearch" />
-            </OverflowToolbar>
-          </headerToolbar>
-          <columns>
-            <Column width="8rem"><header><Text text="{i18n>colReference}" /></header></Column>
-            <Column><header><Text text="{i18n>colDealName}" /></header></Column>
-            <Column><header><Text text="{i18n>colCommodity}" /></header></Column>
-            <Column width="8rem"><header><Text text="{i18n>colStatus}" /></header></Column>
-            <Column hAlign="End"><header><Text text="{i18n>colPhysicalTons}" /></header></Column>
-            <Column hAlign="End"><header><Text text="{i18n>colHedgeTons}" /></header></Column>
-            <Column width="10rem"><header><Text text="{i18n>colHedgeRatio}" /></header></Column>
-            <Column><header><Text text="{i18n>colCreatedAt}" /></header></Column>
-          </columns>
           <items>
-            <ColumnListItem type="Navigation">
-              <cells>
-                <Text text="{deals>reference}" />
-                <Text text="{deals>name}" />
-                <Text text="{path: 'deals>commodity', formatter: 'formatter.capitalize'}" />
+            <ObjectListItem
+              title="{deals>name}"
+              intro="{deals>reference}"
+              type="Navigation"
+              number="{= Math.round(${deals>hedge_ratio} * 100) + '%'}"
+              numberUnit="Hedge"
+              numberState="{= ${deals>hedge_ratio} >= 1 ? 'Success' : (${deals>hedge_ratio} >= 0.5 ? 'Warning' : 'Error')}"
+              icon="sap-icon://detail-view">
+              <attributes>
+                <ObjectAttribute text="{path: 'deals>commodity', formatter: 'formatter.capitalize'}" />
+                <ObjectAttribute text="{i18n>colPhysicalTons}: {path: 'deals>total_physical_tons', formatter: 'formatter.numberTwoDecimals'} MT" />
+                <ObjectAttribute text="{path: 'deals>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+              </attributes>
+              <firstStatus>
                 <ObjectStatus text="{path: 'deals>status', formatter: 'formatter.capitalize'}"
                   state="{path: 'deals>status', formatter: 'formatter.statusState'}" />
-                <Text text="{path: 'deals>total_physical_tons', formatter: 'formatter.numberTwoDecimals'}" />
-                <Text text="{path: 'deals>total_hedge_tons', formatter: 'formatter.numberTwoDecimals'}" />
-                <ProgressIndicator
-                  percentValue="{= Math.min(${deals>hedge_ratio} * 100, 100)}"
-                  displayValue="{= Math.round(${deals>hedge_ratio} * 100) + '%'}"
-                  state="{= ${deals>hedge_ratio} >= 1 ? 'Success' : (${deals>hedge_ratio} >= 0.5 ? 'Warning' : 'Error')}"
-                  showValue="true" />
-                <Text text="{path: 'deals>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-              </cells>
-            </ColumnListItem>
+              </firstStatus>
+            </ObjectListItem>
           </items>
-        </Table>
+        </List>
       </VBox>
     </f:content>
   </f:DynamicPage>

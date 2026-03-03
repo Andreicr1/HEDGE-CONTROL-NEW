@@ -1,9 +1,27 @@
-"""Deal Engine service — CRUD + links + P&L snapshots (component 1.5)."""
+"""Deal Engine service — CRUD + links + P&L snapshots (component 1.5).
+
+P&L logic
+---------
+Physical P&L  = SO revenue − PO cost
+  * Fixed-price orders  → qty × avg_entry_price
+  * Variable-price orders → qty × settlement_price (market)
+
+Financial P&L = hedge positions linked to the deal
+  * Settled hedges (realized):
+      sell → +tons × price_per_ton
+      buy  → −tons × price_per_ton
+  * Active hedges (MTM / unrealised):
+      buy  → tons × (market_price − price_per_ton)
+      sell → tons × (price_per_ton − market_price)
+
+Total P&L = physical_revenue − physical_cost + hedge_realized + hedge_mtm
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import uuid as _uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -12,8 +30,12 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.deal import Deal, DealLink, DealLinkedType, DealPNLSnapshot, DealStatus
-from app.models.hedge import Hedge
-from app.models.orders import Order, OrderType
+from app.models.hedge import Hedge, HedgeDirection, HedgeStatus
+from app.models.orders import Order, OrderType, PriceType
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_COMMODITY_SYMBOL = "LME_AL"
 
 
 def _generate_reference() -> str:
@@ -21,12 +43,35 @@ def _generate_reference() -> str:
     return f"D-{_uuid.uuid4().hex[:8].upper()}"
 
 
-def _compute_inputs_hash(deal_id: _uuid.UUID, snapshot_date: date) -> str:
-    """SHA-256 hash for idempotency check."""
+def _compute_inputs_hash(
+    deal_id: _uuid.UUID,
+    snapshot_date: date,
+    link_ids: list[_uuid.UUID],
+) -> str:
+    """SHA-256 hash that changes when the deal's links change."""
     data = json.dumps(
-        {"deal_id": str(deal_id), "snapshot_date": str(snapshot_date)}, sort_keys=True
+        {
+            "deal_id": str(deal_id),
+            "snapshot_date": str(snapshot_date),
+            "links": sorted(str(lid) for lid in link_ids),
+        },
+        sort_keys=True,
     )
     return hashlib.sha256(data.encode()).hexdigest()
+
+
+def _get_market_price(session: Session, commodity: str, as_of_date: date) -> float | None:
+    """Try to fetch the D-1 settlement price; return None on failure."""
+    try:
+        from app.services.price_lookup_service import (
+            get_cash_settlement_price_d1,
+            resolve_symbol,
+        )
+        symbol = resolve_symbol(commodity)
+        return float(get_cash_settlement_price_d1(session, symbol=symbol, as_of_date=as_of_date))
+    except Exception:
+        logger.debug("market_price_unavailable commodity=%s date=%s", commodity, as_of_date)
+        return None
 
 
 class DealEngineService:
@@ -139,19 +184,43 @@ class DealEngineService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _order_value(
+        order: Order, market_price: float | None,
+    ) -> float:
+        """Return the monetary value for one order (qty × effective price).
+
+        Fixed-price orders always use ``avg_entry_price``.
+        Variable-price orders prefer the market settlement price;
+        fall back to ``avg_entry_price`` when market data is unavailable.
+        """
+        qty = float(order.quantity_mt)
+        if order.price_type == PriceType.fixed:
+            return qty * float(order.avg_entry_price or 0)
+        if market_price is not None:
+            return qty * market_price
+        return qty * float(order.avg_entry_price or 0)
+
+    @staticmethod
     def compute_deal_pnl(
         session: Session, deal_id: _uuid.UUID, snapshot_date: date
     ) -> DealPNLSnapshot:
-        """Compute deal P&L and create a snapshot. Idempotent via inputs_hash."""
+        """Compute deal P&L and persist a snapshot.
+
+        Idempotent: if the set of links hasn't changed for the same date the
+        existing snapshot is returned.  When links change a fresh snapshot is
+        created (different ``inputs_hash``).
+        """
         deal = DealEngineService.get_by_id(session, deal_id)
         if not deal:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deal not found"
             )
 
-        inputs_hash = _compute_inputs_hash(deal_id, snapshot_date)
+        links = session.query(DealLink).filter(DealLink.deal_id == deal_id).all()
+        inputs_hash = _compute_inputs_hash(
+            deal_id, snapshot_date, [lk.id for lk in links]
+        )
 
-        # Check for existing snapshot with same hash (idempotency)
         existing = (
             session.query(DealPNLSnapshot)
             .filter(DealPNLSnapshot.inputs_hash == inputs_hash)
@@ -160,35 +229,54 @@ class DealEngineService:
         if existing:
             return existing
 
-        # Gather linked items
-        links = session.query(DealLink).filter(DealLink.deal_id == deal_id).all()
+        market_price = _get_market_price(session, deal.commodity, snapshot_date)
 
         physical_revenue = 0.0
         physical_cost = 0.0
         hedge_pnl_realized = 0.0
+        hedge_pnl_mtm = 0.0
 
         for link in links:
+            # ── Physical side (orders) ──
             if link.linked_type == DealLinkedType.sales_order:
-                order = session.query(Order).filter(Order.id == link.linked_id).first()
+                order = session.get(Order, link.linked_id)
                 if order:
-                    physical_revenue += float(order.quantity_mt) * float(
-                        order.avg_entry_price or 0
-                    )
-            elif link.linked_type == DealLinkedType.purchase_order:
-                order = session.query(Order).filter(Order.id == link.linked_id).first()
-                if order:
-                    physical_cost += float(order.quantity_mt) * float(
-                        order.avg_entry_price or 0
-                    )
-            elif link.linked_type == DealLinkedType.hedge:
-                hedge = session.query(Hedge).filter(Hedge.id == link.linked_id).first()
-                if hedge:
-                    # Simplified: hedge P&L = tons * premium_discount
-                    hedge_pnl_realized += float(hedge.tons) * float(
-                        hedge.premium_discount or 0
+                    physical_revenue += DealEngineService._order_value(
+                        order, market_price
                     )
 
-        total_pnl = physical_revenue - physical_cost + hedge_pnl_realized
+            elif link.linked_type == DealLinkedType.purchase_order:
+                order = session.get(Order, link.linked_id)
+                if order:
+                    physical_cost += DealEngineService._order_value(
+                        order, market_price
+                    )
+
+            # ── Financial side (hedges) ──
+            elif link.linked_type == DealLinkedType.hedge:
+                hedge = session.get(Hedge, link.linked_id)
+                if not hedge:
+                    continue
+
+                tons = float(hedge.tons)
+                price = float(hedge.price_per_ton)
+                is_sell = hedge.direction == HedgeDirection.sell
+
+                if hedge.status == HedgeStatus.settled:
+                    if is_sell:
+                        hedge_pnl_realized += tons * price
+                    else:
+                        hedge_pnl_realized -= tons * price
+                else:
+                    if market_price is not None:
+                        if is_sell:
+                            hedge_pnl_mtm += tons * (price - market_price)
+                        else:
+                            hedge_pnl_mtm += tons * (market_price - price)
+
+        total_pnl = (
+            physical_revenue - physical_cost + hedge_pnl_realized + hedge_pnl_mtm
+        )
 
         snapshot = DealPNLSnapshot(
             deal_id=deal_id,
@@ -196,7 +284,7 @@ class DealEngineService:
             physical_revenue=physical_revenue,
             physical_cost=physical_cost,
             hedge_pnl_realized=hedge_pnl_realized,
-            hedge_pnl_mtm=0,  # simplified — would come from MTM service
+            hedge_pnl_mtm=hedge_pnl_mtm,
             total_pnl=total_pnl,
             inputs_hash=inputs_hash,
         )
