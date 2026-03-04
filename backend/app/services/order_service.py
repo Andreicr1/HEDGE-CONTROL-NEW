@@ -181,12 +181,14 @@ class OrderService:
         order_type: OrderType,
     ) -> Order:
         """Shared logic for SO / PO creation."""
-        # Validate variable-pricing requires a convention
+        # Cross-validate pricing_convention ↔ avg_entry_price for variable orders
         if payload.price_type.value == PriceType.variable.value:
-            if payload.pricing_convention is None:
+            has_conv = payload.pricing_convention is not None
+            has_price = payload.avg_entry_price is not None
+            if has_conv != has_price:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="pricing_convention is required for variable price orders",
+                    detail="pricing_convention and avg_entry_price must be provided together for variable orders",
                 )
 
         order = Order(
@@ -209,9 +211,10 @@ class OrderService:
                 order.avg_entry_price = float(payload.avg_entry_price)
         else:
             # Variable pricing
-            order.pricing_convention = OrderPricingConvention(
-                payload.pricing_convention.value
-            )
+            if payload.pricing_convention is not None:
+                order.pricing_convention = OrderPricingConvention(
+                    payload.pricing_convention.value
+                )
             if payload.avg_entry_price is not None:
                 order.avg_entry_price = float(payload.avg_entry_price)
             order.reference_month = payload.reference_month

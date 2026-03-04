@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class CounterpartyType(str, Enum):
     broker = "broker"
     bank_br = "bank_br"
+    customer = "customer"
+    supplier = "supplier"
 
 
 class KycStatus(str, Enum):

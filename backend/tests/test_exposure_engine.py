@@ -139,9 +139,10 @@ class TestNetExposure:
         items = resp.json()["items"]
         assert len(items) == 1
         assert items[0]["commodity"] == "ALUMINUM"
-        assert items[0]["long_tons"] == 600.0
-        assert items[0]["short_tons"] == 200.0
-        assert items[0]["net_tons"] == 400.0
+        assert items[0]["long_original"] == 600.0
+        assert items[0]["short_original"] == 200.0
+        # net = (SO_open - PO_open) = (200 - 600) = -400 (net long)
+        assert items[0]["net_tons"] == -400.0
 
 
 # ---------------------------------------------------------------------------

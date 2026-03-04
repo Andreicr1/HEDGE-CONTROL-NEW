@@ -13,6 +13,8 @@ from app.models.base import Base
 class CounterpartyType(enum.Enum):
     broker = "broker"
     bank_br = "bank_br"
+    customer = "customer"
+    supplier = "supplier"
 
 
 # RfqChannelType removed — all RFQ communication is via WhatsApp only

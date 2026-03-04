@@ -191,7 +191,7 @@ class ExposureEngineService:
 
         # ── 2. Global hedge contracts (not linked to any order) ──
         linked_contract_ids = (
-            session.query(HedgeOrderLinkage.contract_id).distinct().subquery()
+            session.query(HedgeOrderLinkage.contract_id).distinct().scalar_subquery()
         )
         gq = session.query(
             HedgeContract.commodity,

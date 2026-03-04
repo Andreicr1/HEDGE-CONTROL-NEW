@@ -69,6 +69,32 @@ def _create_hedge(
     return contract.id
 
 
+def _create_hedge_short(
+    session: Session, cp_id: uuid.UUID, tons: float = 100.0, premium: float = 5.0
+) -> uuid.UUID:
+    """Create a sell/short hedge (compatible with SO direction)."""
+    contract = HedgeContract(
+        reference=f"HC-{uuid.uuid4().hex[:8].upper()}",
+        counterparty_id=str(cp_id),
+        commodity="ALUMINUM",
+        quantity_mt=tons,
+        fixed_price_value=2450.0,
+        fixed_price_unit="USD/MT",
+        fixed_leg_side=HedgeLegSide.sell,
+        variable_leg_side=HedgeLegSide.buy,
+        classification=HedgeClassification.short,
+        premium_discount=premium,
+        settlement_date=date(2025, 9, 30),
+        trade_date=date.today(),
+        status=HedgeContractStatus.active,
+        source_type="manual",
+    )
+    session.add(contract)
+    session.commit()
+    session.refresh(contract)
+    return contract.id
+
+
 # -----------------------------------------------------------------------
 # CREATE DEAL
 # -----------------------------------------------------------------------
@@ -218,8 +244,17 @@ class TestDealLinks:
         r = client.post(ENDPOINT, json={"name": "D1", "commodity": "ALUMINUM"})
         deal_id = r.json()["id"]
 
-        # Add physical order first
-        so_id = _create_order(session, OrderType.sales, 200.0)
+        # Add variable-price sales order (only variable orders can be hedged)
+        so = Order(
+            order_type=OrderType.sales,
+            price_type=PriceType.variable,
+            quantity_mt=200.0,
+        )
+        session.add(so)
+        session.commit()
+        session.refresh(so)
+        so_id = so.id
+
         client.post(
             f"{ENDPOINT}/{deal_id}/links",
             json={
@@ -228,8 +263,8 @@ class TestDealLinks:
             },
         )
 
-        # Add hedge
-        hedge_id = _create_hedge(session, cp_id, tons=100.0)
+        # Add sell/short hedge (matches SO direction)
+        hedge_id = _create_hedge_short(session, cp_id, tons=100.0)
         client.post(
             f"{ENDPOINT}/{deal_id}/links",
             json={
@@ -325,13 +360,22 @@ class TestDealStatus:
         r = client.post(ENDPOINT, json={"name": "D1", "commodity": "ALUMINUM"})
         deal_id = r.json()["id"]
 
-        so_id = _create_order(session, OrderType.sales, 100.0)
+        # Variable-price SO (only variable orders can be hedged)
+        so = Order(
+            order_type=OrderType.sales,
+            price_type=PriceType.variable,
+            quantity_mt=100.0,
+        )
+        session.add(so)
+        session.commit()
+        session.refresh(so)
         client.post(
             f"{ENDPOINT}/{deal_id}/links",
-            json={"linked_type": "sales_order", "linked_id": str(so_id)},
+            json={"linked_type": "sales_order", "linked_id": str(so.id)},
         )
 
-        hedge_id = _create_hedge(session, cp_id, tons=100.0)
+        # Sell/short hedge (matches SO direction)
+        hedge_id = _create_hedge_short(session, cp_id, tons=100.0)
         client.post(
             f"{ENDPOINT}/{deal_id}/links",
             json={"linked_type": "hedge", "linked_id": str(hedge_id)},
