@@ -295,9 +295,7 @@ def test_extract_no_contacts():
 # ── verify_twilio_signature ─────────────────────────────────────────────
 
 
-def _compute_twilio_signature(
-    auth_token: str, url: str, params: dict[str, str]
-) -> str:
+def _compute_twilio_signature(auth_token: str, url: str, params: dict[str, str]) -> str:
     """Compute a valid Twilio signature for test assertions."""
     import hashlib
     import hmac as _hmac

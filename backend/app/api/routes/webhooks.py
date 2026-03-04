@@ -185,7 +185,5 @@ async def _receive_twilio(request: Request) -> dict[str, str]:
     if messages:
         _executor.submit(_process_queue_in_background)
 
-    logger.info(
-        "webhook_processed", provider="twilio", messages_received=len(messages)
-    )
+    logger.info("webhook_processed", provider="twilio", messages_received=len(messages))
     return {"status": "ok"}

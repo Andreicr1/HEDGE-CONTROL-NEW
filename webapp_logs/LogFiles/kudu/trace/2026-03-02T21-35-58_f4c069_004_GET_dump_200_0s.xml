@@ -1,0 +1,4 @@
+<step title="Incoming Request" date="2026-03-02T21:35:58.975" instance="f4c069" url="/dump" method="GET" type="request" pid="770,1,15" Host="alcast-hedge-api.scm.azurewebsites.net" User-Agent="AZURECLI/2.83.0 (MSI)" Accept-Encoding="identity" Authorization="Bea..." x-ms-client-request-id="cb1e71fe-167f-11f1-ba50-580205178fd3" X-ARR-LOG-ID="cb1e71fe-167f-11f1-ba50-580205178fd3" CLIENT-IP="131.72.148.144:43397" X-SITE-DEPLOYMENT-ID="alcast-hedge-api" WAS-DEFAULT-HOSTNAME="alcast-hedge-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/dump" X-Client-IP="131.72.148.144" X-Client-Port="43397" >
+  <step title="Cleanup Xml Logs" date="2026-03-02T21:35:58.997" /><!-- duration: 28ms -->
+  <step title="Outgoing response" date="2026-03-02T21:35:59.453" type="response" statusCode="200" statusText="OK" /><!-- duration: 18ms -->
+</step><!-- duration: 500ms -->

@@ -283,9 +283,7 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
         # the simpler approach of sending the rendered body directly.
         # For now we send variable-substituted text.  If you have a
         # Twilio Content Template SID, set TWILIO_CONTENT_SID_<TEMPLATE_NAME>.
-        content_sid = os.getenv(
-            f"TWILIO_CONTENT_SID_{template_name.upper()}", ""
-        )
+        content_sid = os.getenv(f"TWILIO_CONTENT_SID_{template_name.upper()}", "")
 
         if content_sid:
             # Use Twilio Content API
@@ -402,9 +400,7 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
             )
 
         except httpx.TimeoutException:
-            logger.error(
-                "whatsapp_send_timeout", provider="twilio", to=to_number
-            )
+            logger.error("whatsapp_send_timeout", provider="twilio", to=to_number)
             return WhatsAppSendResult(
                 success=False,
                 error_code="TIMEOUT",

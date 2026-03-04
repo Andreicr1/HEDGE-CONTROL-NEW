@@ -268,7 +268,7 @@ def extract_messages_twilio(
     # Strip "whatsapp:" prefix from the phone number
     from_phone = from_raw
     if from_phone.startswith("whatsapp:"):
-        from_phone = from_phone[len("whatsapp:"):]
+        from_phone = from_phone[len("whatsapp:") :]
 
     messages.append(
         WhatsAppInboundMessage(

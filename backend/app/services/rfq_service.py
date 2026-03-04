@@ -647,6 +647,32 @@ class RFQService:
         )
         now = now_utc()
         for recipient in recipients.values():
+            send_status = RFQInvitationStatus.queued
+            provider_msg_id = f"refresh-{rfq.rfq_number}-{recipient.recipient_phone}"
+
+            if recipient.channel == RFQInvitationChannel.whatsapp:
+                result = WhatsAppService.send_text_message(
+                    phone=recipient.recipient_phone,
+                    text=message_body,
+                )
+                if result.success:
+                    send_status = RFQInvitationStatus.sent
+                    provider_msg_id = result.provider_message_id or provider_msg_id
+                    _logger.info(
+                        "rfq_refresh_whatsapp_sent",
+                        rfq_number=rfq.rfq_number,
+                        recipient=recipient.recipient_phone,
+                    )
+                else:
+                    send_status = RFQInvitationStatus.failed
+                    _logger.error(
+                        "rfq_refresh_whatsapp_failed",
+                        rfq_number=rfq.rfq_number,
+                        recipient=recipient.recipient_phone,
+                        error_code=result.error_code,
+                        error_message=result.error_message,
+                    )
+
             session.add(
                 RFQInvitation(
                     rfq_id=rfq.id,
@@ -656,9 +682,9 @@ class RFQService:
                     recipient_name=recipient.recipient_name,
                     channel=recipient.channel,
                     message_body=message_body,
-                    provider_message_id=f"refresh-{rfq.rfq_number}-{recipient.recipient_phone}",
-                    send_status=RFQInvitationStatus.queued,
-                    sent_at=now,
+                    provider_message_id=provider_msg_id,
+                    send_status=send_status,
+                    sent_at=now if send_status == RFQInvitationStatus.sent else None,
                     idempotency_key=f"refresh-{rfq.rfq_number}-{recipient.recipient_phone}",
                 )
             )
@@ -746,6 +772,34 @@ class RFQService:
             f"RFQ#{rfq.rfq_number} — REFRESH: please resend your FIXED price quote."
         )
         now = now_utc()
+
+        # Actually send the WhatsApp message
+        send_status = RFQInvitationStatus.queued
+        provider_message_id = f"refresh-{rfq.rfq_number}-{existing.recipient_phone}-{now.isoformat()}"
+
+        if existing.channel == RFQInvitationChannel.whatsapp:
+            result = WhatsAppService.send_text_message(
+                phone=existing.recipient_phone,
+                text=message_body,
+            )
+            if result.success:
+                send_status = RFQInvitationStatus.sent
+                provider_message_id = result.provider_message_id or provider_message_id
+                _logger.info(
+                    "rfq_refresh_whatsapp_sent",
+                    rfq_number=rfq.rfq_number,
+                    recipient=existing.recipient_phone,
+                )
+            else:
+                send_status = RFQInvitationStatus.failed
+                _logger.error(
+                    "rfq_refresh_whatsapp_failed",
+                    rfq_number=rfq.rfq_number,
+                    recipient=existing.recipient_phone,
+                    error_code=result.error_code,
+                    error_message=result.error_message,
+                )
+
         session.add(
             RFQInvitation(
                 rfq_id=rfq.id,
@@ -755,9 +809,9 @@ class RFQService:
                 recipient_name=existing.recipient_name,
                 channel=existing.channel,
                 message_body=message_body,
-                provider_message_id=f"refresh-{rfq.rfq_number}-{existing.recipient_phone}-{now.isoformat()}",
-                send_status=RFQInvitationStatus.queued,
-                sent_at=now,
+                provider_message_id=provider_message_id,
+                send_status=send_status,
+                sent_at=now if send_status == RFQInvitationStatus.sent else None,
                 idempotency_key=f"refresh-{rfq.rfq_number}-{existing.recipient_phone}-{now.isoformat()}",
             )
         )

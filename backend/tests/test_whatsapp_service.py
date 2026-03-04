@@ -451,9 +451,18 @@ def test_twilio_build_url():
 
 
 def test_twilio_normalize_phone():
-    assert TwilioWhatsAppProvider._normalize_phone("+5511999990001") == "whatsapp:+5511999990001"
-    assert TwilioWhatsAppProvider._normalize_phone("whatsapp:+5511999990001") == "whatsapp:+5511999990001"
-    assert TwilioWhatsAppProvider._normalize_phone("  +5511999990001  ") == "whatsapp:+5511999990001"
+    assert (
+        TwilioWhatsAppProvider._normalize_phone("+5511999990001")
+        == "whatsapp:+5511999990001"
+    )
+    assert (
+        TwilioWhatsAppProvider._normalize_phone("whatsapp:+5511999990001")
+        == "whatsapp:+5511999990001"
+    )
+    assert (
+        TwilioWhatsAppProvider._normalize_phone("  +5511999990001  ")
+        == "whatsapp:+5511999990001"
+    )
 
 
 def test_twilio_from_number_adds_prefix():
@@ -477,5 +486,7 @@ def test_fake_provider_send_text():
 
 def test_fake_provider_send_template():
     provider = FakeWhatsAppProvider()
-    result = provider.send_template_message("+5511999990001", "rfq_invite", params=["A"])
+    result = provider.send_template_message(
+        "+5511999990001", "rfq_invite", params=["A"]
+    )
     assert result.success is True
