@@ -27,7 +27,7 @@ class CounterpartyService:
             contact_email=data.get("contact_email"),
             contact_phone=data.get("contact_phone"),
             whatsapp_phone=data.get("whatsapp_phone"),
-            payment_terms_days=data.get("payment_terms_days", 30),
+            payment_terms_days=data.get("payment_terms_days") or 30,
             credit_limit_usd=data.get("credit_limit_usd"),
             kyc_status=KycStatus(data.get("kyc_status", "pending")),
             sanctions_status=SanctionsStatus(data.get("sanctions_status", "clear")),

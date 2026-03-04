@@ -47,7 +47,7 @@ class CounterpartyCreate(BaseModel):
         max_length=50,
         description="WhatsApp number in E.164 format, e.g. +5511999999999",
     )
-    payment_terms_days: int | None = None
+    payment_terms_days: int = 30
     credit_limit_usd: float | None = None
     kyc_status: KycStatus = KycStatus.pending
     sanctions_status: SanctionsStatus = SanctionsStatus.clear
