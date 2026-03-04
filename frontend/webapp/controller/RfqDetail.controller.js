@@ -240,7 +240,7 @@ sap.ui.define([
         onClose: function (sAction) {
           if (sAction === MessageBox.Action.OK) {
             that.submitData(function () {
-              return rfqService.award(that._sRfqId, {});
+              return rfqService.award(that._sRfqId, { user_id: "trader" });
             }, that.getI18nText("rfqAwarded")).then(function (oData) {
               if (oData) { that._loadRfq(that._sRfqId); }
             });
@@ -255,7 +255,7 @@ sap.ui.define([
         onClose: function (sAction) {
           if (sAction === MessageBox.Action.OK) {
             that.submitData(function () {
-              return rfqService.reject(that._sRfqId, {});
+              return rfqService.reject(that._sRfqId, { user_id: "trader" });
             }, that.getI18nText("rfqRejected")).then(function (oData) {
               if (oData) { that._loadRfq(that._sRfqId); }
             });
@@ -273,7 +273,7 @@ sap.ui.define([
         onClose: function (sAction) {
           if (sAction === MessageBox.Action.OK) {
             that.submitData(function () {
-              return rfqService.refresh(that._sRfqId, {});
+              return rfqService.refresh(that._sRfqId, { user_id: "trader" });
             }, that.getI18nText("rfqRefreshed")).then(function (oData) {
               if (oData) {
                 that._loadRfq(that._sRfqId);
@@ -309,7 +309,7 @@ sap.ui.define([
         onClose: function (sAction) {
           if (sAction === MessageBox.Action.OK) {
             that.submitData(function () {
-              return rfqService.award(that._sRfqId, {});
+              return rfqService.award(that._sRfqId, { user_id: "trader" });
             }, that.getI18nText("rfqAwarded")).then(function (oData) {
               if (oData) { that._loadRfq(that._sRfqId); }
             });
