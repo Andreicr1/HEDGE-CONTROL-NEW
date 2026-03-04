@@ -14,6 +14,21 @@ from app.models.linkages import HedgeOrderLinkage
 # -- helpers ----------------------------------------------------------------
 
 
+def _create_counterparty(client, name: str = "Counterparty 1") -> str:
+    """Create a counterparty with whatsapp_phone and return its UUID."""
+    resp = client.post(
+        "/counterparties",
+        json={
+            "type": "broker",
+            "name": name,
+            "country": "BRA",
+            "whatsapp_phone": "+5511999990001",
+        },
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
 def _create_sales_order(client, quantity_mt: float) -> str:
     resp = client.post(
         "/orders/sales",
@@ -24,8 +39,14 @@ def _create_sales_order(client, quantity_mt: float) -> str:
 
 
 def _create_rfq(
-    client, order_id: str, quantity_mt: float, direction: str = "SELL"
+    client,
+    order_id: str,
+    quantity_mt: float,
+    direction: str = "SELL",
+    counterparty_id: str | None = None,
 ) -> dict:
+    if counterparty_id is None:
+        counterparty_id = _create_counterparty(client)
     resp = client.post(
         "/rfqs",
         json={
@@ -36,30 +57,19 @@ def _create_rfq(
             "delivery_window_end": "2026-03-31",
             "direction": direction,
             "order_id": order_id,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
+            "invitations": [{"counterparty_id": counterparty_id}],
         },
     )
     assert resp.status_code == 201
     return resp.json()
 
 
-def _submit_quote(client, rfq_id: str) -> dict:
+def _submit_quote(client, rfq_id: str, counterparty_id: str) -> dict:
     resp = client.post(
         f"/rfqs/{rfq_id}/quotes",
         json={
             "rfq_id": rfq_id,
-            "counterparty_id": "CP1",
+            "counterparty_id": counterparty_id,
             "fixed_price_value": 2400.0,
             "fixed_price_unit": "USD/MT",
             "float_pricing_convention": "avg",
@@ -102,18 +112,21 @@ def test_full_lifecycle_order_to_pl(client) -> None:
     # Step 1 – Create a sales order
     order_id = _create_sales_order(client, 10.0)
 
+    # Step 1b – Create a counterparty for RFQ invitations
+    cp_id = _create_counterparty(client)
+
     # Step 2 – Verify commercial exposure increases
     exposure_before = client.get("/exposures/commercial")
     assert exposure_before.status_code == 200
     assert exposure_before.json()["commercial_active_mt"] > 0
 
     # Step 3 – Create an RFQ for a commercial hedge
-    rfq = _create_rfq(client, order_id, 5.0)
+    rfq = _create_rfq(client, order_id, 5.0, counterparty_id=cp_id)
     assert rfq["state"] == "SENT"
     rfq_id = rfq["id"]
 
     # Step 4 – Submit a quote → state becomes QUOTED
-    _submit_quote(client, rfq_id)
+    _submit_quote(client, rfq_id, cp_id)
     rfq_state = client.get(f"/rfqs/{rfq_id}")
     assert rfq_state.status_code == 200
     assert rfq_state.json()["state"] == "QUOTED"

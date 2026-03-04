@@ -5,7 +5,7 @@ sap.ui.define([
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.Blocked", {
-    _aRouteNames: ["exposures", "orders", "rfq", "contracts", "cashflow", "pnl", "scenario", "notFound"],
+    _aRouteNames: ["exposures", "orders", "rfq", "contracts", "cashflow", "pnl", "scenario"],
 
     onInit: function () {
       var oRouter = this.getRouter();

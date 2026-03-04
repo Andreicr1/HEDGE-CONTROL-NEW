@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.pagination import paginate
 from app.models.contracts import HedgeContract
 from app.models.linkages import HedgeOrderLinkage
 from app.models.orders import Order
@@ -65,5 +66,37 @@ class LinkageService:
             quantity_mt=quantity_mt,
         )
         session.add(linkage)
-        session.flush()
+        session.commit()
+        session.refresh(linkage)
+        return linkage
+
+    @staticmethod
+    def list_linkages(
+        session: Session,
+        *,
+        order_id: UUID | None = None,
+        contract_id: UUID | None = None,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> tuple[list[HedgeOrderLinkage], str | None]:
+        query = session.query(HedgeOrderLinkage)
+        if order_id:
+            query = query.filter(HedgeOrderLinkage.order_id == order_id)
+        if contract_id:
+            query = query.filter(HedgeOrderLinkage.contract_id == contract_id)
+        return paginate(
+            query,
+            created_at_col=HedgeOrderLinkage.created_at,
+            id_col=HedgeOrderLinkage.id,
+            cursor=cursor,
+            limit=limit,
+        )
+
+    @staticmethod
+    def get_by_id(session: Session, linkage_id: UUID) -> HedgeOrderLinkage:
+        linkage = session.get(HedgeOrderLinkage, linkage_id)
+        if not linkage:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Linkage not found"
+            )
         return linkage

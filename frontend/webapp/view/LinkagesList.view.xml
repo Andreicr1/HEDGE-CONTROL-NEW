@@ -33,7 +33,7 @@
         growing="true"
         growingThreshold="50"
         mode="SingleSelectMaster"
-        selectionChange=".onLinkageSelect"
+        itemPress=".onLinkageSelect"
         noDataText="{i18n>noLinkages}">
         <items>
           <ObjectListItem

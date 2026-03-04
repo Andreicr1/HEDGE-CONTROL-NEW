@@ -84,14 +84,18 @@ def _sign_payload(body: bytes, secret: str) -> str:
 # ===================================================================
 
 
+@pytest.mark.no_mock_whatsapp
 class TestWhatsAppService:
     """Tests for ``app.services.whatsapp_service.WhatsAppService``."""
 
-    @patch.dict(os.environ, {
-        "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
-        "WHATSAPP_ACCESS_TOKEN": "test_token",
-        "WHATSAPP_PHONE_NUMBER_ID": "12345",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
+            "WHATSAPP_ACCESS_TOKEN": "test_token",
+            "WHATSAPP_PHONE_NUMBER_ID": "12345",
+        },
+    )
     @patch("app.services.whatsapp_service.httpx.post")
     def test_send_text_message_success(self, mock_post: MagicMock) -> None:
         from app.services.whatsapp_service import WhatsAppService
@@ -110,11 +114,14 @@ class TestWhatsAppService:
         assert call_kwargs.kwargs["json"]["type"] == "text"
         assert call_kwargs.kwargs["json"]["text"]["body"] == "Hello"
 
-    @patch.dict(os.environ, {
-        "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
-        "WHATSAPP_ACCESS_TOKEN": "test_token",
-        "WHATSAPP_PHONE_NUMBER_ID": "12345",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
+            "WHATSAPP_ACCESS_TOKEN": "test_token",
+            "WHATSAPP_PHONE_NUMBER_ID": "12345",
+        },
+    )
     @patch("app.services.whatsapp_service.httpx.post")
     def test_send_text_message_api_error(self, mock_post: MagicMock) -> None:
         from app.services.whatsapp_service import WhatsAppService
@@ -122,9 +129,7 @@ class TestWhatsAppService:
         mock_post.return_value = MagicMock(
             is_success=False,
             status_code=400,
-            json=lambda: {
-                "error": {"code": 100, "message": "Invalid phone number"}
-            },
+            json=lambda: {"error": {"code": 100, "message": "Invalid phone number"}},
         )
 
         result = WhatsAppService.send_text_message("+000", "Hello")
@@ -133,11 +138,14 @@ class TestWhatsAppService:
         assert result.error_code == "100"
         assert "Invalid phone number" in (result.error_message or "")
 
-    @patch.dict(os.environ, {
-        "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
-        "WHATSAPP_ACCESS_TOKEN": "test_token",
-        "WHATSAPP_PHONE_NUMBER_ID": "12345",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
+            "WHATSAPP_ACCESS_TOKEN": "test_token",
+            "WHATSAPP_PHONE_NUMBER_ID": "12345",
+        },
+    )
     @patch("app.services.whatsapp_service.httpx.post")
     def test_send_text_message_timeout(self, mock_post: MagicMock) -> None:
         from app.services.whatsapp_service import WhatsAppService
@@ -149,11 +157,14 @@ class TestWhatsAppService:
         assert result.success is False
         assert result.error_code == "TIMEOUT"
 
-    @patch.dict(os.environ, {
-        "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
-        "WHATSAPP_ACCESS_TOKEN": "test_token",
-        "WHATSAPP_PHONE_NUMBER_ID": "12345",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
+            "WHATSAPP_ACCESS_TOKEN": "test_token",
+            "WHATSAPP_PHONE_NUMBER_ID": "12345",
+        },
+    )
     @patch("app.services.whatsapp_service.httpx.post")
     def test_send_template_message(self, mock_post: MagicMock) -> None:
         from app.services.whatsapp_service import WhatsAppService
@@ -174,11 +185,14 @@ class TestWhatsAppService:
         call_kwargs = mock_post.call_args
         assert call_kwargs.kwargs["json"]["type"] == "template"
 
-    @patch.dict(os.environ, {
-        "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
-        "WHATSAPP_ACCESS_TOKEN": "test_token",
-        "WHATSAPP_PHONE_NUMBER_ID": "12345",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "WHATSAPP_API_URL": "https://graph.facebook.com/v19.0",
+            "WHATSAPP_ACCESS_TOKEN": "test_token",
+            "WHATSAPP_PHONE_NUMBER_ID": "12345",
+        },
+    )
     @patch("app.services.whatsapp_service.httpx.post")
     def test_send_text_message_generic_exception(self, mock_post: MagicMock) -> None:
         from app.services.whatsapp_service import WhatsAppService
@@ -373,7 +387,10 @@ class TestWebhookRoutes:
         assert resp.status_code == 403
 
     @patch.dict(os.environ, {"WHATSAPP_APP_SECRET": ""})
-    def test_post_webhook_enqueues_messages(self, client: TestClient) -> None:
+    @patch("app.api.routes.webhooks._process_queue_in_background")
+    def test_post_webhook_enqueues_messages(
+        self, _mock_bg: MagicMock, client: TestClient
+    ) -> None:
         from app.services.webhook_processor import drain_queue
 
         drain_queue()
@@ -404,7 +421,10 @@ class TestWebhookRoutes:
         assert resp.status_code == 403
 
     @patch.dict(os.environ, {"WHATSAPP_APP_SECRET": "secret123"})
-    def test_post_webhook_valid_signature(self, client: TestClient) -> None:
+    @patch("app.api.routes.webhooks._process_queue_in_background")
+    def test_post_webhook_valid_signature(
+        self, _mock_bg: MagicMock, client: TestClient
+    ) -> None:
         from app.services.webhook_processor import drain_queue
 
         drain_queue()
@@ -597,7 +617,9 @@ class TestLLMAgent:
         from app.services.llm_agent import LLMAgent, LLMUnavailableError
 
         # Without AZURE_OPENAI_ENDPOINT the call should raise
-        with patch.dict(os.environ, {"AZURE_OPENAI_ENDPOINT": "", "AZURE_OPENAI_API_KEY": ""}):
+        with patch.dict(
+            os.environ, {"AZURE_OPENAI_ENDPOINT": "", "AZURE_OPENAI_API_KEY": ""}
+        ):
             with pytest.raises(LLMUnavailableError):
                 LLMAgent.classify_intent("test")
 
@@ -616,6 +638,19 @@ class TestRFQOrchestrator:
         """Helper — create a GLOBAL_POSITION RFQ with a whatsapp invitation."""
         from datetime import date
 
+        # Create counterparty with the given phone
+        cp_resp = client.post(
+            "/counterparties",
+            json={
+                "type": "broker",
+                "name": f"CP-{uuid4().hex[:8]}",
+                "country": "BRA",
+                "whatsapp_phone": phone,
+            },
+        )
+        assert cp_resp.status_code == 201
+        cp_id = cp_resp.json()["id"]
+
         payload = {
             "intent": "GLOBAL_POSITION",
             "commodity": "Zinc",
@@ -623,34 +658,16 @@ class TestRFQOrchestrator:
             "delivery_window_start": str(date.today()),
             "delivery_window_end": str(date.today() + timedelta(days=30)),
             "direction": "BUY",
-            "invitations": [
-                {
-                    "recipient_id": phone,
-                    "recipient_name": "Test Bank",
-                    "channel": "whatsapp",
-                    "message_body": "Cotação para 100 MT Zinc",
-                    "provider_message_id": "pending",
-                    "send_status": "queued",
-                    "sent_at": _NOW.isoformat(),
-                    "idempotency_key": f"idem-{uuid4().hex[:8]}",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         }
         resp = client.post("/rfqs/", json=payload)
         assert resp.status_code == 201
-        return resp.json()
+        data = resp.json()
+        data["_cp_id"] = cp_id  # stash for tests that need it
+        return data
 
-    @patch("app.services.whatsapp_service.httpx.post")
-    def test_dispatch_whatsapp_invitations(
-        self, mock_post: MagicMock, client: TestClient, session
-    ) -> None:
+    def test_dispatch_whatsapp_invitations(self, client: TestClient, session) -> None:
         from app.services.rfq_orchestrator import RFQOrchestrator
-
-        # Mock WhatsApp API
-        mock_post.return_value = MagicMock(
-            is_success=True,
-            json=lambda: {"messages": [{"id": "wamid.dispatched"}]},
-        )
 
         rfq_data = self._create_rfq_with_invitation(client)
         rfq_id = UUID(rfq_data["id"])
@@ -663,21 +680,14 @@ class TestRFQOrchestrator:
         assert isinstance(results, dict)
 
     @patch("app.services.llm_agent._call_openai")
-    @patch("app.services.whatsapp_service.httpx.post")
     def test_process_inbound_message_auto_quote(
-        self, mock_wa_post: MagicMock, mock_openai: MagicMock,
-        client: TestClient, session
+        self, mock_openai: MagicMock, client: TestClient, session
     ) -> None:
         from app.schemas.whatsapp import WhatsAppInboundMessage
         from app.services.rfq_orchestrator import RFQOrchestrator
         from app.services.webhook_processor import drain_queue, enqueue_message
 
         drain_queue()
-
-        mock_wa_post.return_value = MagicMock(
-            is_success=True,
-            json=lambda: {"messages": [{"id": "wamid.sent1"}]},
-        )
 
         phone = "+5511888888888"
         rfq_data = self._create_rfq_with_invitation(client, phone=phone)
@@ -699,13 +709,15 @@ class TestRFQOrchestrator:
             "notes": None,
         }
 
-        enqueue_message(WhatsAppInboundMessage(
-            message_id="wamid.in1",
-            from_phone=phone,
-            timestamp=_NOW,
-            text="Ofereço 2450 USD/MT avg",
-            sender_name="Test Bank",
-        ))
+        enqueue_message(
+            WhatsAppInboundMessage(
+                message_id="wamid.in1",
+                from_phone=phone,
+                timestamp=_NOW,
+                text="Ofereço 2450 USD/MT avg",
+                sender_name="Test Bank",
+            )
+        )
 
         results = RFQOrchestrator.process_inbound_queue(session)
 
@@ -714,21 +726,14 @@ class TestRFQOrchestrator:
         assert "quote_id" in results[0]
 
     @patch("app.services.llm_agent._call_openai")
-    @patch("app.services.whatsapp_service.httpx.post")
     def test_process_inbound_message_low_confidence(
-        self, mock_wa_post: MagicMock, mock_openai: MagicMock,
-        client: TestClient, session
+        self, mock_openai: MagicMock, client: TestClient, session
     ) -> None:
         from app.schemas.whatsapp import WhatsAppInboundMessage
         from app.services.rfq_orchestrator import RFQOrchestrator
         from app.services.webhook_processor import drain_queue, enqueue_message
 
         drain_queue()
-
-        mock_wa_post.return_value = MagicMock(
-            is_success=True,
-            json=lambda: {"messages": [{"id": "wamid.sent2"}]},
-        )
 
         phone = "+5511777777777"
         rfq_data = self._create_rfq_with_invitation(client, phone=phone)
@@ -747,22 +752,23 @@ class TestRFQOrchestrator:
             "counterparty_name": "Test Bank",
         }
 
-        enqueue_message(WhatsAppInboundMessage(
-            message_id="wamid.low",
-            from_phone=phone,
-            timestamp=_NOW,
-            text="Maybe 2400?",
-            sender_name="Test Bank",
-        ))
+        enqueue_message(
+            WhatsAppInboundMessage(
+                message_id="wamid.low",
+                from_phone=phone,
+                timestamp=_NOW,
+                text="Maybe 2400?",
+                sender_name="Test Bank",
+            )
+        )
 
         results = RFQOrchestrator.process_inbound_queue(session)
 
         assert len(results) == 1
         assert results[0]["status"] == "needs_human_review"
 
-    @patch("app.services.whatsapp_service.httpx.post")
     def test_process_inbound_message_no_matching_rfq(
-        self, mock_wa_post: MagicMock, client: TestClient, session
+        self, client: TestClient, session
     ) -> None:
         from app.schemas.whatsapp import WhatsAppInboundMessage
         from app.services.rfq_orchestrator import RFQOrchestrator
@@ -770,29 +776,24 @@ class TestRFQOrchestrator:
 
         drain_queue()
 
-        enqueue_message(WhatsAppInboundMessage(
-            message_id="wamid.unknown",
-            from_phone="+0000000000",  # No invitation for this phone
-            timestamp=_NOW,
-            text="Hello",
-        ))
+        enqueue_message(
+            WhatsAppInboundMessage(
+                message_id="wamid.unknown",
+                from_phone="+0000000000",  # No invitation for this phone
+                timestamp=_NOW,
+                text="Hello",
+            )
+        )
 
         results = RFQOrchestrator.process_inbound_queue(session)
 
         assert len(results) == 1
         assert results[0]["status"] == "no_matching_rfq"
 
-    @patch("app.services.whatsapp_service.httpx.post")
-    def test_check_rfq_timeouts_no_quotes(
-        self, mock_wa_post: MagicMock, client: TestClient, session
-    ) -> None:
-        """RFQ with no quotes past a 0-hour timeout → CLOSED."""
+    def test_check_rfq_timeouts_no_quotes(self, client: TestClient, session) -> None:
+        """RFQ with no quotes past timeout → flagged (state stays SENT;
+        trader decides in the UI)."""
         from app.services.rfq_orchestrator import RFQOrchestrator
-
-        mock_wa_post.return_value = MagicMock(
-            is_success=True,
-            json=lambda: {"messages": [{"id": "wamid.t1"}]},
-        )
 
         rfq_data = self._create_rfq_with_invitation(client)
 
@@ -807,19 +808,21 @@ class TestRFQOrchestrator:
         timed_out = RFQOrchestrator.check_rfq_timeouts(session, timeout_hours=24)
 
         assert len(timed_out) == 1
+        assert timed_out[0]["rfq_id"] == rfq_data["id"]
 
+        # check_rfq_timeouts does NOT auto-transition — it only flags
         session.refresh(rfq)
-        assert rfq.state == RFQState.closed
+        assert rfq.state == RFQState.sent
 
-    @patch("app.services.whatsapp_service.httpx.post")
+    @patch("app.services.whatsapp_service.WhatsAppService.send_text_message")
     def test_notify_award(
-        self, mock_wa_post: MagicMock, client: TestClient, session
+        self, mock_send: MagicMock, client: TestClient, session
     ) -> None:
+        from app.schemas.whatsapp import WhatsAppSendResult
         from app.services.rfq_orchestrator import RFQOrchestrator
 
-        mock_wa_post.return_value = MagicMock(
-            is_success=True,
-            json=lambda: {"messages": [{"id": "wamid.award"}]},
+        mock_send.return_value = WhatsAppSendResult(
+            success=True, provider_message_id="wamid.award"
         )
 
         phone = "+5511111111111"
@@ -830,26 +833,27 @@ class TestRFQOrchestrator:
         rfq = session.get(RFQModel, UUID(rfq_data["id"]))
 
         RFQOrchestrator.notify_award(
-            session, rfq,
-            winning_counterparty_id=phone,
+            session,
+            rfq,
+            winning_counterparty_id=rfq_data["_cp_id"],
             price=2450.0,
             unit="USD/MT",
         )
 
         # Should have called WhatsApp
-        assert mock_wa_post.called
-        call_body = mock_wa_post.call_args.kwargs["json"]
-        assert "2450" in call_body["text"]["body"]
+        assert mock_send.called
+        call_kwargs = mock_send.call_args.kwargs
+        assert "2450" in call_kwargs["text"]
 
-    @patch("app.services.whatsapp_service.httpx.post")
+    @patch("app.services.whatsapp_service.WhatsAppService.send_text_message")
     def test_notify_reject(
-        self, mock_wa_post: MagicMock, client: TestClient, session
+        self, mock_send: MagicMock, client: TestClient, session
     ) -> None:
+        from app.schemas.whatsapp import WhatsAppSendResult
         from app.services.rfq_orchestrator import RFQOrchestrator
 
-        mock_wa_post.return_value = MagicMock(
-            is_success=True,
-            json=lambda: {"messages": [{"id": "wamid.rej"}]},
+        mock_send.return_value = WhatsAppSendResult(
+            success=True, provider_message_id="wamid.rej"
         )
 
         phone = "+5511222222222"
@@ -861,9 +865,9 @@ class TestRFQOrchestrator:
 
         RFQOrchestrator.notify_reject(session, rfq)
 
-        assert mock_wa_post.called
-        call_body = mock_wa_post.call_args.kwargs["json"]
-        assert "encerrada" in call_body["text"]["body"]
+        assert mock_send.called
+        call_kwargs = mock_send.call_args.kwargs
+        assert "encerrada" in call_kwargs["text"]
 
 
 # ===================================================================
@@ -878,10 +882,10 @@ class TestRFQTimeoutTask:
     def test_run_rfq_timeout_check(self, mock_orchestrator: MagicMock) -> None:
         from app.tasks.rfq_timeout_task import run_rfq_timeout_check
 
-        mock_orchestrator.send_reminders.return_value = []
+        mock_orchestrator.check_low_response_rfqs.return_value = []
         mock_orchestrator.check_rfq_timeouts.return_value = []
 
         run_rfq_timeout_check()
 
-        mock_orchestrator.send_reminders.assert_called_once()
+        mock_orchestrator.check_low_response_rfqs.assert_called_once()
         mock_orchestrator.check_rfq_timeouts.assert_called_once()

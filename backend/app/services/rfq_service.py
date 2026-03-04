@@ -8,12 +8,15 @@ audit marking and HTTP-response formatting.
 from __future__ import annotations
 
 import json
+import uuid as _uuid
+from datetime import date
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.contracts import HedgeClassification, HedgeContract, HedgeLegSide
+from app.models.counterparty import Counterparty
 from app.models.orders import Order, OrderType, PriceType
 from app.models.quotes import RFQQuote
 from app.models.rfqs import (
@@ -365,10 +368,6 @@ class RFQService:
         rfq_number = f"RFQ-{year}-{int(seq.id):06d}"
 
         initial_state = RFQState.created
-        if any(
-            inv.send_status.value in ("queued", "sent") for inv in payload.invitations
-        ):
-            initial_state = RFQState.sent
 
         rfq = RFQ(
             rfq_number=rfq_number,
@@ -392,51 +391,85 @@ class RFQService:
         session.flush()
 
         for invitation in payload.invitations:
-            send_status = RFQInvitationStatus(invitation.send_status.value)
-            provider_message_id = invitation.provider_message_id
-
-            # --- WhatsApp outbound integration ---
-            if invitation.channel.value == "whatsapp":
-                result = WhatsAppService.send_text_message(
-                    phone=invitation.recipient_id,
-                    text=invitation.message_body,
+            # Look up counterparty from DB to get whatsapp_phone
+            cp = session.get(Counterparty, invitation.counterparty_id)
+            if not cp:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Counterparty {invitation.counterparty_id} not found",
                 )
-                if result.success:
-                    send_status = RFQInvitationStatus.sent
-                    provider_message_id = (
-                        result.provider_message_id or provider_message_id
-                    )
-                    _logger.info(
-                        "rfq_whatsapp_sent",
-                        rfq_number=rfq.rfq_number,
-                        recipient=invitation.recipient_id,
-                    )
-                else:
-                    send_status = RFQInvitationStatus.failed
-                    _logger.error(
-                        "rfq_whatsapp_failed",
-                        rfq_number=rfq.rfq_number,
-                        recipient=invitation.recipient_id,
-                        error_code=result.error_code,
-                        error_message=result.error_message,
-                    )
+            if not cp.whatsapp_phone:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Counterparty {cp.name} has no WhatsApp phone number",
+                )
+
+            phone = cp.whatsapp_phone
+            idem_key = f"{rfq.rfq_number}:{cp.id}"
+            send_status = RFQInvitationStatus.queued
+            provider_message_id = ""
+
+            # --- Send WhatsApp message ---
+            # Build a summary message using the rfq_message_builder if available,
+            # otherwise use a default text
+            message_body = (
+                f"RFQ {rfq.rfq_number} — {rfq.commodity} "
+                f"{rfq.quantity_mt}MT {rfq.direction.value}"
+            )
+
+            result = WhatsAppService.send_text_message(
+                phone=phone,
+                text=message_body,
+            )
+            if result.success:
+                send_status = RFQInvitationStatus.sent
+                provider_message_id = result.provider_message_id or ""
+                _logger.info(
+                    "rfq_whatsapp_sent",
+                    rfq_number=rfq.rfq_number,
+                    recipient=phone,
+                )
+            else:
+                send_status = RFQInvitationStatus.failed
+                _logger.error(
+                    "rfq_whatsapp_failed",
+                    rfq_number=rfq.rfq_number,
+                    recipient=phone,
+                    error_code=result.error_code,
+                    error_message=result.error_message,
+                )
 
             session.add(
                 RFQInvitation(
                     rfq_id=rfq.id,
                     rfq_number=rfq.rfq_number,
-                    recipient_id=invitation.recipient_id,
-                    recipient_name=invitation.recipient_name,
-                    channel=RFQInvitationChannel(invitation.channel.value),
-                    message_body=invitation.message_body,
+                    counterparty_id=cp.id,
+                    recipient_name=cp.short_name or cp.name,
+                    recipient_phone=phone,
+                    channel=RFQInvitationChannel.whatsapp,
+                    message_body=message_body,
                     provider_message_id=provider_message_id,
                     send_status=send_status,
-                    sent_at=invitation.sent_at,
-                    idempotency_key=invitation.idempotency_key,
+                    sent_at=now_utc()
+                    if send_status == RFQInvitationStatus.sent
+                    else None,
+                    idempotency_key=idem_key,
                 )
             )
 
-        if initial_state == RFQState.sent:
+        # If any invitation was successfully sent, transition to SENT
+        session.flush()  # ensure pending invitation INSERTs are visible
+        has_sent = (
+            session.query(RFQInvitation)
+            .filter(
+                RFQInvitation.rfq_id == rfq.id,
+                RFQInvitation.send_status == RFQInvitationStatus.sent,
+            )
+            .first()
+            is not None
+        )
+        if has_sent:
+            rfq.state = RFQState.sent
             session.add(
                 RFQStateEvent(
                     rfq_id=rfq.id,
@@ -600,8 +633,8 @@ class RFQService:
         )
         recipients: dict[str, RFQInvitation] = {}
         for inv in existing:
-            if inv.recipient_id not in recipients:
-                recipients[inv.recipient_id] = inv
+            if inv.recipient_phone not in recipients:
+                recipients[inv.recipient_phone] = inv
 
         if not recipients:
             raise HTTPException(
@@ -618,16 +651,200 @@ class RFQService:
                 RFQInvitation(
                     rfq_id=rfq.id,
                     rfq_number=rfq.rfq_number,
-                    recipient_id=recipient.recipient_id,
+                    counterparty_id=recipient.counterparty_id,
+                    recipient_phone=recipient.recipient_phone,
                     recipient_name=recipient.recipient_name,
                     channel=recipient.channel,
                     message_body=message_body,
-                    provider_message_id=f"refresh-{rfq.rfq_number}-{recipient.recipient_id}",
+                    provider_message_id=f"refresh-{rfq.rfq_number}-{recipient.recipient_phone}",
                     send_status=RFQInvitationStatus.queued,
                     sent_at=now,
-                    idempotency_key=f"refresh-{rfq.rfq_number}-{recipient.recipient_id}",
+                    idempotency_key=f"refresh-{rfq.rfq_number}-{recipient.recipient_phone}",
                 )
             )
+
+        return rfq
+
+    # ------------------------------------------------------------------
+    # Per-counterparty actions
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def reject_quote(session: Session, rfq_id: UUID, quote_id: UUID) -> None:
+        """Remove a specific counterparty quote without closing the RFQ.
+
+        The caller must ``session.commit()`` afterwards.
+        """
+        rfq = RFQService.get(session, rfq_id)
+        if rfq.state not in (RFQState.quoted, RFQState.sent):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="RFQ must be in SENT or QUOTED state",
+            )
+        quote = session.get(RFQQuote, quote_id)
+        if not quote or str(quote.rfq_id) != str(rfq_id):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Quote not found for this RFQ",
+            )
+        session.delete(quote)
+
+        # Check if there are remaining quotes — if none, revert to SENT
+        remaining = (
+            session.query(RFQQuote)
+            .filter(RFQQuote.rfq_id == rfq_id, RFQQuote.id != quote_id)
+            .count()
+        )
+        if remaining == 0 and rfq.state == RFQState.quoted:
+            rfq.state = RFQState.sent
+            session.add(
+                RFQStateEvent(
+                    rfq_id=rfq.id,
+                    from_state=RFQState.quoted,
+                    to_state=RFQState.sent,
+                    reason="ALL_QUOTES_REJECTED",
+                    event_timestamp=now_utc(),
+                )
+            )
+
+    @staticmethod
+    def refresh_counterparty(
+        session: Session, rfq_id: UUID, counterparty_id: str, user_id: str
+    ) -> RFQ:
+        """Re-send invitation to a specific counterparty.
+
+        The caller must ``session.commit()`` afterwards.
+        """
+        rfq = RFQService.get(session, rfq_id)
+        if rfq.state not in (RFQState.sent, RFQState.quoted):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="RFQ must be in SENT or QUOTED state",
+            )
+
+        cp_uuid = (
+            UUID(counterparty_id)
+            if isinstance(counterparty_id, str)
+            else counterparty_id
+        )
+        existing = (
+            session.query(RFQInvitation)
+            .filter(
+                RFQInvitation.rfq_id == rfq.id,
+                RFQInvitation.counterparty_id == cp_uuid,
+            )
+            .order_by(RFQInvitation.created_at.asc())
+            .first()
+        )
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No invitation found for this counterparty",
+            )
+
+        message_body = (
+            f"RFQ#{rfq.rfq_number} — REFRESH: please resend your FIXED price quote."
+        )
+        now = now_utc()
+        session.add(
+            RFQInvitation(
+                rfq_id=rfq.id,
+                rfq_number=rfq.rfq_number,
+                counterparty_id=existing.counterparty_id,
+                recipient_phone=existing.recipient_phone,
+                recipient_name=existing.recipient_name,
+                channel=existing.channel,
+                message_body=message_body,
+                provider_message_id=f"refresh-{rfq.rfq_number}-{existing.recipient_phone}-{now.isoformat()}",
+                send_status=RFQInvitationStatus.queued,
+                sent_at=now,
+                idempotency_key=f"refresh-{rfq.rfq_number}-{existing.recipient_phone}-{now.isoformat()}",
+            )
+        )
+        return rfq
+
+    @staticmethod
+    def award_quote(
+        session: Session, rfq_id: UUID, quote_id: UUID, user_id: str
+    ) -> RFQ:
+        """Award a specific quote: create contract from it and close the RFQ.
+
+        Unlike ``award()`` which auto-selects the top-ranked quote, this method
+        creates a contract from the specific quote chosen by the trader.
+
+        The caller must ``session.commit()`` afterwards.
+        """
+        rfq = RFQService.get(session, rfq_id)
+        if rfq.state != RFQState.quoted:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="RFQ must be in QUOTED state",
+            )
+
+        quote = session.get(RFQQuote, quote_id)
+        if not quote or str(quote.rfq_id) != str(rfq_id):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Quote not found for this RFQ",
+            )
+
+        award_time = now_utc()
+
+        fixed_side, variable_side, classification = RFQService.determine_contract_legs(
+            rfq.direction
+        )
+        contract = HedgeContract(
+            commodity=rfq.commodity,
+            quantity_mt=rfq.quantity_mt,
+            rfq_id=rfq.id,
+            rfq_quote_id=quote.id,
+            counterparty_id=quote.counterparty_id,
+            fixed_price_value=quote.fixed_price_value,
+            fixed_price_unit=quote.fixed_price_unit,
+            float_pricing_convention=RFQService._convention_value(
+                quote.float_pricing_convention
+            ),
+            fixed_leg_side=fixed_side,
+            variable_leg_side=variable_side,
+            classification=classification,
+            reference=f"HC-{_uuid.uuid4().hex[:8].upper()}",
+            trade_date=date.today(),
+            source_type="rfq_award",
+            source_id=rfq.id,
+        )
+        session.add(contract)
+        session.flush()
+
+        if rfq.intent == RFQIntent.commercial_hedge and rfq.order_id is not None:
+            LinkageService.create(session, rfq.order_id, contract.id, rfq.quantity_mt)
+
+        # State transitions: QUOTED → AWARDED → CLOSED
+        rfq.state = RFQState.awarded
+        session.add(
+            RFQStateEvent(
+                rfq_id=rfq.id,
+                from_state=RFQState.quoted,
+                to_state=RFQState.awarded,
+                user_id=user_id,
+                winning_quote_ids=json.dumps([str(quote.id)], sort_keys=True),
+                winning_counterparty_ids=json.dumps(
+                    [quote.counterparty_id], sort_keys=True
+                ),
+                award_timestamp=award_time,
+                event_timestamp=award_time,
+            )
+        )
+
+        rfq.state = RFQState.closed
+        session.add(
+            RFQStateEvent(
+                rfq_id=rfq.id,
+                from_state=RFQState.awarded,
+                to_state=RFQState.closed,
+                created_contract_ids=json.dumps([str(contract.id)], sort_keys=True),
+                event_timestamp=now_utc(),
+            )
+        )
 
         return rfq
 
@@ -696,6 +913,10 @@ class RFQService:
                     fixed_leg_side=fixed_side,
                     variable_leg_side=variable_side,
                     classification=classification,
+                    reference=f"HC-{_uuid.uuid4().hex[:8].upper()}",
+                    trade_date=date.today(),
+                    source_type="rfq_award",
+                    source_id=trade_rfq.id,
                 )
                 session.add(contract)
                 session.flush()
@@ -743,6 +964,10 @@ class RFQService:
                 fixed_leg_side=fixed_side,
                 variable_leg_side=variable_side,
                 classification=classification,
+                reference=f"HC-{_uuid.uuid4().hex[:8].upper()}",
+                trade_date=date.today(),
+                source_type="rfq_award",
+                source_id=rfq.id,
             )
             session.add(contract)
             session.flush()

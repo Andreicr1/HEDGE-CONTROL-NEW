@@ -5,26 +5,22 @@
   xmlns:f="sap.f"
   xmlns:core="sap.ui.core"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
-  <f:DynamicPage id="rfqListPage" showFooter="false" busy="{rfq>/busy}"
-    class="sapUiResponsivePadding--header sapUiResponsivePadding--content">
+  <f:DynamicPage id="rfqListPage" showFooter="false" busy="{rfq>/busy}">
     <f:title>
       <f:DynamicPageTitle>
         <f:heading>
-          <Title text="{i18n>rfqTitle}" level="H3" />
+          <Title text="{i18n>rfqTitle}" />
         </f:heading>
         <f:actions>
           <Button text="{i18n>newRfq}" icon="sap-icon://add" press=".onCreateRfq" type="Emphasized" />
-          <Button icon="sap-icon://refresh" press=".onRefresh" tooltip="{i18n>refresh}" type="Transparent" />
         </f:actions>
       </f:DynamicPageTitle>
     </f:title>
     <f:header>
-      <f:DynamicPageHeader pinnable="true">
-        <SearchField
-          placeholder="{i18n>search}"
-          liveChange=".onSearch"
-          search=".onSearch"
-          width="100%" />
+      <f:DynamicPageHeader>
+        <HBox alignItems="Center">
+          <SearchField width="100%" search=".onSearch" liveChange=".onSearch" placeholder="{i18n>search}" />
+        </HBox>
       </f:DynamicPageHeader>
     </f:header>
     <f:content>
@@ -36,21 +32,28 @@
           showCloseButton="true"
           visible="{= !!${rfq>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
-        <List id="rfqTable" items="{rfq>/items}" growing="true" growingThreshold="50"
-          noDataText="{i18n>noData}" mode="SingleSelectMaster" selectionChange=".onRfqSelect">
+        <List id="rfqTable"
+          items="{ path: 'rfq>/items', sorter: { path: 'created_at', descending: true } }"
+          growing="true"
+          growingThreshold="50"
+          mode="SingleSelectMaster"
+          itemPress=".onRfqSelect"
+          noDataText="{i18n>noData}">
           <items>
             <ObjectListItem
-              title="{rfq>rfq_number}"
+              title="{rfq>commodity} — {rfq>direction}"
+              intro="{rfq>rfq_number}"
               type="Navigation"
-              number="{rfq>quantity_mt}"
-              numberUnit="MT">
+              number="{path: 'rfq>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
+              numberUnit="MT"
+              icon="sap-icon://request">
               <attributes>
-                <ObjectAttribute text="{rfq>commodity}" />
-                <ObjectAttribute text="{ path: 'rfq>created_at', formatter: 'formatter.dateDisplay' }" />
+                <ObjectAttribute text="{i18n>colIntent}: {rfq>intent}" />
+                <ObjectAttribute text="{path: 'rfq>created_at', formatter: 'formatter.dateTimeDisplay'}" />
               </attributes>
               <firstStatus>
                 <ObjectStatus text="{rfq>state}"
-                  state="{= ${rfq>state} === 'AWARDED' ? 'Success' : (${rfq>state} === 'CLOSED' ? 'None' : 'Information')}" />
+                  state="{path: 'rfq>state', formatter: 'formatter.statusState'}" />
               </firstStatus>
             </ObjectListItem>
           </items>

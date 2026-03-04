@@ -1,6 +1,6 @@
 """Schemas for the Exposure Engine (1.3)."""
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID
@@ -58,11 +58,25 @@ class ExposureDetailRead(BaseModel):
     source_id: UUID
     original_tons: float
     open_tons: float
+    hedged_tons: float = 0.0
     price_per_ton: Optional[float] = None
     settlement_month: Optional[str] = None
     status: ExposureStatus
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Enriched from related order (populated by list endpoint)
+    price_type: Optional[str] = None
+    order_type: Optional[str] = None
+    counterparty_name: Optional[str] = None
+    pricing_convention: Optional[str] = None
+    reference_month: Optional[str] = None
+    observation_date_start: Optional[date] = None
+    observation_date_end: Optional[date] = None
+    fixing_date: Optional[date] = None
+    avg_entry_price: Optional[float] = None
+    order_notes: Optional[str] = None
+    delivery_date_start: Optional[date] = None
+    delivery_date_end: Optional[date] = None
 
 
 class ExposureListResponse(BaseModel):
@@ -80,6 +94,10 @@ class NetExposureItem(BaseModel):
     long_tons: float
     short_tons: float
     net_tons: float
+    long_original: float = 0.0
+    short_original: float = 0.0
+    long_hedged: float = 0.0
+    short_hedged: float = 0.0
 
 
 class NetExposureResponse(BaseModel):

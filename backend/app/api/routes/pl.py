@@ -3,17 +3,16 @@ from __future__ import annotations
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
-from app.models.pl import PLSnapshot
 from app.schemas.pl import PLResultResponse, PLSnapshotCreate, PLSnapshotResponse
 from app.services.pl_calculation_service import compute_pl
-from app.services.pl_snapshot_service import create_pl_snapshot
+from app.services.pl_snapshot_service import create_pl_snapshot, get_pl_snapshot
 
 
 router = APIRouter()
@@ -68,18 +67,11 @@ def get_pl_snapshot(
     _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> PLSnapshotResponse:
-    snapshot = (
-        session.query(PLSnapshot)
-        .filter(
-            PLSnapshot.entity_type == entity_type,
-            PLSnapshot.entity_id == entity_id,
-            PLSnapshot.period_start == period_start,
-            PLSnapshot.period_end == period_end,
-        )
-        .first()
+    snapshot = get_pl_snapshot(
+        session,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        period_start=period_start,
+        period_end=period_end,
     )
-    if snapshot is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="P&L snapshot not found"
-        )
     return PLSnapshotResponse.model_validate(snapshot)

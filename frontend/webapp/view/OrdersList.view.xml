@@ -9,22 +9,13 @@
     <f:title>
       <f:DynamicPageTitle>
         <f:heading>
-          <Title text="{i18n>ordersTitle}" />
+          <Title text="{i18n>comercialTitle}" />
         </f:heading>
         <f:actions>
-          <Button text="{i18n>newSalesOrder}" icon="sap-icon://add" press=".onCreateSales" type="Emphasized" />
-          <Button text="{i18n>newPurchaseOrder}" icon="sap-icon://add" press=".onCreatePurchase" />
           <Button icon="sap-icon://refresh" press=".onRefresh" tooltip="{i18n>refresh}" />
         </f:actions>
       </f:DynamicPageTitle>
     </f:title>
-    <f:header>
-      <f:DynamicPageHeader>
-        <HBox alignItems="Center">
-          <SearchField width="20rem" search=".onSearch" placeholder="{i18n>search}" />
-        </HBox>
-      </f:DynamicPageHeader>
-    </f:header>
     <f:content>
       <VBox>
         <MessageStrip
@@ -34,27 +25,106 @@
           showCloseButton="true"
           visible="{= !!${ord>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
-        <List id="ordersList" items="{ord>/items}" growing="true" growingThreshold="50"
-          noDataText="{i18n>noData}" mode="SingleSelectMaster" selectionChange=".onOrderSelect">
+        <IconTabBar id="comercialTabs" select=".onTabSelect" selectedKey="{ord>/selectedTab}" class="sapUiNoContentPadding">
+          <!-- ══ TAB: Deals ══ -->
           <items>
-            <ObjectListItem
-              title="{ord>order_type} — {path: 'ord>id', formatter: 'formatter.shortUuid'}"
-              type="Navigation"
-              number="{path: 'ord>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
-              numberUnit="MT"
-              icon="{= ${ord>order_type} === 'SO' ? 'sap-icon://sales-order' : 'sap-icon://cart'}">
-              <attributes>
-                <ObjectAttribute text="{i18n>colPriceType}: {path: 'ord>price_type', formatter: 'formatter.capitalize'}" />
-                <ObjectAttribute text="{i18n>colAvgEntryPrice}: {path: 'ord>avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
-                <ObjectAttribute text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-              </attributes>
-              <firstStatus>
-                <ObjectStatus text="{ord>order_type}"
-                  state="{= ${ord>order_type} === 'SO' ? 'Information' : 'Warning'}" />
-              </firstStatus>
-            </ObjectListItem>
+            <IconTabFilter key="deals" text="{i18n>tabDeals}" icon="sap-icon://detail-view" count="{ord>/dealsCount}">
+              <VBox class="sapUiSmallMargin">
+                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                  <SearchField width="20rem" search=".onSearchDeals" placeholder="{i18n>search}" />
+                  <HBox>
+                    <Button text="{i18n>newDeal}" icon="sap-icon://add" press=".onCreateDeal" type="Emphasized" />
+                  </HBox>
+                </HBox>
+                <List id="dealsTabList" items="{ord>/deals}" growing="true" growingThreshold="50"
+                  noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onDealSelect">
+                  <items>
+                    <ObjectListItem
+                      title="{ord>name}"
+                      intro="{ord>reference}"
+                      type="Navigation"
+                      number="{= Math.round(${ord>hedge_ratio} * 100) + '%'}"
+                      numberUnit="Hedge"
+                      numberState="{= ${ord>hedge_ratio} >= 1 ? 'Success' : (${ord>hedge_ratio} >= 0.5 ? 'Warning' : 'Error')}"
+                      icon="sap-icon://detail-view">
+                      <attributes>
+                        <ObjectAttribute text="{path: 'ord>commodity', formatter: 'formatter.capitalize'}" />
+                        <ObjectAttribute text="{i18n>colPhysicalTons}: {path: 'ord>total_physical_tons', formatter: 'formatter.numberTwoDecimals'} MT" />
+                        <ObjectAttribute text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                      </attributes>
+                      <firstStatus>
+                        <ObjectStatus text="{path: 'ord>status', formatter: 'formatter.capitalize'}"
+                          state="{path: 'ord>status', formatter: 'formatter.statusState'}" />
+                      </firstStatus>
+                    </ObjectListItem>
+                  </items>
+                </List>
+              </VBox>
+            </IconTabFilter>
+            <!-- ══ TAB: Sales Orders ══ -->
+            <IconTabFilter key="salesOrders" text="{i18n>tabSalesOrders}" icon="sap-icon://sales-order" count="{ord>/soCount}">
+              <VBox class="sapUiSmallMargin">
+                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                  <SearchField width="20rem" search=".onSearchSO" placeholder="{i18n>search}" />
+                  <HBox>
+                    <Button text="{i18n>newSalesOrder}" icon="sap-icon://add" press=".onCreateSales" type="Emphasized" />
+                  </HBox>
+                </HBox>
+                <List id="soList" items="{ord>/salesOrders}" growing="true" growingThreshold="50"
+                  noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                  <items>
+                    <ObjectListItem
+                      title="SO \u2014 {path: 'ord>id', formatter: 'formatter.shortUuid'}"
+                      type="Navigation"
+                      number="{path: 'ord>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
+                      numberUnit="MT"
+                      icon="sap-icon://sales-order">
+                      <attributes>
+                        <ObjectAttribute text="{i18n>colPriceType}: {path: 'ord>price_type', formatter: 'formatter.capitalize'}" />
+                        <ObjectAttribute text="{i18n>colAvgEntryPrice}: {path: 'ord>avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
+                        <ObjectAttribute text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                      </attributes>
+                      <firstStatus>
+                        <ObjectStatus text="SO" state="Information" />
+                      </firstStatus>
+                    </ObjectListItem>
+                  </items>
+                </List>
+              </VBox>
+            </IconTabFilter>
+            <!-- ══ TAB: Purchase Orders ══ -->
+            <IconTabFilter key="purchaseOrders" text="{i18n>tabPurchaseOrders}" icon="sap-icon://cart" count="{ord>/poCount}">
+              <VBox class="sapUiSmallMargin">
+                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                  <SearchField width="20rem" search=".onSearchPO" placeholder="{i18n>search}" />
+                  <HBox>
+                    <Button text="{i18n>newPurchaseOrder}" icon="sap-icon://add" press=".onCreatePurchase" type="Emphasized" />
+                  </HBox>
+                </HBox>
+                <List id="poList" items="{ord>/purchaseOrders}" growing="true" growingThreshold="50"
+                  noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                  <items>
+                    <ObjectListItem
+                      title="PO \u2014 {path: 'ord>id', formatter: 'formatter.shortUuid'}"
+                      type="Navigation"
+                      number="{path: 'ord>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
+                      numberUnit="MT"
+                      icon="sap-icon://cart">
+                      <attributes>
+                        <ObjectAttribute text="{i18n>colPriceType}: {path: 'ord>price_type', formatter: 'formatter.capitalize'}" />
+                        <ObjectAttribute text="{i18n>colAvgEntryPrice}: {path: 'ord>avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
+                        <ObjectAttribute text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                      </attributes>
+                      <firstStatus>
+                        <ObjectStatus text="PO" state="Warning" />
+                      </firstStatus>
+                    </ObjectListItem>
+                  </items>
+                </List>
+              </VBox>
+            </IconTabFilter>
           </items>
-        </List>
+        </IconTabBar>
       </VBox>
     </f:content>
   </f:DynamicPage>

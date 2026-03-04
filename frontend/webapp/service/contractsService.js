@@ -13,6 +13,9 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     },
     archive: function (contractId) {
       return apiClient.patchJson("/contracts/hedge/" + encodeURIComponent(contractId) + "/archive");
+    },
+    getLinkages: function (contractId) {
+      return apiClient.getJson("/contracts/hedge/" + encodeURIComponent(contractId) + "/linkages");
     }
   };
 });

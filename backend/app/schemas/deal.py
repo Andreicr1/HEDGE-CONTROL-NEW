@@ -104,3 +104,60 @@ class DealListResponse(BaseModel):
 
 class DealPNLHistoryResponse(BaseModel):
     items: list[DealPNLSnapshotRead]
+
+
+# ---------------------------------------------------------------------------
+# P&L Breakdown (batch computation with line-item detail)
+# ---------------------------------------------------------------------------
+
+
+class PnlBreakdownRequest(BaseModel):
+    deal_ids: list[UUID] = []
+    snapshot_date: date
+
+
+class PnlPhysicalItem(BaseModel):
+    id: UUID
+    order_type: str  # "SO" / "PO"
+    commodity: str
+    quantity_mt: float
+    price: float
+    value: float
+
+
+class PnlFinancialItem(BaseModel):
+    id: UUID
+    reference: Optional[str] = None
+    classification: str
+    status: str
+    quantity_mt: float
+    entry_price: float
+    market_price: Optional[float] = None
+    pnl: float
+
+
+class DealPnlBreakdown(BaseModel):
+    deal_id: UUID
+    deal_reference: str
+    deal_name: str
+    commodity: str
+    physical_revenue: float
+    physical_cost: float
+    hedge_pnl_realized: float
+    hedge_pnl_mtm: float
+    total_pnl: float
+    physical_items: list[PnlPhysicalItem]
+    financial_items: list[PnlFinancialItem]
+
+
+class PnlBreakdownTotals(BaseModel):
+    physical_revenue: float
+    physical_cost: float
+    hedge_pnl_realized: float
+    hedge_pnl_mtm: float
+    total_pnl: float
+
+
+class PnlBreakdownResponse(BaseModel):
+    deals: list[DealPnlBreakdown]
+    totals: PnlBreakdownTotals

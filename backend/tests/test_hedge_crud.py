@@ -1,22 +1,16 @@
-"""Tests for Hedge Model + CRUD — component 1.4."""
+"""Tests for unified Hedge Contract CRUD — component 1.4 (post-unification).
+
+All hedge CRUD now goes through /contracts/hedge endpoints.
+"""
 
 import uuid
-from datetime import date, datetime, timezone
 
-import pytest
 from sqlalchemy.orm import Session
 
 from app.models.counterparty import Counterparty
-from app.models.exposure import (
-    Exposure,
-    ExposureStatus,
-    ExposureDirection,
-    ExposureSourceType,
-)
-from app.models.rfqs import RFQ, RFQState, RFQDirection, RFQIntent
 
 
-ENDPOINT = "/hedges"
+ENDPOINT = "/contracts/hedge"
 
 
 def _create_counterparty(session: Session) -> uuid.UUID:
@@ -32,59 +26,24 @@ def _create_counterparty(session: Session) -> uuid.UUID:
     return cp.id
 
 
-def _create_exposure(
-    session: Session, direction: str = "long", tons: float = 100.0
-) -> uuid.UUID:
-    """Insert an exposure directly for linking tests."""
-    exp = Exposure(
-        commodity="ALUMINUM",
-        direction=ExposureDirection(direction),
-        source_type=ExposureSourceType.sales_order,
-        source_id=uuid.uuid4(),
-        original_tons=tons,
-        open_tons=tons,
-        status=ExposureStatus.open,
-    )
-    session.add(exp)
-    session.commit()
-    session.refresh(exp)
-    return exp.id
-
-
-def _create_rfq(session: Session, state: RFQState = RFQState.awarded) -> uuid.UUID:
-    """Insert an RFQ directly for from-rfq tests."""
-    rfq = RFQ(
-        rfq_number=f"RFQ-{uuid.uuid4().hex[:8]}",
-        intent=RFQIntent.commercial_hedge,
-        commodity="ALUMINUM",
-        quantity_mt=50.0,
-        delivery_window_start=date(2025, 7, 1),
-        delivery_window_end=date(2025, 9, 30),
-        direction=RFQDirection.buy,
-        commercial_active_mt=50,
-        commercial_passive_mt=0,
-        commercial_net_mt=50,
-        commercial_reduction_applied_mt=0,
-        exposure_snapshot_timestamp=datetime.now(timezone.utc),
-        state=state,
-    )
-    session.add(rfq)
-    session.commit()
-    session.refresh(rfq)
-    return rfq.id
-
-
-def _make_hedge_payload(counterparty_id: uuid.UUID, **overrides) -> dict:
+def _make_contract_payload(
+    counterparty_id: uuid.UUID | None = None, **overrides
+) -> dict:
+    """Build a valid HedgeContractCreate payload with two legs."""
     base = {
-        "counterparty_id": str(counterparty_id),
         "commodity": "ALUMINUM",
-        "direction": "buy",
-        "tons": 100.0,
-        "price_per_ton": 2450.50,
-        "premium_discount": 5.0,
+        "quantity_mt": 100.0,
+        "legs": [
+            {"side": "buy", "price_type": "fixed"},
+            {"side": "sell", "price_type": "variable"},
+        ],
+        "fixed_price_value": 2450.50,
+        "fixed_price_unit": "USD/MT",
         "settlement_date": "2025-09-30",
-        "source_type": "manual",
+        "notes": "test contract",
     }
+    if counterparty_id:
+        base["counterparty_id"] = str(counterparty_id)
     base.update(overrides)
     return base
 
@@ -94,40 +53,47 @@ def _make_hedge_payload(counterparty_id: uuid.UUID, **overrides) -> dict:
 # -----------------------------------------------------------------------
 
 
-class TestCreateHedge:
-    def test_create_hedge_success(self, client, session):
+class TestCreateHedgeContract:
+    def test_create_success(self, client, session):
         cp_id = _create_counterparty(session)
-        payload = _make_hedge_payload(cp_id)
+        payload = _make_contract_payload(cp_id)
         r = client.post(ENDPOINT, json=payload)
         assert r.status_code == 201
         body = r.json()
         assert body["commodity"] == "ALUMINUM"
-        assert body["direction"] == "buy"
-        assert body["tons"] == 100.0
-        assert body["price_per_ton"] == 2450.50
+        assert body["quantity_mt"] == 100.0
+        assert body["fixed_price_value"] == 2450.50
         assert body["status"] == "active"
-        assert body["reference"].startswith("H-")
+        assert body["reference"].startswith("HC-")
+        assert body["classification"] == "long"
+        assert body["fixed_leg_side"] == "buy"
+        assert body["variable_leg_side"] == "sell"
+        assert body["source_type"] == "manual"
 
-    def test_create_hedge_with_exposure_link(self, client, session):
+    def test_create_short_classification(self, client, session):
         cp_id = _create_counterparty(session)
-        exp_id = _create_exposure(session, "long", 200.0)
-        payload = _make_hedge_payload(cp_id, exposure_id=str(exp_id), tons=80.0)
+        payload = _make_contract_payload(
+            cp_id,
+            legs=[
+                {"side": "sell", "price_type": "fixed"},
+                {"side": "buy", "price_type": "variable"},
+            ],
+        )
         r = client.post(ENDPOINT, json=payload)
         assert r.status_code == 201
-        # Exposure open_tons should be reduced
-        exp = session.query(Exposure).filter(Exposure.id == exp_id).first()
-        assert exp.open_tons == pytest.approx(120.0)
-        assert exp.status == ExposureStatus.partially_hedged
+        assert r.json()["classification"] == "short"
 
-    def test_create_hedge_fully_hedges_exposure(self, client, session):
-        cp_id = _create_counterparty(session)
-        exp_id = _create_exposure(session, "long", 50.0)
-        payload = _make_hedge_payload(cp_id, exposure_id=str(exp_id), tons=50.0)
+    def test_create_invalid_zero_quantity(self, client, session):
+        payload = _make_contract_payload(quantity_mt=0.0)
         r = client.post(ENDPOINT, json=payload)
-        assert r.status_code == 201
-        exp = session.query(Exposure).filter(Exposure.id == exp_id).first()
-        assert exp.open_tons == pytest.approx(0.0)
-        assert exp.status == ExposureStatus.fully_hedged
+        assert r.status_code == 422
+
+    def test_create_invalid_one_leg(self, client, session):
+        payload = _make_contract_payload(
+            legs=[{"side": "buy", "price_type": "fixed"}],
+        )
+        r = client.post(ENDPOINT, json=payload)
+        assert r.status_code == 422
 
 
 # -----------------------------------------------------------------------
@@ -135,7 +101,7 @@ class TestCreateHedge:
 # -----------------------------------------------------------------------
 
 
-class TestListHedges:
+class TestListHedgeContracts:
     def test_list_empty(self, client):
         r = client.get(ENDPOINT)
         assert r.status_code == 200
@@ -143,16 +109,16 @@ class TestListHedges:
 
     def test_list_returns_created(self, client, session):
         cp_id = _create_counterparty(session)
-        client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        client.post(ENDPOINT, json=_make_hedge_payload(cp_id, direction="sell"))
+        client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        client.post(ENDPOINT, json=_make_contract_payload(cp_id, commodity="COPPER"))
         r = client.get(ENDPOINT)
         assert r.status_code == 200
         assert len(r.json()["items"]) == 2
 
     def test_list_filter_by_commodity(self, client, session):
         cp_id = _create_counterparty(session)
-        client.post(ENDPOINT, json=_make_hedge_payload(cp_id, commodity="ALUMINUM"))
-        client.post(ENDPOINT, json=_make_hedge_payload(cp_id, commodity="COPPER"))
+        client.post(ENDPOINT, json=_make_contract_payload(cp_id, commodity="ALUMINUM"))
+        client.post(ENDPOINT, json=_make_contract_payload(cp_id, commodity="COPPER"))
         r = client.get(ENDPOINT, params={"commodity": "COPPER"})
         items = r.json()["items"]
         assert len(items) == 1
@@ -160,7 +126,7 @@ class TestListHedges:
 
     def test_list_filter_by_status(self, client, session):
         cp_id = _create_counterparty(session)
-        client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
+        client.post(ENDPOINT, json=_make_contract_payload(cp_id))
         r = client.get(ENDPOINT, params={"status": "active"})
         items = r.json()["items"]
         assert len(items) == 1
@@ -169,20 +135,28 @@ class TestListHedges:
         r2 = client.get(ENDPOINT, params={"status": "settled"})
         assert r2.json()["items"] == []
 
+    def test_list_filter_by_classification(self, client, session):
+        cp_id = _create_counterparty(session)
+        client.post(ENDPOINT, json=_make_contract_payload(cp_id))  # long
+        r = client.get(ENDPOINT, params={"classification": "long"})
+        assert len(r.json()["items"]) == 1
+        r2 = client.get(ENDPOINT, params={"classification": "short"})
+        assert r2.json()["items"] == []
+
 
 # -----------------------------------------------------------------------
 # GET BY ID
 # -----------------------------------------------------------------------
 
 
-class TestGetHedge:
+class TestGetHedgeContract:
     def test_get_by_id(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
-        r2 = client.get(f"{ENDPOINT}/{hedge_id}")
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        r2 = client.get(f"{ENDPOINT}/{contract_id}")
         assert r2.status_code == 200
-        assert r2.json()["id"] == hedge_id
+        assert r2.json()["id"] == contract_id
 
     def test_get_not_found(self, client):
         r = client.get(f"{ENDPOINT}/{uuid.uuid4()}")
@@ -190,25 +164,33 @@ class TestGetHedge:
 
 
 # -----------------------------------------------------------------------
-# UPDATE
+# UPDATE (PATCH)
 # -----------------------------------------------------------------------
 
 
-class TestUpdateHedge:
-    def test_patch_hedge(self, client, session):
+class TestUpdateHedgeContract:
+    def test_patch_contract(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
         r2 = client.patch(
-            f"{ENDPOINT}/{hedge_id}", json={"notes": "Updated note", "tons": 120.0}
+            f"{ENDPOINT}/{contract_id}",
+            json={"notes": "Updated note", "quantity_mt": 120.0},
         )
         assert r2.status_code == 200
         assert r2.json()["notes"] == "Updated note"
-        assert r2.json()["tons"] == 120.0
+        assert r2.json()["quantity_mt"] == 120.0
 
     def test_patch_not_found(self, client):
         r = client.patch(f"{ENDPOINT}/{uuid.uuid4()}", json={"notes": "x"})
         assert r.status_code == 404
+
+    def test_patch_empty_body(self, client, session):
+        cp_id = _create_counterparty(session)
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        r2 = client.patch(f"{ENDPOINT}/{contract_id}", json={})
+        assert r2.status_code == 400
 
 
 # -----------------------------------------------------------------------
@@ -219,111 +201,93 @@ class TestUpdateHedge:
 class TestStatusTransitions:
     def test_valid_transition_active_to_settled(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
-        r2 = client.patch(f"{ENDPOINT}/{hedge_id}/status", json={"status": "settled"})
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        r2 = client.patch(
+            f"{ENDPOINT}/{contract_id}/status", json={"status": "settled"}
+        )
         assert r2.status_code == 200
         assert r2.json()["status"] == "settled"
 
     def test_valid_transition_active_to_partially_settled(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
         r2 = client.patch(
-            f"{ENDPOINT}/{hedge_id}/status", json={"status": "partially_settled"}
+            f"{ENDPOINT}/{contract_id}/status",
+            json={"status": "partially_settled"},
         )
         assert r2.status_code == 200
         assert r2.json()["status"] == "partially_settled"
 
     def test_invalid_transition_settled_to_active(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
-        # First settle it
-        client.patch(f"{ENDPOINT}/{hedge_id}/status", json={"status": "settled"})
-        # Then try to reactivate — should fail
-        r2 = client.patch(f"{ENDPOINT}/{hedge_id}/status", json={"status": "active"})
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        client.patch(f"{ENDPOINT}/{contract_id}/status", json={"status": "settled"})
+        r2 = client.patch(f"{ENDPOINT}/{contract_id}/status", json={"status": "active"})
         assert r2.status_code == 409
 
     def test_invalid_transition_cancelled_to_settled(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
-        client.patch(f"{ENDPOINT}/{hedge_id}/status", json={"status": "cancelled"})
-        r2 = client.patch(f"{ENDPOINT}/{hedge_id}/status", json={"status": "settled"})
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        client.patch(f"{ENDPOINT}/{contract_id}/status", json={"status": "cancelled"})
+        r2 = client.patch(
+            f"{ENDPOINT}/{contract_id}/status", json={"status": "settled"}
+        )
         assert r2.status_code == 409
 
     def test_transition_partially_settled_to_settled(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
         client.patch(
-            f"{ENDPOINT}/{hedge_id}/status", json={"status": "partially_settled"}
+            f"{ENDPOINT}/{contract_id}/status",
+            json={"status": "partially_settled"},
         )
-        r2 = client.patch(f"{ENDPOINT}/{hedge_id}/status", json={"status": "settled"})
+        r2 = client.patch(
+            f"{ENDPOINT}/{contract_id}/status", json={"status": "settled"}
+        )
         assert r2.status_code == 200
         assert r2.json()["status"] == "settled"
 
 
 # -----------------------------------------------------------------------
-# DELETE (soft delete + exposure release)
+# DELETE (soft delete + cancel)
 # -----------------------------------------------------------------------
 
 
-class TestDeleteHedge:
+class TestDeleteHedgeContract:
     def test_delete_soft_deletes(self, client, session):
         cp_id = _create_counterparty(session)
-        r = client.post(ENDPOINT, json=_make_hedge_payload(cp_id))
-        hedge_id = r.json()["id"]
-        r2 = client.delete(f"{ENDPOINT}/{hedge_id}")
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        r2 = client.delete(f"{ENDPOINT}/{contract_id}")
         assert r2.status_code == 200
         assert r2.json()["status"] == "cancelled"
-        # Should not appear in list
+        assert r2.json()["deleted_at"] is not None
+        # Should not appear in default list
         r3 = client.get(ENDPOINT)
-        assert all(h["id"] != hedge_id for h in r3.json()["items"])
+        assert all(c["id"] != contract_id for c in r3.json()["items"])
 
-    def test_delete_releases_exposure_tons(self, client, session):
+    def test_delete_appears_with_include_deleted(self, client, session):
         cp_id = _create_counterparty(session)
-        exp_id = _create_exposure(session, "long", 100.0)
-        payload = _make_hedge_payload(cp_id, exposure_id=str(exp_id), tons=60.0)
-        r = client.post(ENDPOINT, json=payload)
-        hedge_id = r.json()["id"]
-        # Before delete: open_tons should be 40
-        exp = session.query(Exposure).filter(Exposure.id == exp_id).first()
-        assert exp.open_tons == pytest.approx(40.0)
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        client.delete(f"{ENDPOINT}/{contract_id}")
+        r2 = client.get(ENDPOINT, params={"include_deleted": True})
+        ids = [c["id"] for c in r2.json()["items"]]
+        assert contract_id in ids
 
-        # Delete hedge — should release 60 tons back
-        client.delete(f"{ENDPOINT}/{hedge_id}")
-        session.expire_all()
-        exp = session.query(Exposure).filter(Exposure.id == exp_id).first()
-        assert exp.open_tons == pytest.approx(100.0)
-        assert exp.status == ExposureStatus.open
+    def test_delete_already_deleted_returns_409(self, client, session):
+        cp_id = _create_counterparty(session)
+        r = client.post(ENDPOINT, json=_make_contract_payload(cp_id))
+        contract_id = r.json()["id"]
+        client.delete(f"{ENDPOINT}/{contract_id}")
+        r2 = client.delete(f"{ENDPOINT}/{contract_id}")
+        assert r2.status_code == 409
 
     def test_delete_not_found(self, client):
         r = client.delete(f"{ENDPOINT}/{uuid.uuid4()}")
-        assert r.status_code == 404
-
-
-# -----------------------------------------------------------------------
-# FROM RFQ
-# -----------------------------------------------------------------------
-
-
-class TestFromRFQ:
-    def test_create_from_rfq_awarded(self, client, session):
-        rfq_id = _create_rfq(session, RFQState.awarded)
-        r = client.post(f"{ENDPOINT}/from-rfq/{rfq_id}")
-        assert r.status_code == 201
-        body = r.json()
-        assert body["commodity"] == "ALUMINUM"
-        assert body["source_type"] == "rfq_award"
-        assert body["status"] == "active"
-
-    def test_create_from_rfq_not_awarded(self, client, session):
-        rfq_id = _create_rfq(session, RFQState.created)
-        r = client.post(f"{ENDPOINT}/from-rfq/{rfq_id}")
-        assert r.status_code == 409
-
-    def test_create_from_rfq_not_found(self, client):
-        r = client.post(f"{ENDPOINT}/from-rfq/{uuid.uuid4()}")
         assert r.status_code == 404

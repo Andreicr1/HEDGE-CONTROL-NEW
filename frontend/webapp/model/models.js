@@ -10,7 +10,10 @@ sap.ui.define([
         layout: fioriLibrary.LayoutType.OneColumn,
         selectedKey: "home",
         title: "Hedge Control Platform",
-        badge: "Admin read-only (no auth configured)"
+        badge: "Admin read-only (no auth configured)",
+        showNavButton: false,
+        notificationsCount: "",
+        userInitials: "AU"
       });
     }
   };

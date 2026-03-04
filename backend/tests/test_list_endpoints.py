@@ -48,18 +48,17 @@ def _create_rfq(
     """Create an RFQ. Uses GLOBAL_POSITION intent to avoid needing commercial exposure."""
     invitations = []
     if with_invitation:
-        invitations = [
-            {
-                "recipient_id": "CP_INV",
-                "recipient_name": "Counterparty",
-                "channel": "email",
-                "message_body": "RFQ request",
-                "provider_message_id": f"msg-{uuid4().hex[:8]}",
-                "send_status": "queued",
-                "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                "idempotency_key": f"idem-{uuid4().hex[:8]}",
-            }
-        ]
+        cp_resp = client.post(
+            "/counterparties",
+            json={
+                "type": "broker",
+                "name": f"CP-{uuid4().hex[:8]}",
+                "country": "BRA",
+                "whatsapp_phone": "+5511999990001",
+            },
+        )
+        assert cp_resp.status_code == 201
+        invitations = [{"counterparty_id": cp_resp.json()["id"]}]
     return client.post(
         "/rfqs",
         json={

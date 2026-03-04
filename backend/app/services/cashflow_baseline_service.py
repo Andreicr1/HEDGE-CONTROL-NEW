@@ -19,8 +19,14 @@ def _canonicalize_snapshot_payload(payload: dict) -> dict:
     return payload
 
 
-def create_cashflow_baseline_snapshot(db: Session, as_of_date: date, correlation_id: str) -> CashFlowBaselineSnapshot:
-    existing = db.query(CashFlowBaselineSnapshot).filter(CashFlowBaselineSnapshot.as_of_date == as_of_date).first()
+def create_cashflow_baseline_snapshot(
+    db: Session, as_of_date: date, correlation_id: str
+) -> CashFlowBaselineSnapshot:
+    existing = (
+        db.query(CashFlowBaselineSnapshot)
+        .filter(CashFlowBaselineSnapshot.as_of_date == as_of_date)
+        .first()
+    )
 
     analytic = compute_cashflow_analytic(db, as_of_date=as_of_date)
     total = Decimal(analytic.total_net_cashflow)
@@ -28,8 +34,14 @@ def create_cashflow_baseline_snapshot(db: Session, as_of_date: date, correlation
 
     if existing is not None:
         existing_payload = _canonicalize_snapshot_payload(dict(existing.snapshot_data))
-        if existing_payload != payload or Decimal(str(existing.total_net_cashflow)) != total:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="CashFlow baseline snapshot conflict")
+        if (
+            existing_payload != payload
+            or Decimal(str(existing.total_net_cashflow)) != total
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="CashFlow baseline snapshot conflict",
+            )
         return existing
 
     snapshot = CashFlowBaselineSnapshot(
@@ -41,4 +53,20 @@ def create_cashflow_baseline_snapshot(db: Session, as_of_date: date, correlation
     db.add(snapshot)
     db.commit()
     db.refresh(snapshot)
+    return snapshot
+
+
+def get_cashflow_baseline_snapshot(
+    db: Session, as_of_date: date
+) -> CashFlowBaselineSnapshot:
+    snapshot = (
+        db.query(CashFlowBaselineSnapshot)
+        .filter(CashFlowBaselineSnapshot.as_of_date == as_of_date)
+        .first()
+    )
+    if snapshot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Baseline snapshot not found",
+        )
     return snapshot

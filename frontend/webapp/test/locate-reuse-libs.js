@@ -182,8 +182,10 @@ registerComponentDependencyPaths(manifestUri)
                 var sLocale = Localization.getLanguage();
                 sap.ui.require(["sap/base/i18n/ResourceBundle"], function (ResourceBundle) {
                     var oResourceBundle = ResourceBundle.create({
-                        url: "i18n/i18n.properties",
-                        locale: sLocale
+                        url: "../i18n/i18n.properties",
+                        locale: sLocale,
+                        supportedLocales: ["pt-BR", ""],
+                        fallbackLocale: ""
                     });
                     document.title = oResourceBundle.getText("appTitle");
                 });

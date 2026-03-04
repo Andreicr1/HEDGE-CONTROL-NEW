@@ -8,11 +8,29 @@ from app.schemas.cashflow import (
     CashFlowRead,
 )
 from app.schemas.contracts import HedgeContractCreate, HedgeContractRead
+from app.schemas.counterparty import (
+    CounterpartyCreate,
+    CounterpartyListResponse,
+    CounterpartyRead,
+    CounterpartyUpdate,
+)
+from app.schemas.deal import (
+    DealCreate,
+    DealDetailRead,
+    DealListResponse,
+    DealRead,
+)
 from app.schemas.exposure import (
     CommercialExposureRead,
-    ExposureCreate,
     ExposureRead,
     GlobalExposureRead,
+)
+from app.schemas.finance_pipeline import (
+    PipelineRunDetailRead,
+    PipelineRunListResponse,
+    PipelineRunRead,
+    PipelineStepRead,
+    TriggerPipelineRequest,
 )
 from app.schemas.linkages import HedgeOrderLinkageCreate, HedgeOrderLinkageRead
 from app.schemas.market_data import (
@@ -22,6 +40,7 @@ from app.schemas.market_data import (
 )
 from app.schemas.mtm import MTMResultResponse, MTMSnapshotCreate, MTMSnapshotResponse
 from app.schemas.orders import OrderRead, PurchaseOrderCreate, SalesOrderCreate
+from app.schemas.pl import PLResultResponse, PLSnapshotCreate, PLSnapshotResponse
 from app.schemas.rfq import (
     RFQAwardRequest,
     RFQCreate,
@@ -47,12 +66,24 @@ __all__ = [
     "CashFlowBaselineSnapshotResponse",
     "CashFlowItem",
     "CashFlowRead",
+    "CounterpartyCreate",
+    "CounterpartyListResponse",
+    "CounterpartyRead",
+    "CounterpartyUpdate",
+    "DealCreate",
+    "DealDetailRead",
+    "DealListResponse",
+    "DealRead",
     "HedgeContractCreate",
     "HedgeContractRead",
-    "ExposureCreate",
     "ExposureRead",
     "CommercialExposureRead",
     "GlobalExposureRead",
+    "PipelineRunDetailRead",
+    "PipelineRunListResponse",
+    "PipelineRunRead",
+    "PipelineStepRead",
+    "TriggerPipelineRequest",
     "SalesOrderCreate",
     "PurchaseOrderCreate",
     "OrderRead",
@@ -64,6 +95,9 @@ __all__ = [
     "MTMResultResponse",
     "MTMSnapshotCreate",
     "MTMSnapshotResponse",
+    "PLResultResponse",
+    "PLSnapshotCreate",
+    "PLSnapshotResponse",
     "RFQCreate",
     "RFQAwardRequest",
     "RFQInvitationCreate",

@@ -28,14 +28,6 @@
           </HBox>
         </uxap:snappedContent>
         <uxap:actions>
-          <Button text="{i18n>award}" icon="sap-icon://accept" press=".onAward" type="Emphasized"
-            visible="{= ${rfqDet>/detail/state} === 'QUOTED'}" />
-          <Button text="{i18n>reject}" icon="sap-icon://decline" press=".onReject" type="Reject"
-            visible="{= ${rfqDet>/detail/state} !== 'CLOSED' &amp;&amp; ${rfqDet>/detail/state} !== 'AWARDED'}" />
-          <Button text="{i18n>refresh}" icon="sap-icon://refresh" press=".onRefresh" type="Default"
-            visible="{= ${rfqDet>/detail/state} === 'QUOTED' || ${rfqDet>/detail/state} === 'SENT'}" />
-          <Button text="{i18n>archive}" icon="sap-icon://delete" press=".onArchive" type="Reject"
-            visible="{= ${rfqDet>/detail/state} === 'CLOSED' || ${rfqDet>/detail/state} === 'AWARDED'}" />
           <Button text="{i18n>viewDocuments}" icon="sap-icon://document" press=".onViewDocuments" type="Transparent" />
         </uxap:actions>
         <uxap:navigationActions>
@@ -116,7 +108,8 @@
                           <form:fields><Text text="{path: 'rfqDet>/detail/quantity_mt', formatter: 'formatter.numberTwoDecimals'}" /></form:fields>
                         </form:FormElement>
                         <form:FormElement label="{i18n>colOrderId}">
-                          <form:fields><Text text="{path: 'rfqDet>/detail/order_id', formatter: 'formatter.shortUuid'}" /></form:fields>
+                          <form:fields><Link text="{path: 'rfqDet>/detail/order_id', formatter: 'formatter.shortUuid'}" press=".onNavigateToOrder"
+                            visible="{= !!${rfqDet>/detail/order_id}}" /></form:fields>
                         </form:FormElement>
                       </form:formElements>
                     </form:FormContainer>
@@ -185,31 +178,77 @@
                 <OverflowToolbar>
                   <Title text="{i18n>sectionQuotes}" level="H4" />
                   <ToolbarSpacer />
+                  <Button text="{i18n>refresh}" icon="sap-icon://refresh" press=".onRefresh" type="Transparent"
+                    visible="{= ${rfqDet>/detail/state} === 'SENT' || ${rfqDet>/detail/state} === 'QUOTED'}" />
                   <Button text="{i18n>addQuote}" icon="sap-icon://add" press=".onAddQuote"
                     visible="{= ${rfqDet>/detail/state} !== 'CLOSED' &amp;&amp; ${rfqDet>/detail/state} !== 'AWARDED'}" />
                   <Button text="{i18n>viewRanking}" icon="sap-icon://numbered-text" press=".onViewRanking" />
                 </OverflowToolbar>
                 <Table items="{rfqDet>/quotes}" noDataText="{i18n>noQuotes}" mode="None">
                   <columns>
-                    <Column><header><Text text="{i18n>colCounterpartyId}" /></header></Column>
+                    <Column><header><Text text="{i18n>colCounterpartyName}" /></header></Column>
                     <Column hAlign="End"><header><Text text="{i18n>colFixedPriceValue}" /></header></Column>
                     <Column><header><Text text="{i18n>colFixedPriceUnit}" /></header></Column>
                     <Column><header><Text text="{i18n>colFloatConvention}" /></header></Column>
                     <Column><header><Text text="{i18n>colReceivedAt}" /></header></Column>
+                    <Column hAlign="Center"
+                      visible="{= ${rfqDet>/detail/state} === 'QUOTED'}">
+                      <header><Text text="{i18n>colActions}" /></header>
+                    </Column>
                   </columns>
                   <items>
                     <ColumnListItem>
                       <cells>
-                        <Text text="{rfqDet>counterparty_id}" />
+                        <ObjectIdentifier title="{rfqDet>_counterparty_name}" text="{path: 'rfqDet>counterparty_id', formatter: 'formatter.shortUuid'}" />
                         <Text text="{path: 'rfqDet>fixed_price_value', formatter: 'formatter.priceFourDecimals'}" />
                         <Text text="{rfqDet>fixed_price_unit}" />
                         <Text text="{rfqDet>float_pricing_convention}" />
                         <Text text="{path: 'rfqDet>received_at', formatter: 'formatter.dateTimeDisplay'}" />
+                        <HBox visible="{= ${rfqDet>/detail/state} === 'QUOTED'}" alignItems="Center">
+                          <Button text="{i18n>btnRefreshQuote}" icon="sap-icon://refresh" type="Transparent"
+                            press=".onQuoteRefresh" tooltip="{i18n>tooltipRefreshQuote}" class="sapUiTinyMarginEnd" />
+                          <Button text="{i18n>btnRejectQuote}" icon="sap-icon://decline" type="Reject"
+                            press=".onQuoteReject" tooltip="{i18n>tooltipRejectQuote}" class="sapUiTinyMarginEnd" />
+                          <Button text="{i18n>btnContractQuote}" icon="sap-icon://accept" type="Emphasized"
+                            press=".onQuoteContract" tooltip="{i18n>tooltipContractQuote}" />
+                        </HBox>
                       </cells>
                     </ColumnListItem>
                   </items>
                 </Table>
               </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <!-- Section: Invitations (WhatsApp) -->
+      <uxap:ObjectPageSection title="Convites" titleUppercase="false">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <Table items="{rfqDet>/detail/invitations}" noDataText="{i18n>noData}" mode="None">
+                <columns>
+                  <Column><header><Text text="Contraparte" /></header></Column>
+                  <Column><header><Text text="Telefone" /></header></Column>
+                  <Column><header><Text text="Canal" /></header></Column>
+                  <Column><header><Text text="Status Envio" /></header></Column>
+                  <Column><header><Text text="Enviado em" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <Text text="{rfqDet>recipient_name}" />
+                      <Text text="{rfqDet>recipient_phone}" />
+                      <ObjectStatus text="{rfqDet>channel}" icon="sap-icon://message-popup" />
+                      <ObjectStatus text="{rfqDet>send_status}"
+                        state="{= ${rfqDet>send_status} === 'sent' ? 'Success' : (${rfqDet>send_status} === 'failed' ? 'Error' : 'Warning')}"
+                        icon="{= ${rfqDet>send_status} === 'sent' ? 'sap-icon://accept' : (${rfqDet>send_status} === 'failed' ? 'sap-icon://error' : 'sap-icon://pending')}" />
+                      <Text text="{path: 'rfqDet>sent_at', formatter: 'formatter.dateTimeDisplay'}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
             </uxap:blocks>
           </uxap:ObjectPageSubSection>
         </uxap:subSections>
@@ -217,33 +256,34 @@
 
       <!-- Section: Ranking -->
       <uxap:ObjectPageSection title="{i18n>sectionRanking}" id="rankingSection" titleUppercase="false"
-        visible="{= ${rfqDet>/rankingRows} &amp;&amp; ${rfqDet>/rankingRows}.length > 0}">
+        visible="{= ${rfqDet>/ranking/ranking} &amp;&amp; ${rfqDet>/ranking/ranking}.length > 0}">
         <uxap:subSections>
           <uxap:ObjectPageSubSection>
             <uxap:blocks>
               <VBox>
-                <MessageStrip
-                  text="{= ${rfqDet>/ranking/status} === 'SUCCESS' ? '' : (${rfqDet>/ranking/failure_reason} || ${rfqDet>/ranking/status})}"
-                  type="{= ${rfqDet>/ranking/status} === 'SUCCESS' ? 'Success' : 'Warning'}"
-                  showIcon="true"
-                  visible="{= ${rfqDet>/ranking/status} !== 'SUCCESS'}"
-                  class="sapUiSmallMarginBottom" />
-                <Table items="{rfqDet>/rankingRows}" noDataText="{i18n>noData}" mode="None">
+                <OverflowToolbar>
+                  <Title text="{i18n>sectionRanking}" level="H4" />
+                  <ObjectStatus text="{rfqDet>/ranking/status}" class="sapUiSmallMarginBegin" />
+                  <ToolbarSpacer />
+                  <Button text="{i18n>awardSelected}" icon="sap-icon://competitor" press=".onAwardSelected" type="Emphasized"
+                    visible="{= ${rfqDet>/detail/state} === 'QUOTED'}" />
+                </OverflowToolbar>
+                <Table id="rankingTable" items="{rfqDet>/ranking/ranking}" noDataText="{i18n>noData}"
+                  mode="{= ${rfqDet>/detail/state} === 'QUOTED' ? 'SingleSelectLeft' : 'None'}">
                   <columns>
-                    <Column width="4rem"><header><Text text="{i18n>colRank}" /></header></Column>
-                    <Column><header><Text text="{i18n>colCounterpartyId}" /></header></Column>
-                    <Column hAlign="End"><header><Text text="{i18n>colPrice}" /></header></Column>
-                    <Column><header><Text text="{i18n>colUnit}" /></header></Column>
-                    <Column><header><Text text="{i18n>colFloatConvention}" /></header></Column>
+                    <Column width="5rem"><header><Text text="{i18n>colRank}" /></header></Column>
+                    <Column><header><Text text="{i18n>colCounterpartyName}" /></header></Column>
+                    <Column hAlign="End"><header><Text text="{i18n>colSpreadValue}" /></header></Column>
                   </columns>
                   <items>
-                    <ColumnListItem highlight="{= ${rfqDet>rank} === 1 ? 'Success' : 'None'}">
+                    <ColumnListItem highlight="{= ${rfqDet>rank} === 1 ? 'Success' : 'None'}" selected="{= ${rfqDet>rank} === 1}">
                       <cells>
-                        <ObjectNumber number="{rfqDet>rank}" emphasized="{= ${rfqDet>rank} === 1}" />
-                        <Text text="{rfqDet>counterparty_id}" />
-                        <Text text="{path: 'rfqDet>price', formatter: 'formatter.priceFourDecimals'}" />
-                        <Text text="{rfqDet>unit}" />
-                        <Text text="{rfqDet>convention}" />
+                        <HBox alignItems="Center">
+                          <core:Icon src="sap-icon://competitor" color="{= ${rfqDet>rank} === 1 ? '#107E3E' : 'transparent'}" class="sapUiSmallMarginEnd" />
+                          <Text text="{rfqDet>rank}" />
+                        </HBox>
+                        <ObjectIdentifier title="{rfqDet>_counterparty_name}" text="{path: 'rfqDet>counterparty_id', formatter: 'formatter.shortUuid'}" />
+                        <ObjectNumber number="{path: 'rfqDet>spread_value', formatter: 'formatter.priceFourDecimals'}" unit="USD/MT" state="{= ${rfqDet>rank} === 1 ? 'Success' : 'None'}" />
                       </cells>
                     </ColumnListItem>
                   </items>
@@ -254,35 +294,21 @@
         </uxap:subSections>
       </uxap:ObjectPageSection>
 
-      <!-- Section: Documents -->
-      <uxap:ObjectPageSection title="Documentos" id="documentsSection" titleUppercase="false">
+      <!-- Section: Timeline (State Events) -->
+      <uxap:ObjectPageSection title="Timeline" titleUppercase="false">
         <uxap:subSections>
           <uxap:ObjectPageSubSection>
             <uxap:blocks>
-              <VBox>
-                <OverflowToolbar>
-                  <Title text="Documentos Associados" level="H4" />
-                  <ToolbarSpacer />
-                  <Button text="Upload" icon="sap-icon://upload" press=".onUploadDocument" type="Ghost" />
-                </OverflowToolbar>
-                <List items="{rfqDet>/documents}" noDataText="Nenhum documento associado." mode="None">
-                  <items>
-                    <ObjectListItem
-                      title="{rfqDet>name}"
-                      type="Active"
-                      press=".onDocumentPress"
-                      icon="sap-icon://document">
-                      <attributes>
-                        <ObjectAttribute text="{rfqDet>type}" />
-                        <ObjectAttribute text="{rfqDet>uploaded_at}" />
-                      </attributes>
-                      <firstStatus>
-                        <ObjectStatus text="{rfqDet>size}" />
-                      </firstStatus>
-                    </ObjectListItem>
-                  </items>
-                </List>
-              </VBox>
+              <List items="{rfqDet>/stateEvents}" noDataText="{i18n>noData}" mode="None">
+                <items>
+                  <FeedListItem
+                    icon="{rfqDet>_icon}"
+                    text="{rfqDet>_description}"
+                    info="{rfqDet>to_state}"
+                    timestamp="{path: 'rfqDet>created_at', formatter: 'formatter.dateTimeDisplay'}"
+                    senderActive="false" />
+                </items>
+              </List>
             </uxap:blocks>
           </uxap:ObjectPageSubSection>
         </uxap:subSections>
@@ -294,10 +320,8 @@
     <uxap:footer>
       <OverflowToolbar>
         <ToolbarSpacer />
-        <Button text="{i18n>award}" icon="sap-icon://accept" press=".onAward" type="Emphasized"
-          visible="{= ${rfqDet>/detail/state} === 'QUOTED'}" />
-        <Button text="{i18n>reject}" icon="sap-icon://decline" press=".onReject" type="Reject"
-          visible="{= ${rfqDet>/detail/state} !== 'CLOSED' &amp;&amp; ${rfqDet>/detail/state} !== 'AWARDED'}" />
+        <Button text="{i18n>refresh}" icon="sap-icon://refresh" press=".onRefresh" type="Transparent"
+          visible="{= ${rfqDet>/detail/state} === 'SENT' || ${rfqDet>/detail/state} === 'QUOTED'}" />
       </OverflowToolbar>
     </uxap:footer>
 

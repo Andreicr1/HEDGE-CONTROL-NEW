@@ -26,11 +26,23 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     reject: function (rfqId, payload) {
       return apiClient.postJson("/rfqs/" + encodeURIComponent(rfqId) + "/actions/reject", payload);
     },
+    rejectQuote: function (rfqId, quoteId, payload) {
+      return apiClient.postJson("/rfqs/" + encodeURIComponent(rfqId) + "/actions/reject-quote?quote_id=" + encodeURIComponent(quoteId), payload);
+    },
+    refreshCounterparty: function (rfqId, payload) {
+      return apiClient.postJson("/rfqs/" + encodeURIComponent(rfqId) + "/actions/refresh-counterparty", payload);
+    },
+    awardQuote: function (rfqId, payload) {
+      return apiClient.postJson("/rfqs/" + encodeURIComponent(rfqId) + "/actions/award-quote", payload);
+    },
     list: function () {
       return apiClient.getJson("/rfqs");
     },
     listQuotes: function (rfqId) {
       return apiClient.getJson("/rfqs/" + encodeURIComponent(rfqId) + "/quotes");
+    },
+    listStateEvents: function (rfqId) {
+      return apiClient.getJson("/rfqs/" + encodeURIComponent(rfqId) + "/state-events");
     },
     archive: function (rfqId) {
       return apiClient.patchJson("/rfqs/" + encodeURIComponent(rfqId) + "/archive");

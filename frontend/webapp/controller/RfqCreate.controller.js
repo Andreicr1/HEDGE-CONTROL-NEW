@@ -2,9 +2,10 @@ sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/rfqService",
   "hedgecontrol/service/apiClient",
+  "hedgecontrol/service/exposuresService",
   "sap/m/MessageBox",
   "sap/m/MessageToast"
-], function (BaseController, rfqService, apiClient, MessageBox, MessageToast) {
+], function (BaseController, rfqService, apiClient, exposuresService, MessageBox, MessageToast) {
   "use strict";
 
   var SIDE_BUY = 0;
@@ -15,24 +16,18 @@ sap.ui.define([
     { header: "Alcast Trading", label: "Alcast Trading" }
   ];
 
-  var CHANNEL_LABELS = {
-    broker_lme: "Broker LME",
-    banco_br: "Banco BR",
-    none: "—"
-  };
-
   function _emptyLeg(side) {
     return {
       sideIndex: side === "sell" ? SIDE_SELL : SIDE_BUY,
       side: side || "buy",
       priceType: "",
       monthName: "",
-      year: "",
+      year: String(new Date().getFullYear()),
       startDate: "",
       endDate: "",
       fixingDate: "",
       settlementDate: "",
-      orderType: "",
+      orderType: "At Market",
       orderValidity: "Day",
       limitPrice: ""
     };
@@ -60,7 +55,14 @@ sap.ui.define([
     return {
       companyIndex: 0,
       tradeType: "Swap",
+      commodity: "Aluminium",
+      intent: "GLOBAL_POSITION",
       quantity: "",
+      orderId: "",
+      orders: [],
+      exposureOriginal: "",
+      exposureOpen: "",
+      exposureCommodity: "",
       trades: [_emptyTrade(0)],
       showResult: false,
       textEn: "",
@@ -79,8 +81,7 @@ sap.ui.define([
       this.getRouter().getRoute("rfqCreate").attachPatternMatched(this._onRouteMatched, this);
     },
 
-    _onRouteMatched: function () {
-      this.setLayout("OneColumn");
+    _onRouteMatched: function (oEvent) {
       var oData = _emptyForm();
       oData.errorMessage = "";
       oData.busy = false;
@@ -89,30 +90,158 @@ sap.ui.define([
         oModel.setProperty("/" + k, oData[k]);
       }
       this._loadCounterparties();
+
+      // Check for pre-selected orderId from query parameters (from Hedge button)
+      var oArgs = oEvent.getParameter("arguments");
+      var oQuery = oArgs["?query"] || {};
+      if (oQuery.orderId) {
+        oModel.setProperty("/intent", "COMMERCIAL_HEDGE");
+        this._sPresetOrderId = oQuery.orderId;
+        this._sPresetOrderType = oQuery.orderType || null;
+        this._sPresetPriceType = oQuery.priceType || null;
+        this._loadOrders();
+      } else {
+        this._sPresetOrderId = null;
+        this._sPresetOrderType = null;
+        this._sPresetPriceType = null;
+      }
     },
 
     _loadCounterparties: function () {
       var oModel = this.getViewModel();
       apiClient.getJson("/counterparties?is_active=true&limit=200").then(function (oData) {
         var aItems = (oData && oData.items) || [];
-        var aRfqEligible = aItems.filter(function (cp) {
-          return cp.rfq_channel_type && cp.rfq_channel_type !== "none";
-        }).map(function (cp) {
+        var aMapped = aItems.map(function (cp) {
           return {
             id: cp.id,
             name: cp.short_name || cp.name,
-            rfq_channel_type: cp.rfq_channel_type,
+            type: cp.type || "broker",
             country: cp.country,
-            contact_phone: cp.contact_phone || "",
+            whatsapp_phone: cp.whatsapp_phone || "",
             contact_email: cp.contact_email || "",
             selected: true
           };
         });
-        oModel.setProperty("/counterparties", aRfqEligible);
-        oModel.setProperty("/selectedCount", aRfqEligible.length);
-      }).catch(function () {
+        oModel.setProperty("/counterparties", aMapped);
+        oModel.setProperty("/selectedCount", aMapped.length);
+      }).catch(function (err) {
+        jQuery.sap.log.warning("Failed to load counterparties", err && err.message);
         oModel.setProperty("/counterparties", []);
       });
+    },
+
+    /* ─── Intent / Order / Exposure handlers ─── */
+
+    onIntentChange: function () {
+      var oModel = this.getViewModel();
+      var sIntent = oModel.getProperty("/intent");
+      oModel.setProperty("/showResult", false);
+      oModel.setProperty("/orderId", "");
+      oModel.setProperty("/exposureOriginal", "");
+      oModel.setProperty("/exposureOpen", "");
+      oModel.setProperty("/exposureCommodity", "");
+      if (sIntent === "COMMERCIAL_HEDGE") {
+        this._loadOrders();
+      } else {
+        oModel.setProperty("/orders", []);
+      }
+    },
+
+    _loadOrders: function () {
+      var oModel = this.getViewModel();
+      var that = this;
+      // Load exposures to populate the order selector — exposures contain commodity and open_tons
+      exposuresService.listExposures({ limit: 200 }).then(function (oData) {
+        var aItems = (oData && oData.items) || [];
+        var aOpen = aItems.filter(function (e) {
+          return (e.status === "open" || e.status === "partially_hedged")
+            && e.price_type === "variable";
+        });
+        var aOrders = [{ key: "", text: "Selecione uma ordem..." }];
+        aOpen.forEach(function (e) {
+          var sType = e.source_type === "sales_order" ? "SO" : "PO";
+          var sQty = e.open_tons ? parseFloat(e.open_tons).toFixed(1) : "0";
+          aOrders.push({
+            key: e.source_id,
+            text: sType + " — " + (e.commodity || "") + " — " + sQty + " MT aberto — " + (e.source_id || "").substring(0, 8),
+            exposure: e
+          });
+        });
+        oModel.setProperty("/orders", aOrders);
+
+        // If a preset orderId was provided, select it and load exposure
+        if (that._sPresetOrderId) {
+          var oMatch = aOrders.find(function (o) { return o.key === that._sPresetOrderId; });
+          if (oMatch) {
+            oModel.setProperty("/orderId", that._sPresetOrderId);
+            that._applyExposureFromList(that._sPresetOrderId, aOrders);
+          }
+          that._sPresetOrderId = null;
+        }
+      }).catch(function () {
+        oModel.setProperty("/orders", []);
+      });
+    },
+
+    onOrderChange: function () {
+      var oModel = this.getViewModel();
+      var sOrderId = oModel.getProperty("/orderId");
+      oModel.setProperty("/showResult", false);
+      if (!sOrderId) {
+        oModel.setProperty("/exposureOriginal", "");
+        oModel.setProperty("/exposureOpen", "");
+        oModel.setProperty("/exposureCommodity", "");
+        return;
+      }
+      var aOrders = oModel.getProperty("/orders") || [];
+      this._applyExposureFromList(sOrderId, aOrders);
+    },
+
+    _applyExposureFromList: function (sOrderId, aOrders) {
+      var oModel = this.getViewModel();
+      var oMatch = aOrders.find(function (o) { return o.key === sOrderId; });
+      if (oMatch && oMatch.exposure) {
+        var e = oMatch.exposure;
+        oModel.setProperty("/exposureOriginal", parseFloat(e.original_tons).toFixed(1));
+        oModel.setProperty("/exposureOpen", parseFloat(e.open_tons).toFixed(1));
+        oModel.setProperty("/exposureCommodity", e.commodity || "");
+        // Auto-set commodity mapping from backend uppercase to Select keys
+        if (e.commodity) {
+          var mCommodityMap = {
+            "ALUMINUM": "Aluminium", "ALUMINIUM": "Aluminium",
+            "COPPER": "Copper", "ZINC": "Zinc",
+            "NICKEL": "Nickel", "LEAD": "Lead", "TIN": "Tin"
+          };
+          var sMapped = mCommodityMap[(e.commodity || "").toUpperCase()];
+          if (sMapped) {
+            oModel.setProperty("/commodity", sMapped);
+          }
+        }
+        oModel.setProperty("/quantity", String(e.open_tons || ""));
+
+        // Auto-set trade sides based on order type:
+        // PO → Buy Fix + Sell Variable (template "Queda")
+        // SO → Sell Fix + Buy Variable (template "Alta")
+        var sOrderType = e.order_type || (e.source_type === "purchase_order" ? "PO" : "SO");
+        var sTradePath = "/trades/0";
+        if (sOrderType === "PO") {
+          // PO: Company buys at fixed price, hedges by buying AVG and selling Fix
+          this._applyTemplate(sTradePath, {
+            leg1: { sideIndex: SIDE_BUY, side: "buy", priceType: "AVG" },
+            leg2: { sideIndex: SIDE_SELL, side: "sell", priceType: "Fix" }
+          });
+        } else {
+          // SO: Company sells at fixed price, hedges by selling AVG and buying Fix
+          this._applyTemplate(sTradePath, {
+            leg1: { sideIndex: SIDE_SELL, side: "sell", priceType: "AVG" },
+            leg2: { sideIndex: SIDE_BUY, side: "buy", priceType: "Fix" }
+          });
+        }
+      } else {
+        oModel.setProperty("/exposureOriginal", "");
+        oModel.setProperty("/exposureOpen", "");
+        oModel.setProperty("/exposureCommodity", "");
+      }
     },
 
     /* ─── Trade management ─── */
@@ -194,6 +323,8 @@ sap.ui.define([
       var oLeg2 = _emptyLeg("sell");
       Object.assign(oLeg2, tpl.leg2);
       oModel.setProperty(sTradePath + "/leg2", oLeg2);
+
+      this._autoCalcFixingDates(sTradePath);
     },
 
     /* ─── Field change handlers ─── */
@@ -224,18 +355,38 @@ sap.ui.define([
       oModel.setProperty(sPath + "/leg1/side", iIdx === SIDE_BUY ? "sell" : "buy");
     },
 
+    onMonth1Change: function (oEvent) {
+      var sPath = this._getTradePathFromEvent(oEvent);
+      if (sPath) { this._autoCalcFixingDates(sPath); }
+    },
+
+    onYear1Change: function (oEvent) {
+      var sPath = this._getTradePathFromEvent(oEvent);
+      if (sPath) { this._autoCalcFixingDates(sPath); }
+    },
+
+    onMonth2Change: function (oEvent) {
+      var sPath = this._getTradePathFromEvent(oEvent);
+      if (sPath) { this._autoCalcFixingDates(sPath); }
+    },
+
+    onYear2Change: function (oEvent) {
+      var sPath = this._getTradePathFromEvent(oEvent);
+      if (sPath) { this._autoCalcFixingDates(sPath); }
+    },
+
     onPriceType1Change: function (oEvent) {
       var oCtx = oEvent.getSource().getBindingContext("rfqCrt");
       if (!oCtx) { return; }
       var sPath = oCtx.getPath();
       var oModel = this.getViewModel();
       oModel.setProperty(sPath + "/leg1/monthName", "");
-      oModel.setProperty(sPath + "/leg1/year", "");
+      oModel.setProperty(sPath + "/leg1/year", String(new Date().getFullYear()));
       oModel.setProperty(sPath + "/leg1/startDate", "");
       oModel.setProperty(sPath + "/leg1/endDate", "");
       oModel.setProperty(sPath + "/leg1/fixingDate", "");
       oModel.setProperty(sPath + "/leg1/settlementDate", "");
-      oModel.setProperty(sPath + "/leg1/orderType", "");
+      oModel.setProperty(sPath + "/leg1/orderType", "At Market");
       oModel.setProperty(sPath + "/leg1/limitPrice", "");
       this._autoCalcFixingDates(sPath);
     },
@@ -246,12 +397,12 @@ sap.ui.define([
       var sPath = oCtx.getPath();
       var oModel = this.getViewModel();
       oModel.setProperty(sPath + "/leg2/monthName", "");
-      oModel.setProperty(sPath + "/leg2/year", "");
+      oModel.setProperty(sPath + "/leg2/year", String(new Date().getFullYear()));
       oModel.setProperty(sPath + "/leg2/startDate", "");
       oModel.setProperty(sPath + "/leg2/endDate", "");
       oModel.setProperty(sPath + "/leg2/fixingDate", "");
       oModel.setProperty(sPath + "/leg2/settlementDate", "");
-      oModel.setProperty(sPath + "/leg2/orderType", "");
+      oModel.setProperty(sPath + "/leg2/orderType", "At Market");
       oModel.setProperty(sPath + "/leg2/limitPrice", "");
       this._autoCalcFixingDates(sPath);
     },
@@ -341,18 +492,33 @@ sap.ui.define([
       oModel.setProperty("/selectedCount", iCount);
     },
 
-    formatChannelType: function (sType) {
-      return CHANNEL_LABELS[sType] || sType || "—";
-    },
-
     /* ─── Validation ─── */
 
     _validate: function () {
       var oModel = this.getViewModel();
+      var sIntent = oModel.getProperty("/intent");
+
+      // COMMERCIAL_HEDGE requires an order selection
+      if (sIntent === "COMMERCIAL_HEDGE") {
+        var sOrderId = oModel.getProperty("/orderId");
+        if (!sOrderId) {
+          return "Selecione uma ordem (PO/SO) para o hedge comercial.";
+        }
+      }
+
       var sQty = oModel.getProperty("/quantity");
       var fQty = parseFloat(sQty);
       if (!sQty || isNaN(fQty) || fQty <= 0) {
         return "Informe uma quantidade válida (maior que zero).";
+      }
+
+      // Limit quantity to exposure for COMMERCIAL_HEDGE
+      if (sIntent === "COMMERCIAL_HEDGE") {
+        var sOpen = oModel.getProperty("/exposureOpen");
+        var fOpen = parseFloat(sOpen);
+        if (!isNaN(fOpen) && fOpen > 0 && fQty > fOpen) {
+          return "Quantidade (" + fQty + " MT) excede a exposição aberta (" + fOpen + " MT).";
+        }
       }
 
       var aTrades = oModel.getProperty("/trades") || [];
@@ -548,8 +714,87 @@ sap.ui.define([
         MessageBox.warning("Selecione ao menos uma contraparte.");
         return;
       }
-      MessageToast.show("RFQ enviada com sucesso.");
-      this.navToList("rfq");
+      var oPayload = this._buildCreatePayload();
+      var that = this;
+      this.submitData(function () {
+        return rfqService.create(oPayload);
+      }, "RFQ criada com sucesso.").then(function (oData) {
+        if (oData && oData.id) {
+          that.navToDetail("rfqDetail", { rfqId: oData.id });
+        } else {
+          that.navToList("rfq");
+        }
+      });
+    },
+
+    _buildCreatePayload: function () {
+      var oModel = this.getViewModel();
+      var sCommodity = oModel.getProperty("/commodity") || "Aluminium";
+      var sIntent = oModel.getProperty("/intent") || "GLOBAL_POSITION";
+      var fQty = parseFloat(oModel.getProperty("/quantity"));
+      var aTrades = oModel.getProperty("/trades") || [];
+      var oTrade = aTrades[0];
+
+      // Derive direction from first leg side
+      var sDirection = (oTrade.leg1.side || "buy").toUpperCase();
+
+      // Derive delivery window from the first trade's legs
+      var oWindow = this._deriveDeliveryWindow(oTrade);
+
+      // Build invitations from selected counterparties
+      var aCps = (oModel.getProperty("/counterparties") || []).filter(function (c) { return c.selected; });
+      var aInvitations = aCps.map(function (cp) {
+        return { counterparty_id: cp.id };
+      });
+
+      var oPayloadResult = {
+        intent: sIntent,
+        commodity: sCommodity,
+        quantity_mt: fQty,
+        delivery_window_start: oWindow.start,
+        delivery_window_end: oWindow.end,
+        direction: sDirection,
+        invitations: aInvitations
+      };
+
+      // Include order_id for COMMERCIAL_HEDGE
+      if (sIntent === "COMMERCIAL_HEDGE") {
+        var sOrderId = oModel.getProperty("/orderId");
+        if (sOrderId) {
+          oPayloadResult.order_id = sOrderId;
+        }
+      }
+
+      return oPayloadResult;
+    },
+
+    _deriveDeliveryWindow: function (oTrade) {
+      var MONTHS = {
+        January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
+        July: 6, August: 7, September: 8, October: 9, November: 10, December: 11
+      };
+      var legs = [oTrade.leg1, oTrade.leg2];
+      for (var i = 0; i < legs.length; i++) {
+        var oLeg = legs[i];
+        if (!oLeg) { continue; }
+        if (oLeg.priceType === "AVG" && oLeg.monthName && oLeg.year) {
+          var iMonth = MONTHS[oLeg.monthName];
+          if (iMonth !== undefined) {
+            var iYear = parseInt(oLeg.year, 10);
+            var dStart = new Date(iYear, iMonth, 1);
+            var dEnd = new Date(iYear, iMonth + 1, 0);
+            return { start: this._toIso(dStart), end: this._toIso(dEnd) };
+          }
+        }
+        if (oLeg.priceType === "AVGInter" && oLeg.startDate && oLeg.endDate) {
+          return { start: oLeg.startDate, end: oLeg.endDate };
+        }
+      }
+      // Fallback: current month
+      var now = new Date();
+      var dFallbackStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      var dFallbackEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return { start: this._toIso(dFallbackStart), end: this._toIso(dFallbackEnd) };
     },
 
     onCancel: function () {

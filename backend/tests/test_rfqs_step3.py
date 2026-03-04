@@ -5,8 +5,27 @@ from app.models.contracts import HedgeContract
 from app.models.linkages import HedgeOrderLinkage
 
 
+def _create_counterparty(
+    client, name: str = "Counterparty 1", phone: str = "+5511999990001"
+) -> str:
+    """Create a counterparty with whatsapp_phone and return its UUID."""
+    resp = client.post(
+        "/counterparties",
+        json={
+            "type": "broker",
+            "name": name,
+            "country": "BRA",
+            "whatsapp_phone": phone,
+        },
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
 def _create_sales_order(client, quantity_mt: float) -> str:
-    response = client.post("/orders/sales", json={"price_type": "variable", "quantity_mt": quantity_mt})
+    response = client.post(
+        "/orders/sales", json={"price_type": "variable", "quantity_mt": quantity_mt}
+    )
     assert response.status_code == 201
     return response.json()["id"]
 
@@ -36,6 +55,8 @@ def _get_commercial_exposure(client) -> dict:
 
 
 def test_refresh_keeps_state_and_persists_refresh_invitations(client) -> None:
+    cp_id = _create_counterparty(client)
+
     rfq = _create_rfq(
         client,
         {
@@ -46,18 +67,7 @@ def test_refresh_keeps_state_and_persists_refresh_invitations(client) -> None:
             "delivery_window_end": "2026-03-31",
             "direction": "BUY",
             "order_id": None,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
     assert rfq["state"] == "SENT"
@@ -68,7 +78,7 @@ def test_refresh_keeps_state_and_persists_refresh_invitations(client) -> None:
         rfq["id"],
         {
             "rfq_id": rfq["id"],
-            "counterparty_id": "CP1",
+            "counterparty_id": cp_id,
             "fixed_price_value": 100.0,
             "fixed_price_unit": "USD/MT",
             "float_pricing_convention": "avg",
@@ -88,6 +98,7 @@ def test_refresh_keeps_state_and_persists_refresh_invitations(client) -> None:
 def test_reject_closes_rfq_without_exposure_change(client) -> None:
     _create_sales_order(client, 10.0)
     exposure_before = _get_commercial_exposure(client)
+    cp_id = _create_counterparty(client)
 
     rfq = _create_rfq(
         client,
@@ -99,18 +110,7 @@ def test_reject_closes_rfq_without_exposure_change(client) -> None:
             "delivery_window_end": "2026-03-31",
             "direction": "BUY",
             "order_id": None,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
     _create_quote(
@@ -118,7 +118,7 @@ def test_reject_closes_rfq_without_exposure_change(client) -> None:
         rfq["id"],
         {
             "rfq_id": rfq["id"],
-            "counterparty_id": "CP1",
+            "counterparty_id": cp_id,
             "fixed_price_value": 100.0,
             "fixed_price_unit": "USD/MT",
             "float_pricing_convention": "avg",
@@ -138,6 +138,7 @@ def test_reject_closes_rfq_without_exposure_change(client) -> None:
 
 def test_award_creates_contract_and_reduces_exposure_via_linkage(client) -> None:
     order_id = _create_sales_order(client, 10.0)
+    cp_id = _create_counterparty(client)
 
     rfq = _create_rfq(
         client,
@@ -149,18 +150,7 @@ def test_award_creates_contract_and_reduces_exposure_via_linkage(client) -> None
             "delivery_window_end": "2026-03-31",
             "direction": "SELL",
             "order_id": order_id,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
     _create_quote(
@@ -168,7 +158,7 @@ def test_award_creates_contract_and_reduces_exposure_via_linkage(client) -> None
         rfq["id"],
         {
             "rfq_id": rfq["id"],
-            "counterparty_id": "CP1",
+            "counterparty_id": cp_id,
             "fixed_price_value": 100.0,
             "fixed_price_unit": "USD/MT",
             "float_pricing_convention": "avg",
@@ -192,6 +182,8 @@ def test_award_creates_contract_and_reduces_exposure_via_linkage(client) -> None
 
 
 def test_award_spread_creates_two_contracts(client) -> None:
+    cp_id = _create_counterparty(client)
+
     buy_trade = _create_rfq(
         client,
         {
@@ -202,18 +194,7 @@ def test_award_spread_creates_two_contracts(client) -> None:
             "delivery_window_end": "2026-03-31",
             "direction": "BUY",
             "order_id": None,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
     sell_trade = _create_rfq(
@@ -226,18 +207,7 @@ def test_award_spread_creates_two_contracts(client) -> None:
             "delivery_window_end": "2026-03-31",
             "direction": "SELL",
             "order_id": None,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-2",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-2",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
     spread = _create_rfq(
@@ -252,18 +222,7 @@ def test_award_spread_creates_two_contracts(client) -> None:
             "order_id": None,
             "buy_trade_id": buy_trade["id"],
             "sell_trade_id": sell_trade["id"],
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "SPREAD RFQ request",
-                    "provider_message_id": "msg-3",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-3",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
 
@@ -273,7 +232,7 @@ def test_award_spread_creates_two_contracts(client) -> None:
         buy_trade["id"],
         {
             "rfq_id": buy_trade["id"],
-            "counterparty_id": "CP1",
+            "counterparty_id": cp_id,
             "fixed_price_value": 100.0,
             "fixed_price_unit": "USD/MT",
             "float_pricing_convention": "avg",
@@ -285,7 +244,7 @@ def test_award_spread_creates_two_contracts(client) -> None:
         sell_trade["id"],
         {
             "rfq_id": sell_trade["id"],
-            "counterparty_id": "CP1",
+            "counterparty_id": cp_id,
             "fixed_price_value": 110.0,
             "fixed_price_unit": "USD/MT",
             "float_pricing_convention": "avg",

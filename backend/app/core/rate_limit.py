@@ -8,6 +8,19 @@ Limits are configurable via environment variables:
 
 Each value follows the slowapi/limits format: "<count>/<period>"
 Examples: "10/minute", "100/hour", "5/second"
+
+NOTE: The default storage backend is **in-memory** (per-process).  When running
+behind Gunicorn/Uvicorn with multiple workers each worker maintains its own
+counter, so the effective limit is multiplied by the number of workers.
+For production deployments with >1 worker, switch to a shared backend:
+
+    from slowapi import Limiter
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri="redis://localhost:6379/0",
+    )
+
+See: https://limits.readthedocs.io/en/stable/storage.html
 """
 
 import os

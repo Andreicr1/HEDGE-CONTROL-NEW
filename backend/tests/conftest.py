@@ -59,3 +59,61 @@ def session():
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture(autouse=True)
+def _clear_webhook_dedup():
+    """Clear webhook processor dedup state between tests.
+
+    The module-level ``_seen_set`` and ``_seen_message_ids`` in
+    ``webhook_processor`` persist across tests, causing false
+    ``webhook_duplicate_skipped`` when tests reuse message IDs
+    like ``wamid.test123``.
+    """
+    from app.services.webhook_processor import (
+        _message_queue,
+        _seen_message_ids,
+        _seen_set,
+    )
+
+    _seen_set.clear()
+    _seen_message_ids.clear()
+    _message_queue.clear()
+    yield
+    _seen_set.clear()
+    _seen_message_ids.clear()
+    _message_queue.clear()
+
+
+@pytest.fixture(autouse=True)
+def mock_whatsapp(request):
+    """Mock WhatsApp service to always succeed in tests.
+
+    Without this, WhatsApp sends fail (no access token) and RFQs
+    stay in CREATED instead of transitioning to SENT.
+
+    Tests that need the real WhatsApp service (e.g. unit tests for
+    WhatsAppService itself) can opt out with:
+        @pytest.mark.no_mock_whatsapp
+    """
+    if "no_mock_whatsapp" in {m.name for m in request.node.iter_markers()}:
+        yield
+        return
+
+    from unittest.mock import patch
+    from app.schemas.whatsapp import WhatsAppSendResult
+
+    def _mock_send(phone: str, text: str) -> WhatsAppSendResult:
+        return WhatsAppSendResult(
+            success=True,
+            provider_message_id=f"mock-{phone}",
+        )
+
+    with patch.object(
+        __import__(
+            "app.services.whatsapp_service", fromlist=["WhatsAppService"]
+        ).WhatsAppService,
+        "send_text_message",
+        staticmethod(_mock_send),
+    ):
+        yield

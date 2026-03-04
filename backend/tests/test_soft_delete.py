@@ -1,7 +1,5 @@
 """Tests for soft-delete (archived) behavior on orders, contracts, and RFQs."""
 
-from datetime import datetime, timezone
-
 from fastapi.testclient import TestClient
 
 
@@ -30,7 +28,22 @@ def _create_hedge_contract(client: TestClient) -> dict:
     return resp.json()
 
 
-def _create_rfq(client: TestClient, order_id: str) -> dict:
+def _create_counterparty(client: TestClient) -> str:
+    """Create a counterparty and return its UUID."""
+    resp = client.post(
+        "/counterparties",
+        json={
+            "type": "broker",
+            "name": "Test CP SoftDelete",
+            "country": "BRA",
+            "whatsapp_phone": "+5511999990000",
+        },
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+def _create_rfq(client: TestClient, order_id: str, cp_id: str) -> dict:
     resp = client.post(
         "/rfqs",
         json={
@@ -41,18 +54,7 @@ def _create_rfq(client: TestClient, order_id: str) -> dict:
             "delivery_window_end": "2026-03-31",
             "direction": "SELL",
             "order_id": order_id,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty 1",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
     assert resp.status_code == 201
@@ -151,14 +153,16 @@ class TestRFQSoftDelete:
 
     def test_archive_rfq_sets_deleted_at(self, client: TestClient):
         order = self._create_variable_order(client)
-        rfq = _create_rfq(client, order["id"])
+        cp_id = _create_counterparty(client)
+        rfq = _create_rfq(client, order["id"], cp_id)
         resp = client.patch(f"/rfqs/{rfq['id']}/archive")
         assert resp.status_code == 200
         assert resp.json()["deleted_at"] is not None
 
     def test_archived_rfq_excluded_from_list(self, client: TestClient):
         order = self._create_variable_order(client)
-        rfq = _create_rfq(client, order["id"])
+        cp_id = _create_counterparty(client)
+        rfq = _create_rfq(client, order["id"], cp_id)
         client.patch(f"/rfqs/{rfq['id']}/archive")
         resp = client.get("/rfqs")
         assert resp.status_code == 200
@@ -167,7 +171,8 @@ class TestRFQSoftDelete:
 
     def test_include_deleted_shows_archived_rfq(self, client: TestClient):
         order = self._create_variable_order(client)
-        rfq = _create_rfq(client, order["id"])
+        cp_id = _create_counterparty(client)
+        rfq = _create_rfq(client, order["id"], cp_id)
         client.patch(f"/rfqs/{rfq['id']}/archive")
         resp = client.get("/rfqs?include_deleted=true")
         assert resp.status_code == 200
@@ -176,7 +181,8 @@ class TestRFQSoftDelete:
 
     def test_archive_already_archived_returns_409(self, client: TestClient):
         order = self._create_variable_order(client)
-        rfq = _create_rfq(client, order["id"])
+        cp_id = _create_counterparty(client)
+        rfq = _create_rfq(client, order["id"], cp_id)
         client.patch(f"/rfqs/{rfq['id']}/archive")
         resp = client.patch(f"/rfqs/{rfq['id']}/archive")
         assert resp.status_code == 409

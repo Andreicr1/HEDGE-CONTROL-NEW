@@ -6,8 +6,10 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.auth import get_auth_settings
 from app.core.database import engine
@@ -25,7 +27,6 @@ from app.api.routes import (
     deals,
     exposures,
     finance_pipeline,
-    hedges,
     linkages,
     mtm,
     orders,
@@ -49,11 +50,86 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Hedge Control Platform",
-    version=os.getenv("APP_VERSION", "0.8.0"),
+    version=os.getenv("APP_VERSION", "1.0.0"),
     lifespan=lifespan,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+
+class _StripApiPrefixMiddleware:
+    """Raw ASGI middleware that strips the ``/api`` prefix from the request
+    path.  Azure Static Web Apps Linked Backend forwards ``/api/*`` to the
+    App Service *with the prefix intact*.  This middleware normalises the path
+    so that existing routes (``/orders``, ``/contracts``, …) continue to work
+    whether the request arrives via the SWA proxy or directly."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            path: str = scope.get("path", "/")
+            if path == "/api" or path == "/api/":
+                scope = dict(scope, path="/")
+            elif path.startswith("/api/"):
+                scope = dict(scope, path=path[4:])  # strip leading "/api"
+        await self.app(scope, receive, send)
+
+
+class _StripTrailingSlashMiddleware:
+    """Raw ASGI middleware that strips trailing slashes from request paths
+    before they reach the router.  This prevents 307 redirect loops when a
+    reverse-proxy (e.g. fiori-tools-proxy) appends a trailing slash to
+    forwarded requests."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            path: str = scope.get("path", "/")
+            if path != "/" and path.endswith("/"):
+                scope = dict(scope, path=path.rstrip("/"))
+        await self.app(scope, receive, send)
+
+
+class _CatchAllMiddleware:
+    """Raw ASGI middleware that catches unhandled exceptions and returns a JSON
+    500 response.  Registered *before* CORSMiddleware so that in the built
+    middleware stack it runs *inside* CORS, ensuring error responses still
+    receive the correct Access-Control-Allow-Origin header."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        try:
+            await self.app(scope, receive, send)
+        except Exception as exc:
+            logger.error(
+                "unhandled_exception",
+                path=scope.get("path", ""),
+                error=str(exc),
+            )
+            response = JSONResponse(
+                status_code=500,
+                content={"detail": "Internal Server Error"},
+            )
+            await response(scope, receive, send)
+
+
+# Order matters: add_middleware uses insert(0, ...) so the LAST added
+# middleware becomes the outermost.  We want CORSMiddleware outermost
+# and _CatchAllMiddleware inside it to guarantee CORS headers on errors.
+# Execution order (from outermost to innermost):
+#   CORS → CatchAll → StripApiPrefix → StripTrailingSlash → Router
+app.add_middleware(_StripTrailingSlashMiddleware)
+app.add_middleware(_StripApiPrefixMiddleware)
+app.add_middleware(_CatchAllMiddleware)
 
 cors_allow_origins_raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
 if cors_allow_origins_raw:
@@ -64,6 +140,8 @@ else:
     cors_allow_origins = [
         "http://localhost:5173",
         "http://localhost:8080",
+        "http://localhost:8081",
+        "http://localhost:8082",
         "https://happy-sand-0b5701c0f.1.azurestaticapps.net",
     ]
 
@@ -134,7 +212,6 @@ app.include_router(
 )
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
 app.include_router(exposures.router, prefix="/exposures", tags=["Exposures"])
-app.include_router(hedges.router, prefix="/hedges", tags=["Hedges"])
 app.include_router(deals.router, prefix="/deals", tags=["Deals"])
 app.include_router(contracts.router, prefix="/contracts", tags=["Contracts"])
 app.include_router(linkages.router, prefix="/linkages", tags=["Linkages"])

@@ -1,14 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
-from app.core.pagination import paginate
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
-from app.models.linkages import HedgeOrderLinkage
 from app.schemas.linkages import (
     HedgeOrderLinkageCreate,
     HedgeOrderLinkageListResponse,
@@ -28,15 +26,10 @@ def list_linkages(
     _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> HedgeOrderLinkageListResponse:
-    query = session.query(HedgeOrderLinkage)
-    if order_id:
-        query = query.filter(HedgeOrderLinkage.order_id == order_id)
-    if contract_id:
-        query = query.filter(HedgeOrderLinkage.contract_id == contract_id)
-    items, next_cursor = paginate(
-        query,
-        created_at_col=HedgeOrderLinkage.created_at,
-        id_col=HedgeOrderLinkage.id,
+    items, next_cursor = LinkageService.list_linkages(
+        session,
+        order_id=order_id,
+        contract_id=contract_id,
         cursor=cursor,
         limit=limit,
     )
@@ -65,8 +58,6 @@ def create_linkage(
     linkage = LinkageService.create(
         session, payload.order_id, payload.contract_id, payload.quantity_mt
     )
-    session.commit()
-    session.refresh(linkage)
     mark_audit_success(request, linkage.id)
     request.state.audit_commit()
     return HedgeOrderLinkageRead.model_validate(linkage)
@@ -76,9 +67,5 @@ def create_linkage(
 def get_linkage(
     linkage_id: UUID, session: Session = Depends(get_session)
 ) -> HedgeOrderLinkageRead:
-    linkage = session.get(HedgeOrderLinkage, linkage_id)
-    if not linkage:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Linkage not found"
-        )
+    linkage = LinkageService.get_by_id(session, linkage_id)
     return HedgeOrderLinkageRead.model_validate(linkage)

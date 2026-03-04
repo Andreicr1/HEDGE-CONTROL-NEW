@@ -8,7 +8,6 @@ from app.core.auth import require_role
 from app.core.database import get_session
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
-from app.models.cashflow import CashFlowLedgerEntry
 from app.schemas.cashflow import (
     CashFlowLedgerEntryRead,
     HedgeContractSettlementCreate,
@@ -17,6 +16,8 @@ from app.schemas.cashflow import (
 from app.services.cashflow_ledger_service import (
     SOURCE_EVENT_TYPE,
     ingest_hedge_contract_settlement,
+    list_entries_by_contract,
+    list_entries_by_event,
 )
 
 
@@ -65,16 +66,9 @@ def list_ledger_entries_for_contract(
     end: date | None = Query(None),
     session: Session = Depends(get_session),
 ) -> list[CashFlowLedgerEntryRead]:
-    query = session.query(CashFlowLedgerEntry).filter(
-        CashFlowLedgerEntry.hedge_contract_id == contract_id
+    entries = list_entries_by_contract(
+        session, contract_id=contract_id, start=start, end=end
     )
-    if start is not None:
-        query = query.filter(CashFlowLedgerEntry.cashflow_date >= start)
-    if end is not None:
-        query = query.filter(CashFlowLedgerEntry.cashflow_date <= end)
-    entries = query.order_by(
-        CashFlowLedgerEntry.cashflow_date.asc(), CashFlowLedgerEntry.created_at.asc()
-    ).all()
     return [CashFlowLedgerEntryRead.model_validate(entry) for entry in entries]
 
 
@@ -89,13 +83,9 @@ def list_ledger_entries_by_event(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Unsupported source_event_type",
         )
-    entries = (
-        session.query(CashFlowLedgerEntry)
-        .filter(
-            CashFlowLedgerEntry.source_event_type == source_event_type,
-            CashFlowLedgerEntry.source_event_id == source_event_id,
-        )
-        .order_by(CashFlowLedgerEntry.leg_id.asc())
-        .all()
+    entries = list_entries_by_event(
+        session,
+        source_event_id=source_event_id,
+        source_event_type=source_event_type,
     )
     return [CashFlowLedgerEntryRead.model_validate(entry) for entry in entries]

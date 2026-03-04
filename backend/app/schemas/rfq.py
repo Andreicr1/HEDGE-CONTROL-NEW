@@ -25,12 +25,7 @@ class RFQState(str, Enum):
 
 
 class RFQInvitationChannel(str, Enum):
-    email = "email"
-    api = "api"
     whatsapp = "whatsapp"
-    bank = "bank"
-    broker = "broker"
-    other = "other"
 
 
 class RFQInvitationStatus(str, Enum):
@@ -40,28 +35,26 @@ class RFQInvitationStatus(str, Enum):
 
 
 class RFQInvitationCreate(BaseModel):
-    recipient_id: str = Field(..., description="Recipient identifier", max_length=100)
-    recipient_name: str = Field(..., description="Recipient name", max_length=200)
-    channel: RFQInvitationChannel
-    message_body: str = Field(
-        ..., description="Exact message body sent", max_length=4000
-    )
-    provider_message_id: str = Field(
-        ..., description="Provider message id", max_length=128
-    )
-    send_status: RFQInvitationStatus
-    sent_at: datetime
-    idempotency_key: str = Field(
-        ..., description="Idempotency key for send", max_length=128
+    counterparty_id: UUID = Field(
+        ..., description="Counterparty UUID — phone is looked up from DB"
     )
 
 
-class RFQInvitationRead(RFQInvitationCreate):
+class RFQInvitationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     rfq_id: UUID
     rfq_number: str = Field(..., max_length=32)
+    counterparty_id: UUID
+    recipient_name: str
+    recipient_phone: str
+    channel: RFQInvitationChannel
+    message_body: str
+    provider_message_id: str
+    send_status: RFQInvitationStatus
+    sent_at: datetime | None = None
+    idempotency_key: str
     created_at: datetime
 
 
@@ -188,6 +181,24 @@ class RFQAwardRequest(RFQUserActionBase):
     pass
 
 
+class RFQAwardQuoteRequest(RFQUserActionBase):
+    """Award a specific quote (per-counterparty contract creation)."""
+
+    quote_id: UUID
+
+
+class RFQRejectQuoteRequest(RFQUserActionBase):
+    """Reject a specific counterparty quote without closing the RFQ."""
+
+    pass
+
+
+class RFQRefreshCounterpartyRequest(RFQUserActionBase):
+    """Re-send invitation to a specific counterparty."""
+
+    counterparty_id: str = Field(..., max_length=100)
+
+
 class RFQRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -213,6 +224,29 @@ class RFQRead(BaseModel):
     invitations: list[RFQInvitationRead] = Field(default_factory=list)
 
 
+class RFQStateEventRead(BaseModel):
+    """Read schema for RFQ state transition events (timeline)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    rfq_id: UUID
+    from_state: RFQState | None = None
+    to_state: RFQState
+    trigger: str | None = None
+    triggering_quote_id: UUID | None = None
+    triggering_counterparty_id: str | None = None
+    event_timestamp: datetime | None = None
+    user_id: str | None = None
+    reason: str | None = None
+    ranking_snapshot: str | None = None
+    winning_quote_ids: str | None = None
+    winning_counterparty_ids: str | None = None
+    award_timestamp: datetime | None = None
+    created_contract_ids: str | None = None
+    created_at: datetime
+
+
 class RFQListResponse(BaseModel):
     items: list[RFQRead]
     next_cursor: str | None = Field(None, max_length=256)
@@ -221,6 +255,7 @@ class RFQListResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # Preview-text (RFQ engine integration)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class RFQPriceTypeEnum(str, Enum):
     avg = "AVG"
@@ -270,6 +305,7 @@ class RFQLegInput(BaseModel):
 
 class RFQTextPreviewRequest(BaseModel):
     """Request body for the RFQ text preview endpoint."""
+
     trade_type: RFQTradeTypeEnum
     leg1: RFQLegInput
     leg2: RFQLegInput | None = None
@@ -281,9 +317,10 @@ class RFQTextPreviewRequest(BaseModel):
 
 class RFQTextPreviewResponse(BaseModel):
     """Response from the RFQ text preview endpoint."""
+
     text: str
-    text_en: str = ""
-    text_pt: str = ""
+    text_en: str | None = None
+    text_pt: str | None = None
     leg1_ppt: date | None = None
     leg2_ppt: date | None = None
     trade_ppt: date | None = None

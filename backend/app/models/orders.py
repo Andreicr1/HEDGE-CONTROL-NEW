@@ -65,6 +65,23 @@ class Order(Base):
     )
     avg_entry_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
+    # --- Counterparty (free text) ---
+    counterparty_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    # --- Variable pricing detail ---
+    reference_month: Mapped[str | None] = mapped_column(
+        String(7), nullable=True
+    )  # yyyy-MM for AVG
+    observation_date_start: Mapped[datetime | None] = mapped_column(
+        Date, nullable=True
+    )  # AVGInter start
+    observation_date_end: Mapped[datetime | None] = mapped_column(
+        Date, nullable=True
+    )  # AVGInter end
+    fixing_date: Mapped[datetime | None] = mapped_column(
+        Date, nullable=True
+    )  # C2R fixing date
+
     # --- New fields (1.2 enrichment) ---
     counterparty_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),

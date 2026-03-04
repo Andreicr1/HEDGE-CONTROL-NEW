@@ -6,6 +6,7 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/azure-static-web-apps-mango-cliff-077560a10.yml"
+      - ".github/workflows/swa-deploy.yml"
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches: [main]
@@ -41,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          API_BASE_URL="${HC_API_BASE_URL:-https://alcast-hedge-api.azurewebsites.net}"
+          API_BASE_URL="${HC_API_BASE_URL:-/api}"
           python3 - <<'PY'
           import os
           from pathlib import Path
@@ -55,8 +56,8 @@ jobs:
           print(f"Configured apiBaseUrl={api_base_url}")
           PY
         env:
-          HC_API_BASE_URL: ${{ secrets.HC_API_BASE_URL || vars.HC_API_BASE_URL || 'https://alcast-hedge-api.azurewebsites.net' }}
-          API_BASE_URL: ${{ secrets.HC_API_BASE_URL || vars.HC_API_BASE_URL || 'https://alcast-hedge-api.azurewebsites.net' }}
+          HC_API_BASE_URL: ${{ secrets.HC_API_BASE_URL || vars.HC_API_BASE_URL || '/api' }}
+          API_BASE_URL: ${{ secrets.HC_API_BASE_URL || vars.HC_API_BASE_URL || '/api' }}
 
       - name: Build And Deploy
         id: builddeploy

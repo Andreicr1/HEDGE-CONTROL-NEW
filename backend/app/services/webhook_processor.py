@@ -1,13 +1,17 @@
 """Webhook processor — parses and enqueues inbound WhatsApp messages.
 
 The processor:
-1. Validates the HMAC-SHA256 signature from Meta.
+1. Validates the signature from the webhook provider (Meta HMAC or Twilio).
 2. Extracts individual messages from the webhook payload.
 3. Enqueues them as ``WhatsAppInboundMessage`` objects for downstream
    consumers (LLM Agent, RFQ Orchestrator).
 
-The queue is an in-process :class:`asyncio.Queue` for now; it can be swapped
-for a durable message broker (Service Bus, Redis Streams) when needed.
+Supports two inbound providers:
+- **Meta Cloud API** — HMAC-SHA256 via ``X-Hub-Signature-256``
+- **Twilio**         — Request signature via ``X-Twilio-Signature``
+
+The queue is an in-process :class:`collections.deque` for now; it can be
+swapped for a durable message broker (Service Bus, Redis Streams) when needed.
 """
 
 from __future__ import annotations
@@ -15,9 +19,11 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+from base64 import b64encode
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlencode
 
 from app.core.logging import get_logger
 from app.schemas.whatsapp import WhatsAppInboundMessage
@@ -171,5 +177,107 @@ def extract_messages(payload: dict[str, Any]) -> list[WhatsAppInboundMessage]:
                         sender_name=contacts.get(from_phone),
                     )
                 )
+
+    return messages
+
+
+# ---------------------------------------------------------------------------
+# Twilio signature verification
+# ---------------------------------------------------------------------------
+
+
+def verify_twilio_signature(
+    url: str,
+    form_params: dict[str, str],
+    signature_header: str,
+) -> bool:
+    """Validate the ``X-Twilio-Signature`` header.
+
+    Twilio signs requests using HMAC-SHA1 of the full callback URL
+    concatenated with all POST parameter key-value pairs sorted by key.
+
+    Parameters
+    ----------
+    url:
+        The full webhook URL as configured in Twilio (including https://).
+    form_params:
+        Dict of all POST form parameters received.
+    signature_header:
+        Value of the ``X-Twilio-Signature`` header.
+
+    Returns
+    -------
+    bool
+        ``True`` if the HMAC matches.
+    """
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "")
+    if not auth_token:
+        logger.warning("twilio_auth_token_missing")
+        return False
+
+    if not signature_header:
+        return False
+
+    # Build the data string: URL + sorted key-value pairs
+    data_str = url
+    for key in sorted(form_params.keys()):
+        data_str += key + form_params[key]
+
+    computed = b64encode(
+        hmac.new(
+            auth_token.encode("utf-8"),
+            data_str.encode("utf-8"),
+            hashlib.sha1,
+        ).digest()
+    ).decode("utf-8")
+
+    return hmac.compare_digest(computed, signature_header)
+
+
+# ---------------------------------------------------------------------------
+# Twilio payload extraction
+# ---------------------------------------------------------------------------
+
+
+def extract_messages_twilio(
+    form_params: dict[str, str],
+) -> list[WhatsAppInboundMessage]:
+    """Extract a message from a Twilio webhook POST (form-encoded).
+
+    Twilio sends one message per webhook callback with form parameters::
+
+        MessageSid=SM...
+        From=whatsapp:+5511999990001
+        To=whatsapp:+14155238886
+        Body=Hello world
+        ProfileName=John Doe
+        ...
+
+    Only WhatsApp messages with a non-empty ``Body`` are processed.
+    """
+    messages: list[WhatsAppInboundMessage] = []
+
+    message_sid = form_params.get("MessageSid", "")
+    from_raw = form_params.get("From", "")
+    body = form_params.get("Body", "")
+    profile_name = form_params.get("ProfileName")
+
+    if not message_sid or not body:
+        return messages
+
+    # Strip "whatsapp:" prefix from the phone number
+    from_phone = from_raw
+    if from_phone.startswith("whatsapp:"):
+        from_phone = from_phone[len("whatsapp:"):]
+
+    messages.append(
+        WhatsAppInboundMessage(
+            message_id=message_sid,
+            from_phone=from_phone,
+            timestamp=datetime.now(timezone.utc),
+            text=body,
+            sender_name=profile_name,
+        )
+    )
 
     return messages

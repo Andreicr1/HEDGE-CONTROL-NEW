@@ -53,7 +53,7 @@ class RFQOrchestrator:
     def dispatch_whatsapp_invitations(session: Session, rfq_id: UUID) -> dict[str, str]:
         """Send WhatsApp messages for all pending whatsapp invitations.
 
-        Returns a dict mapping ``recipient_id → send_status``.
+        Returns a dict mapping ``recipient_phone → send_status``.
         """
         invitations = (
             session.query(RFQInvitation)
@@ -68,7 +68,7 @@ class RFQOrchestrator:
         results: dict[str, str] = {}
         for inv in invitations:
             result = WhatsAppService.send_text_message(
-                phone=inv.recipient_id,
+                phone=inv.recipient_phone,
                 text=inv.message_body,
             )
             if result.success:
@@ -76,16 +76,16 @@ class RFQOrchestrator:
                 inv.provider_message_id = (
                     result.provider_message_id or inv.provider_message_id
                 )
-                results[inv.recipient_id] = "sent"
+                results[inv.recipient_phone] = "sent"
             else:
                 inv.send_status = RFQInvitationStatus.failed
-                results[inv.recipient_id] = "failed"
+                results[inv.recipient_phone] = "failed"
 
             logger.info(
                 "orchestrator_whatsapp_dispatch",
                 rfq_id=str(rfq_id),
-                recipient=inv.recipient_id,
-                status=results[inv.recipient_id],
+                recipient=inv.recipient_phone,
+                status=results[inv.recipient_phone],
             )
 
         session.flush()
@@ -125,11 +125,11 @@ class RFQOrchestrator:
         msg: WhatsAppInboundMessage,
     ) -> dict:
         """Process one inbound WhatsApp message."""
-        # Find the RFQ by matching sender phone to invitation recipient_id
+        # Find the RFQ by matching sender phone to invitation recipient_phone
         invitation = (
             session.query(RFQInvitation)
             .filter(
-                RFQInvitation.recipient_id == msg.from_phone,
+                RFQInvitation.recipient_phone == msg.from_phone,
                 RFQInvitation.channel == RFQInvitationChannel.whatsapp,
             )
             .order_by(RFQInvitation.created_at.desc())
@@ -206,27 +206,27 @@ class RFQOrchestrator:
             logger.info(
                 "orchestrator_counterparty_declined",
                 rfq_id=str(rfq.id),
-                counterparty=invitation.recipient_id,
+                counterparty=str(invitation.counterparty_id),
             )
             return {
                 "message_id": msg.message_id,
                 "status": "counterparty_declined",
                 "rfq_id": str(rfq.id),
-                "counterparty": invitation.recipient_id,
+                "counterparty": str(invitation.counterparty_id),
             }
 
         if parsed.intent == MessageIntent.question:
             logger.info(
                 "orchestrator_counterparty_question",
                 rfq_id=str(rfq.id),
-                counterparty=invitation.recipient_id,
+                counterparty=str(invitation.counterparty_id),
                 text=msg.text[:200],
             )
             return {
                 "message_id": msg.message_id,
                 "status": "counterparty_question",
                 "rfq_id": str(rfq.id),
-                "counterparty": invitation.recipient_id,
+                "counterparty": str(invitation.counterparty_id),
                 "text": msg.text,
             }
 
@@ -260,7 +260,7 @@ class RFQOrchestrator:
 
         quote_payload = RFQQuoteCreate(
             rfq_id=rfq.id,
-            counterparty_id=invitation.recipient_id,
+            counterparty_id=str(invitation.counterparty_id),
             fixed_price_value=float(price_value or 0),
             fixed_price_unit=parsed.fixed_price_unit or "USD/MT",
             float_pricing_convention=float_conv,
@@ -274,7 +274,7 @@ class RFQOrchestrator:
                 "orchestrator_auto_quote_created",
                 rfq_id=str(rfq.id),
                 quote_id=str(quote.id),
-                counterparty=invitation.recipient_id,
+                counterparty=str(invitation.counterparty_id),
                 price=float(parsed.fixed_price_value or 0),
             )
             return {
@@ -311,11 +311,22 @@ class RFQOrchestrator:
         language: str = "pt_BR",
     ) -> None:
         """Send WhatsApp award notification to the winning counterparty."""
+        from uuid import UUID as _UUID
+
+        try:
+            cp_uuid = _UUID(winning_counterparty_id)
+        except (ValueError, AttributeError):
+            logger.warning(
+                "orchestrator_invalid_counterparty_id",
+                winning_counterparty_id=winning_counterparty_id,
+            )
+            return
+
         invitation = (
             session.query(RFQInvitation)
             .filter(
                 RFQInvitation.rfq_id == rfq.id,
-                RFQInvitation.recipient_id == winning_counterparty_id,
+                RFQInvitation.counterparty_id == cp_uuid,
                 RFQInvitation.channel == RFQInvitationChannel.whatsapp,
             )
             .first()
@@ -333,7 +344,7 @@ class RFQOrchestrator:
             unit=unit,
         )
         WhatsAppService.send_text_message(
-            phone=invitation.recipient_id,
+            phone=invitation.recipient_phone,
             text=message,
         )
 
@@ -353,10 +364,10 @@ class RFQOrchestrator:
             .all()
         )
 
-        # Deduplicate by recipient_id (keep latest)
+        # Deduplicate by recipient_phone (keep latest)
         seen: dict[str, RFQInvitation] = {}
         for inv in invitations:
-            seen[inv.recipient_id] = inv
+            seen[inv.recipient_phone] = inv
 
         for inv in seen.values():
             message = LLMAgent.generate_outbound_message(
@@ -365,7 +376,7 @@ class RFQOrchestrator:
                 recipient_name=inv.recipient_name,
                 rfq_number=rfq.rfq_number,
             )
-            WhatsAppService.send_text_message(phone=inv.recipient_id, text=message)
+            WhatsAppService.send_text_message(phone=inv.recipient_phone, text=message)
 
     # ------------------------------------------------------------------
     # 4. Check timeouts — called by the scheduled task
@@ -399,13 +410,15 @@ class RFQOrchestrator:
         flagged: list[dict] = []
         for rfq in stale_rfqs:
             latest_quotes = RFQService.get_latest_trade_quotes(session, rfq.id)
-            flagged.append({
-                "rfq_id": str(rfq.id),
-                "rfq_number": rfq.rfq_number,
-                "quotes_count": len(latest_quotes),
-                "has_quotes": bool(latest_quotes),
-                "hours_elapsed": timeout_hours,
-            })
+            flagged.append(
+                {
+                    "rfq_id": str(rfq.id),
+                    "rfq_number": rfq.rfq_number,
+                    "quotes_count": len(latest_quotes),
+                    "has_quotes": bool(latest_quotes),
+                    "hours_elapsed": timeout_hours,
+                }
+            )
 
         if flagged:
             logger.warning(
@@ -449,22 +462,26 @@ class RFQOrchestrator:
             if not invitations:
                 continue
 
-            unique_recipients = {inv.recipient_id for inv in invitations}
+            unique_recipients = {inv.recipient_phone for inv in invitations}
             quotes = RFQService.get_latest_trade_quotes(session, rfq.id)
             responded = set(quotes.keys())
-            response_rate = len(responded) / len(unique_recipients) if unique_recipients else 0
+            response_rate = (
+                len(responded) / len(unique_recipients) if unique_recipients else 0
+            )
 
             if response_rate >= min_response_rate:
                 continue
 
-            flagged.append({
-                "rfq_id": str(rfq.id),
-                "rfq_number": rfq.rfq_number,
-                "total_recipients": len(unique_recipients),
-                "responded": len(responded),
-                "response_rate": round(response_rate, 2),
-                "non_responders": len(unique_recipients - responded),
-            })
+            flagged.append(
+                {
+                    "rfq_id": str(rfq.id),
+                    "rfq_number": rfq.rfq_number,
+                    "total_recipients": len(unique_recipients),
+                    "responded": len(responded),
+                    "response_rate": round(response_rate, 2),
+                    "non_responders": len(unique_recipients - responded),
+                }
+            )
 
         if flagged:
             logger.info(

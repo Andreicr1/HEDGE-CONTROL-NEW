@@ -40,6 +40,12 @@
   word-break: break-all;
 }
 
+/* ── Counterparties: bigger name ── */
+.counterpartiesList .sapMObjLTitle {
+  font-size: 1.125rem !important;
+  font-weight: 600;
+}
+
 /* ── Responsive padding ── */
 .sapUiResponsiveContentPadding {
   padding: var(--sapContent_Space_S);

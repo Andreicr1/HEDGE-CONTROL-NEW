@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,7 +24,7 @@ class CashSettlementIngestResponse(BaseModel):
 class CashSettlementPriceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str = Field(..., max_length=64)
+    id: UUID
     source: str = Field(..., max_length=64)
     symbol: str = Field(..., max_length=64)
     settlement_date: date

@@ -53,6 +53,10 @@ class JWKSCache:
 
     @staticmethod
     def _fetch_jwks(jwks_url: str) -> dict[str, Any]:
+        # NOTE: This is a synchronous HTTP call, but all routes using
+        # get_current_user are sync def, so FastAPI runs them in a thread
+        # pool — the event loop is NOT blocked. The TTL cache further
+        # limits the frequency of actual HTTP requests.
         try:
             response = httpx.get(jwks_url, timeout=5.0)
             response.raise_for_status()
@@ -70,10 +74,16 @@ _jwks_cache = JWKSCache()
 def _extract_token(request: Request) -> str:
     auth_header = request.headers.get("Authorization")
     if not auth_header:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization header",
+        )
     parts = auth_header.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Authorization header",
+        )
     return parts[1]
 
 
@@ -82,13 +92,15 @@ def _select_jwk(jwks: dict[str, Any], kid: str | None) -> dict[str, Any]:
     for key in keys:
         if kid is None or key.get("kid") == kid:
             return key
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token key")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token key"
+    )
 
 
 _ANONYMOUS_USER: dict[str, Any] = {
     "sub": "anonymous",
     "name": "Anonymous (auth disabled)",
-    "roles": ["admin", "trader", "viewer"],
+    "roles": ["trader", "risk_manager", "auditor"],
 }
 
 
@@ -103,7 +115,9 @@ def get_current_user(
     try:
         header = jwt.get_unverified_header(token)
     except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from exc
 
     jwks = _jwks_cache.get(settings)
     jwk = _select_jwk(jwks, header.get("kid"))
@@ -117,7 +131,9 @@ def get_current_user(
             issuer=settings.issuer,
         )
     except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from exc
 
     return payload
 
@@ -132,6 +148,8 @@ def require_any_role(*roles: str):
             return
         user_roles = set(user.get("roles") or [])
         if not user_roles.intersection(set(roles)):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
+            )
 
     return _dependency

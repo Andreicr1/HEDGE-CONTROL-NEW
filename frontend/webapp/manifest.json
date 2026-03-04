@@ -3,7 +3,11 @@
     "sap.app": {
         "id": "hedgecontrol",
         "type": "application",
-        "i18n": "i18n/i18n.properties",
+        "i18n": {
+            "bundleUrl": "i18n/i18n.properties",
+            "supportedLocales": ["pt-BR", ""],
+            "fallbackLocale": ""
+        },
         "applicationVersion": {
             "version": "2.0.0"
         },
@@ -81,7 +85,15 @@
                 {
                     "pattern": "exposures",
                     "name": "exposures",
-                    "target": "exposures"
+                    "target": "exposuresList"
+                },
+                {
+                    "pattern": "exposures/{exposureId}",
+                    "name": "exposureDetail",
+                    "target": [
+                        "exposuresList",
+                        "exposureDetail"
+                    ]
                 },
                 {
                     "pattern": "orders",
@@ -91,7 +103,10 @@
                 {
                     "pattern": "orders/create/{type}",
                     "name": "orderCreate",
-                    "target": "orderCreate"
+                    "target": [
+                        "ordersList",
+                        "orderCreate"
+                    ]
                 },
                 {
                     "pattern": "orders/{orderId}",
@@ -107,9 +122,12 @@
                     "target": "rfqList"
                 },
                 {
-                    "pattern": "rfq/create",
+                    "pattern": "rfq/create:?query:",
                     "name": "rfqCreate",
-                    "target": "rfqCreate"
+                    "target": [
+                        "rfqList",
+                        "rfqCreate"
+                    ]
                 },
                 {
                     "pattern": "rfq/{rfqId}",
@@ -136,7 +154,10 @@
                 {
                     "pattern": "contracts/create",
                     "name": "contractCreate",
-                    "target": "contractCreate"
+                    "target": [
+                        "contractsList",
+                        "contractCreate"
+                    ]
                 },
                 {
                     "pattern": "contracts/{contractId}",
@@ -180,38 +201,28 @@
                     "target": "mtm"
                 },
                 {
-                    "pattern": "hedges",
-                    "name": "hedges",
-                    "target": "hedgesList"
-                },
-                {
-                    "pattern": "hedges/create",
-                    "name": "hedgeCreate",
-                    "target": "hedgeCreate"
-                },
-                {
-                    "pattern": "hedges/{hedgeId}",
-                    "name": "hedgeDetail",
-                    "target": [
-                        "hedgesList",
-                        "hedgeDetail"
-                    ]
+                    "pattern": "market-data",
+                    "name": "marketData",
+                    "target": "marketData"
                 },
                 {
                     "pattern": "deals",
                     "name": "deals",
-                    "target": "dealsList"
+                    "target": "ordersList"
                 },
                 {
                     "pattern": "deals/create",
                     "name": "dealCreate",
-                    "target": "dealCreate"
+                    "target": [
+                        "ordersList",
+                        "dealCreate"
+                    ]
                 },
                 {
                     "pattern": "deals/{dealId}",
                     "name": "dealDetail",
                     "target": [
-                        "dealsList",
+                        "ordersList",
                         "dealDetail"
                     ]
                 },
@@ -223,7 +234,10 @@
                 {
                     "pattern": "counterparties/create",
                     "name": "counterpartyCreate",
-                    "target": "counterpartyCreate"
+                    "target": [
+                        "counterpartiesList",
+                        "counterpartyCreate"
+                    ]
                 },
                 {
                     "pattern": "counterparties/{counterpartyId}",
@@ -234,7 +248,7 @@
                     ]
                 },
                 {
-                    "pattern": "audit",
+                    "pattern": "audit-trail",
                     "name": "auditTrail",
                     "target": "auditTrail"
                 },
@@ -242,11 +256,6 @@
                     "pattern": "finance-pipeline",
                     "name": "financePipeline",
                     "target": "financePipeline"
-                },
-                {
-                    "pattern": "market-data",
-                    "name": "marketData",
-                    "target": "marketData"
                 },
                 {
                     "pattern": ":catchAll:",
@@ -259,9 +268,13 @@
                     "name": "Home",
                     "controlAggregation": "beginColumnPages"
                 },
-                "exposures": {
-                    "name": "Exposures",
+                "exposuresList": {
+                    "name": "ExposuresList",
                     "controlAggregation": "beginColumnPages"
+                },
+                "exposureDetail": {
+                    "name": "ExposureDetail",
+                    "controlAggregation": "midColumnPages"
                 },
                 "ordersList": {
                     "name": "OrdersList",
@@ -269,7 +282,7 @@
                 },
                 "orderCreate": {
                     "name": "OrderCreate",
-                    "controlAggregation": "endColumnPages"
+                    "controlAggregation": "midColumnPages"
                 },
                 "orderDetail": {
                     "name": "OrderDetail",
@@ -281,7 +294,7 @@
                 },
                 "rfqCreate": {
                     "name": "RfqCreate",
-                    "controlAggregation": "beginColumnPages"
+                    "controlAggregation": "midColumnPages"
                 },
                 "rfqDetail": {
                     "name": "RfqDetail",
@@ -297,7 +310,7 @@
                 },
                 "contractCreate": {
                     "name": "ContractCreate",
-                    "controlAggregation": "endColumnPages"
+                    "controlAggregation": "midColumnPages"
                 },
                 "contractDetail": {
                     "name": "ContractDetail",
@@ -327,17 +340,9 @@
                     "name": "Mtm",
                     "controlAggregation": "beginColumnPages"
                 },
-                "hedgesList": {
-                    "name": "HedgesList",
+                "marketData": {
+                    "name": "MarketData",
                     "controlAggregation": "beginColumnPages"
-                },
-                "hedgeCreate": {
-                    "name": "HedgeCreate",
-                    "controlAggregation": "endColumnPages"
-                },
-                "hedgeDetail": {
-                    "name": "HedgeDetail",
-                    "controlAggregation": "midColumnPages"
                 },
                 "dealsList": {
                     "name": "DealsList",
@@ -345,7 +350,7 @@
                 },
                 "dealCreate": {
                     "name": "DealCreate",
-                    "controlAggregation": "endColumnPages"
+                    "controlAggregation": "midColumnPages"
                 },
                 "dealDetail": {
                     "name": "DealDetail",
@@ -357,7 +362,7 @@
                 },
                 "counterpartyCreate": {
                     "name": "CounterpartyCreate",
-                    "controlAggregation": "endColumnPages"
+                    "controlAggregation": "midColumnPages"
                 },
                 "counterpartyDetail": {
                     "name": "CounterpartyDetail",
@@ -371,16 +376,12 @@
                     "name": "FinancePipeline",
                     "controlAggregation": "beginColumnPages"
                 },
-                "marketData": {
-                    "name": "MarketData",
-                    "controlAggregation": "beginColumnPages"
-                },
                 "blocked": {
                     "name": "Blocked",
                     "controlAggregation": "beginColumnPages"
                 },
                 "notFound": {
-                    "name": "Blocked",
+                    "name": "NotFound",
                     "controlAggregation": "beginColumnPages"
                 }
             }

@@ -24,9 +24,13 @@ def compute_mtm_for_contract(
             status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found"
         )
 
-    if contract.status != HedgeContractStatus.active:
+    if contract.status not in (
+        HedgeContractStatus.active,
+        HedgeContractStatus.partially_settled,
+    ):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Hedge contract is not active"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Hedge contract is not active or partially settled",
         )
 
     if contract.fixed_price_value is None:

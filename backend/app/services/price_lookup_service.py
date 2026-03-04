@@ -13,12 +13,21 @@ from app.models.market_data import CashSettlementPrice
 # price is published under.  Adding a new commodity is a one-liner here.
 
 COMMODITY_SYMBOL_MAP: dict[str, str] = {
+    # canonical short codes
     "LME_AL": "LME_ALU_CASH_SETTLEMENT_DAILY",
     "LME_CU": "LME_CU_CASH_SETTLEMENT_DAILY",
     "LME_ZN": "LME_ZN_CASH_SETTLEMENT_DAILY",
     "LME_NI": "LME_NI_CASH_SETTLEMENT_DAILY",
     "LME_PB": "LME_PB_CASH_SETTLEMENT_DAILY",
     "LME_SN": "LME_SN_CASH_SETTLEMENT_DAILY",
+    # common / human-readable aliases
+    "ALUMINUM": "LME_ALU_CASH_SETTLEMENT_DAILY",
+    "ALUMINIUM": "LME_ALU_CASH_SETTLEMENT_DAILY",
+    "COPPER": "LME_CU_CASH_SETTLEMENT_DAILY",
+    "ZINC": "LME_ZN_CASH_SETTLEMENT_DAILY",
+    "NICKEL": "LME_NI_CASH_SETTLEMENT_DAILY",
+    "LEAD": "LME_PB_CASH_SETTLEMENT_DAILY",
+    "TIN": "LME_SN_CASH_SETTLEMENT_DAILY",
 }
 
 
@@ -37,27 +46,28 @@ def resolve_symbol(commodity: str) -> str:
 
 
 def get_cash_settlement_price_d1(db: Session, symbol: str, as_of_date: date) -> Decimal:
-    price_date = as_of_date - timedelta(days=1)
+    """Return the most recent cash-settlement price on or before as_of_date - 1.
 
-    rows = (
+    Falls back up to 5 calendar days to handle weekends / holidays.
+    """
+    price_date = as_of_date - timedelta(days=1)
+    lookback_limit = price_date - timedelta(days=5)
+
+    row = (
         db.query(CashSettlementPrice)
         .filter(
             CashSettlementPrice.symbol == symbol,
-            CashSettlementPrice.settlement_date == price_date,
+            CashSettlementPrice.settlement_date <= price_date,
+            CashSettlementPrice.settlement_date >= lookback_limit,
         )
-        .all()
+        .order_by(CashSettlementPrice.settlement_date.desc())
+        .first()
     )
 
-    if not rows:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail=f"No cash settlement price for {symbol} on {price_date}",
+            detail=f"No cash settlement price for {symbol} on or before {price_date}",
         )
 
-    if len(rows) > 1:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Ambiguous cash settlement price for {symbol} on {price_date}",
-        )
-
-    return Decimal(str(rows[0].price_usd))
+    return Decimal(str(row.price_usd))

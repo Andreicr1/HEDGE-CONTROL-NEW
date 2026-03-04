@@ -29,24 +29,24 @@
 
     <f:content>
       <List id="contractsList"
-        items="{ path: 'ctr>/items', sorter: { path: 'created_at', descending: true } }"
+        items="{ path: 'ctr>/items', sorter: { path: 'trade_date', descending: true } }"
         growing="true"
         growingThreshold="50"
         mode="SingleSelectMaster"
-        selectionChange=".onContractSelect"
+        itemPress=".onContractSelect"
         noDataText="{i18n>noContracts}">
         <items>
           <ObjectListItem
-            title="{ctr>commodity} — {path: 'ctr>classification', formatter: 'formatter.capitalize'}"
-            intro="{path: 'ctr>id', formatter: 'formatter.shortUuid'}"
+            title="{ctr>commodity} — {path: 'ctr>classification', formatter: 'formatter.classificationText'}"
+            intro="{ctr>reference}"
             type="Navigation"
             number="{path: 'ctr>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
             numberUnit="MT"
             icon="sap-icon://document-text">
             <attributes>
               <ObjectAttribute text="{i18n>fixedPrice}: {path: 'ctr>fixed_price_value', formatter: 'formatter.priceFourDecimals'} {ctr>fixed_price_unit}" />
-              <ObjectAttribute text="{i18n>counterparty}: {ctr>counterparty_id}" />
-              <ObjectAttribute text="{path: 'ctr>created_at', formatter: 'formatter.dateDisplay'}" />
+              <ObjectAttribute text="{i18n>counterparty}: {ctr>_counterparty_name}" />
+              <ObjectAttribute text="{i18n>tradeDate}: {path: 'ctr>trade_date', formatter: 'formatter.dateDisplay'}" />
             </attributes>
             <firstStatus>
               <ObjectStatus text="{path: 'ctr>status', formatter: 'formatter.capitalize'}"

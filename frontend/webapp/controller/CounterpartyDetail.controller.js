@@ -40,7 +40,7 @@ sap.ui.define([
         contact_name: oDetail.contact_name,
         contact_email: oDetail.contact_email,
         contact_phone: oDetail.contact_phone,
-        payment_terms_days: oDetail.payment_terms_days,
+        whatsapp_phone: oDetail.whatsapp_phone,
         credit_limit_usd: oDetail.credit_limit_usd,
         kyc_status: oDetail.kyc_status,
         risk_rating: oDetail.risk_rating,

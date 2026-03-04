@@ -24,7 +24,9 @@ def create_pl_snapshot(
     - Idempotent: same keys + same computed values returns existing snapshot.
     - Conflict: same keys + different computed values raises HTTP 409.
     """
-    pl_result: PLResultResponse = compute_pl(db, entity_type, entity_id, period_start, period_end)
+    pl_result: PLResultResponse = compute_pl(
+        db, entity_type, entity_id, period_start, period_end
+    )
 
     existing = (
         db.query(PLSnapshot)
@@ -38,7 +40,10 @@ def create_pl_snapshot(
     )
 
     if existing is not None:
-        if existing.realized_pl == pl_result.realized_pl and existing.unrealized_mtm == pl_result.unrealized_mtm:
+        if (
+            existing.realized_pl == pl_result.realized_pl
+            and existing.unrealized_mtm == pl_result.unrealized_mtm
+        ):
             return existing
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -61,3 +66,32 @@ def create_pl_snapshot(
     db.commit()
     db.refresh(new_snapshot)
     return new_snapshot
+
+
+def get_pl_snapshot(
+    db: Session,
+    entity_type: str,
+    entity_id: UUID,
+    period_start: date,
+    period_end: date,
+) -> PLSnapshot:
+    """Retrieve a P&L snapshot by its composite key.
+
+    Raises HTTP 404 if not found.
+    """
+    snapshot = (
+        db.query(PLSnapshot)
+        .filter(
+            PLSnapshot.entity_type == entity_type,
+            PLSnapshot.entity_id == entity_id,
+            PLSnapshot.period_start == period_start,
+            PLSnapshot.period_end == period_end,
+        )
+        .first()
+    )
+    if snapshot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="P&L snapshot not found",
+        )
+    return snapshot

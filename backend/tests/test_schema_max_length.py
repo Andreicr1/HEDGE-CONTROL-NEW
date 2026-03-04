@@ -24,8 +24,6 @@ from app.schemas.rfq import (
     RFQUserActionBase,
     RFQIntent,
     RFQDirection,
-    RFQInvitationChannel,
-    RFQInvitationStatus,
     FloatPricingConvention,
 )
 from app.schemas.scenario import AddCashSettlementPriceOverrideDelta
@@ -132,31 +130,15 @@ class TestPLSnapshotMaxLength:
 
 
 class TestRFQInvitationMaxLength:
-    def test_recipient_id_too_long(self):
-        with pytest.raises(ValidationError, match=_ERR):
+    def test_counterparty_id_must_be_uuid(self):
+        with pytest.raises(ValidationError):
             RFQInvitationCreate(
-                recipient_id=_too_long(100),
-                recipient_name="Test",
-                channel=RFQInvitationChannel.email,
-                message_body="hi",
-                provider_message_id="msg1",
-                send_status=RFQInvitationStatus.sent,
-                sent_at=_NOW,
-                idempotency_key="key1",
+                counterparty_id="not-a-uuid",
             )
 
-    def test_message_body_too_long(self):
-        with pytest.raises(ValidationError, match=_ERR):
-            RFQInvitationCreate(
-                recipient_id="r1",
-                recipient_name="Test",
-                channel=RFQInvitationChannel.email,
-                message_body=_too_long(4000),
-                provider_message_id="msg1",
-                send_status=RFQInvitationStatus.sent,
-                sent_at=_NOW,
-                idempotency_key="key1",
-            )
+    def test_valid_counterparty_id(self):
+        inv = RFQInvitationCreate(counterparty_id=_UID)
+        assert inv.counterparty_id == _UID
 
 
 class TestRFQQuoteMaxLength:

@@ -34,7 +34,7 @@
       <HBox wrap="Wrap">
         <VBox class="sapUiSmallMarginEnd">
           <Label text="{i18n>colType}" design="Bold" />
-          <ObjectStatus text="{path: 'cptyDet>/detail/type', formatter: 'formatter.capitalize'}" />
+          <ObjectStatus text="{path: 'cptyDet>/detail/type', formatter: 'formatter.counterpartyType'}" />
         </VBox>
         <VBox class="sapUiSmallMarginEnd">
           <Label text="{i18n>colCountry}" design="Bold" />
@@ -100,13 +100,13 @@
                         <form:FormElement label="{i18n>colContactPhone}">
                           <Input value="{cptyDet>/detail/contact_phone}" editable="{cptyDet>/editMode}" type="Tel" />
                         </form:FormElement>
+                        <form:FormElement label="{i18n>colWhatsAppPhone}">
+                          <Input value="{cptyDet>/detail/whatsapp_phone}" editable="{cptyDet>/editMode}" type="Tel" placeholder="+5511999999999" />
+                        </form:FormElement>
                       </form:formElements>
                     </form:FormContainer>
                     <form:FormContainer title="{i18n>sectionFinancial}">
                       <form:formElements>
-                        <form:FormElement label="{i18n>colPaymentTerms}">
-                          <Input value="{cptyDet>/detail/payment_terms_days}" editable="{cptyDet>/editMode}" type="Number" />
-                        </form:FormElement>
                         <form:FormElement label="{i18n>colCreditLimit}">
                           <Input value="{cptyDet>/detail/credit_limit_usd}" editable="{cptyDet>/editMode}" type="Number" />
                         </form:FormElement>

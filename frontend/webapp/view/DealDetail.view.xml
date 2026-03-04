@@ -125,7 +125,7 @@
                     <ColumnListItem>
                       <cells>
                         <ObjectStatus text="{path: 'dealDet>linked_type', formatter: 'formatter.capitalize'}" />
-                        <Text text="{path: 'dealDet>linked_id', formatter: 'formatter.shortUuid'}" />
+                        <Link text="{path: 'dealDet>linked_id', formatter: 'formatter.shortUuid'}" press=".onNavigateToLinked" />
                         <Text text="{path: 'dealDet>created_at', formatter: 'formatter.dateTimeDisplay'}" />
                         <Button icon="sap-icon://delete" type="Reject" press=".onRemoveLink" tooltip="{i18n>removeLink}" />
                       </cells>

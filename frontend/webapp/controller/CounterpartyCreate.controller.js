@@ -6,7 +6,7 @@ sap.ui.define([
 
   function _emptyForm() {
     return {
-      type: "customer",
+      type: "broker",
       name: "",
       short_name: "",
       tax_id: "",
@@ -15,7 +15,7 @@ sap.ui.define([
       contact_name: "",
       contact_email: "",
       contact_phone: "",
-      payment_terms_days: "30",
+      whatsapp_phone: "",
       credit_limit_usd: "",
       kyc_status: "pending",
       risk_rating: "medium",
@@ -50,8 +50,7 @@ sap.ui.define([
         name: oForm.name,
         country: oForm.country,
         kyc_status: oForm.kyc_status,
-        risk_rating: oForm.risk_rating,
-        payment_terms_days: parseInt(oForm.payment_terms_days, 10) || 30
+        risk_rating: oForm.risk_rating
       };
 
       if (oForm.short_name) { oPayload.short_name = oForm.short_name; }
@@ -60,6 +59,7 @@ sap.ui.define([
       if (oForm.contact_name) { oPayload.contact_name = oForm.contact_name; }
       if (oForm.contact_email) { oPayload.contact_email = oForm.contact_email; }
       if (oForm.contact_phone) { oPayload.contact_phone = oForm.contact_phone; }
+      if (oForm.whatsapp_phone) { oPayload.whatsapp_phone = oForm.whatsapp_phone; }
       if (oForm.credit_limit_usd) { oPayload.credit_limit_usd = parseFloat(oForm.credit_limit_usd); }
       if (oForm.notes) { oPayload.notes = oForm.notes; }
 

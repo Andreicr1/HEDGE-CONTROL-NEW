@@ -2,8 +2,10 @@ sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/rfqService",
   "sap/ui/model/Filter",
-  "sap/ui/model/FilterOperator"
-], function (BaseController, rfqService, Filter, FilterOperator) {
+  "sap/ui/model/FilterOperator",
+  "sap/m/MessageBox",
+  "sap/m/MessageToast"
+], function (BaseController, rfqService, Filter, FilterOperator, MessageBox, MessageToast) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.RfqList", {
@@ -14,6 +16,7 @@ sap.ui.define([
       this.getRouter().getRoute("rfq").attachPatternMatched(this._onRouteMatched, this);
       this.getRouter().getRoute("rfqDetail").attachPatternMatched(this._onRouteMatched, this);
       this.getRouter().getRoute("rfqDocument").attachPatternMatched(this._onRouteMatched, this);
+      this.getRouter().getRoute("rfqCreate").attachPatternMatched(this._onRouteMatched, this);
     },
 
     _onRouteMatched: function () {
@@ -48,21 +51,16 @@ sap.ui.define([
           and: false
         })];
       }
-      var oList = this.byId("rfqTable");
-      if (oList && oList.getBinding("items")) {
-        oList.getBinding("items").filter(aFilters);
-      }
+      this.byId("rfqTable").getBinding("items").filter(aFilters);
     },
 
     onRfqSelect: function (oEvent) {
       var oItem = oEvent.getParameter("listItem");
-      if (!oItem) { return; }
       var sId = oItem.getBindingContext("rfq").getProperty("id");
       this.navToDetail("rfqDetail", { rfqId: sId });
     },
 
     onCreateRfq: function () {
-      this.setLayout("OneColumn");
       this.getRouter().navTo("rfqCreate");
     }
   });

@@ -1,27 +1,25 @@
-from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import require_any_role, require_role
+from app.core.auth import get_current_user, require_any_role, require_role
 from app.core.database import get_session
-from app.core.pagination import paginate
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
-from app.models.contracts import (
-    HedgeClassification,
-    HedgeContract,
-    HedgeContractStatus,
-    HedgeLegSide,
-)
 from app.schemas.contracts import (
+    ContractLinkagesResponse,
     HedgeContractCreate,
     HedgeContractListResponse,
     HedgeContractRead,
-    HedgeLegPriceType,
-    HedgeLegSide,
+    HedgeContractStatusUpdate,
+    HedgeContractUpdate,
+    LinkedDealSummary,
+    LinkedOrderSummary,
 )
+from app.models.deal import Deal, DealLink, DealLinkedType
+from app.models.orders import Order
+from app.services.contract_service import ContractService
 
 router = APIRouter()
 
@@ -41,29 +39,9 @@ def create_hedge_contract(
     ),
     __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
+    user: dict = Depends(get_current_user),
 ) -> HedgeContractRead:
-    fixed_leg = next(
-        leg for leg in payload.legs if leg.price_type == HedgeLegPriceType.fixed
-    )
-    variable_leg = next(
-        leg for leg in payload.legs if leg.price_type == HedgeLegPriceType.variable
-    )
-    classification = (
-        HedgeClassification.long
-        if fixed_leg.side == HedgeLegSide.buy
-        else HedgeClassification.short
-    )
-    contract = HedgeContract(
-        commodity=payload.commodity,
-        quantity_mt=payload.quantity_mt,
-        fixed_leg_side=HedgeLegSide(fixed_leg.side.value),
-        variable_leg_side=HedgeLegSide(variable_leg.side.value),
-        classification=classification,
-        status=HedgeContractStatus.active,
-    )
-    session.add(contract)
-    session.commit()
-    session.refresh(contract)
+    contract = ContractService.create(session, payload, created_by=user.get("sub"))
     mark_audit_success(request, contract.id)
     request.state.audit_commit()
     return HedgeContractRead.model_validate(contract)
@@ -86,27 +64,14 @@ def list_hedge_contracts(
     _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> HedgeContractListResponse:
-    query = session.query(HedgeContract)
-    if not include_deleted:
-        query = query.filter(HedgeContract.deleted_at.is_(None))
-    if status_filter:
-        query = query.filter(HedgeContract.status == HedgeContractStatus(status_filter))
-    if classification:
-        query = query.filter(
-            HedgeContract.classification == HedgeClassification(classification)
-        )
-    if commodity:
-        query = query.filter(HedgeContract.commodity == commodity)
-    items, next_cursor = paginate(
-        query,
-        created_at_col=HedgeContract.created_at,
-        id_col=HedgeContract.id,
+    return ContractService.list(
+        session,
+        status_filter=status_filter,
+        classification=classification,
+        commodity=commodity,
+        include_deleted=include_deleted,
         cursor=cursor,
         limit=limit,
-    )
-    return HedgeContractListResponse(
-        items=[HedgeContractRead.model_validate(c) for c in items],
-        next_cursor=next_cursor,
     )
 
 
@@ -114,11 +79,7 @@ def list_hedge_contracts(
 def get_hedge_contract(
     contract_id: UUID, session: Session = Depends(get_session)
 ) -> HedgeContractRead:
-    contract = session.get(HedgeContract, contract_id)
-    if not contract:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found"
-        )
+    contract = ContractService.get_by_id(session, contract_id)
     return HedgeContractRead.model_validate(contract)
 
 
@@ -136,19 +97,150 @@ def archive_hedge_contract(
     __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> HedgeContractRead:
-    contract = session.get(HedgeContract, contract_id)
-    if not contract:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found"
-        )
-    if contract.deleted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Hedge contract already archived",
-        )
-    contract.deleted_at = datetime.now(timezone.utc)
-    session.commit()
-    session.refresh(contract)
+    contract = ContractService.archive(session, contract_id)
     mark_audit_success(request, contract.id)
     request.state.audit_commit()
     return HedgeContractRead.model_validate(contract)
+
+
+# -----------------------------------------------------------------------
+# PATCH update
+# -----------------------------------------------------------------------
+
+
+@router.patch("/hedge/{contract_id}", response_model=HedgeContractRead)
+@limiter.limit(RATE_LIMIT_MUTATION)
+def update_hedge_contract(
+    contract_id: UUID,
+    payload: HedgeContractUpdate,
+    request: Request,
+    _: None = Depends(audit_event(entity_type="hedge_contract", event_type="updated")),
+    __: None = Depends(require_role("trader")),
+    session: Session = Depends(get_session),
+) -> HedgeContractRead:
+    contract = ContractService.update(session, contract_id, payload)
+    mark_audit_success(request, contract.id)
+    request.state.audit_commit()
+    return HedgeContractRead.model_validate(contract)
+
+
+# -----------------------------------------------------------------------
+# PATCH status transition
+# -----------------------------------------------------------------------
+
+
+@router.patch("/hedge/{contract_id}/status", response_model=HedgeContractRead)
+@limiter.limit(RATE_LIMIT_MUTATION)
+def update_hedge_contract_status(
+    contract_id: UUID,
+    payload: HedgeContractStatusUpdate,
+    request: Request,
+    _: None = Depends(
+        audit_event(entity_type="hedge_contract", event_type="status_changed")
+    ),
+    __: None = Depends(require_role("trader")),
+    session: Session = Depends(get_session),
+) -> HedgeContractRead:
+    contract = ContractService.transition_status(session, contract_id, payload)
+    mark_audit_success(request, contract.id)
+    request.state.audit_commit()
+    return HedgeContractRead.model_validate(contract)
+
+
+# -----------------------------------------------------------------------
+# DELETE (soft delete + cancel)
+# -----------------------------------------------------------------------
+
+
+@router.delete("/hedge/{contract_id}", response_model=HedgeContractRead)
+@limiter.limit(RATE_LIMIT_MUTATION)
+def delete_hedge_contract(
+    contract_id: UUID,
+    request: Request,
+    _: None = Depends(audit_event(entity_type="hedge_contract", event_type="deleted")),
+    __: None = Depends(require_role("trader")),
+    session: Session = Depends(get_session),
+) -> HedgeContractRead:
+    contract = ContractService.delete(session, contract_id)
+    mark_audit_success(request, contract.id)
+    request.state.audit_commit()
+    return HedgeContractRead.model_validate(contract)
+
+
+# -----------------------------------------------------------------------
+# GET linkages  (deals + orders linked to this contract)
+# -----------------------------------------------------------------------
+
+
+@router.get("/hedge/{contract_id}/linkages", response_model=ContractLinkagesResponse)
+def get_contract_linkages(
+    contract_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> ContractLinkagesResponse:
+    """Return deals and their linked orders for a given hedge contract."""
+    # 1) Find all DealLinks pointing to this contract
+    links = (
+        session.query(DealLink)
+        .filter(
+            DealLink.linked_type.in_([DealLinkedType.hedge, DealLinkedType.contract]),
+            DealLink.linked_id == contract_id,
+        )
+        .all()
+    )
+
+    deal_ids = list({lk.deal_id for lk in links})
+
+    deals_out: list[LinkedDealSummary] = []
+    for deal_id in deal_ids:
+        deal = session.get(Deal, deal_id)
+        if deal is None or deal.is_deleted:
+            continue
+
+        # 2) Get order links for this deal
+        order_links = (
+            session.query(DealLink)
+            .filter(
+                DealLink.deal_id == deal_id,
+                DealLink.linked_type.in_(
+                    [DealLinkedType.sales_order, DealLinkedType.purchase_order]
+                ),
+            )
+            .all()
+        )
+
+        orders_out: list[LinkedOrderSummary] = []
+        for ol in order_links:
+            order = session.get(Order, ol.linked_id)
+            if order is None:
+                continue
+            orders_out.append(
+                LinkedOrderSummary(
+                    id=order.id,
+                    linked_type=ol.linked_type.value,
+                    order_type=order.order_type.value if order.order_type else None,
+                    quantity_mt=float(order.quantity_mt) if order.quantity_mt else None,
+                    counterparty_id=str(order.counterparty_id)
+                    if order.counterparty_id
+                    else None,
+                    avg_entry_price=float(order.avg_entry_price)
+                    if order.avg_entry_price
+                    else None,
+                    currency=order.currency,
+                )
+            )
+
+        deals_out.append(
+            LinkedDealSummary(
+                id=deal.id,
+                reference=deal.reference,
+                name=deal.name,
+                status=deal.status.value,
+                total_physical_tons=float(deal.total_physical_tons),
+                total_hedge_tons=float(deal.total_hedge_tons),
+                hedge_ratio=float(deal.hedge_ratio),
+                orders=orders_out,
+            )
+        )
+
+    return ContractLinkagesResponse(contract_id=contract_id, deals=deals_out)

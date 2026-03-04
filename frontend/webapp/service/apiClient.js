@@ -63,23 +63,13 @@ sap.ui.define([
 
     var baseUrl = normalizeBaseUrl(readConfiguredBaseUrl());
 
-    // If we're hosted on Azure Static Web Apps and baseUrl is not configured,
-    // fail deterministically with an explicit configuration message instead of
-    // silently calling the static host (404/405).
+    // If we're hosted on Azure Static Web Apps and baseUrl is still not
+    // configured (neither via query param, config.js, nor localStorage),
+    // use the Linked Backend proxy at /api as a last resort.
     var win = typeof window !== "undefined" ? window : undefined;
     var host = win && win.location ? String(win.location.hostname || "") : "";
     if (!baseUrl && host && /\.azurestaticapps\.net$/i.test(host)) {
-      var configError = new Error(
-        "API base URL not configured. Append ?apiBaseUrl=https://<backend-host> once (it will be stored), or configure util/config.js."
-      );
-      configError.status = 0;
-      configError.statusText = "API_BASE_URL_NOT_CONFIGURED";
-      configError.url = path;
-      configError.details = {
-        host: host,
-        path: path
-      };
-      throw configError;
+      baseUrl = "/api";
     }
 
     if (!baseUrl) {

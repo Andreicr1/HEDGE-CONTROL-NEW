@@ -8,6 +8,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
+from app.core.pagination import paginate
 from app.core.utils import now_utc
 
 from fastapi import HTTPException, status
@@ -93,6 +94,45 @@ class AuditTrailService:
         db.commit()
         db.refresh(audit_event)
         return audit_event
+
+    @staticmethod
+    def list_events(
+        db: Session,
+        *,
+        entity_type: str | None = None,
+        entity_id: uuid.UUID | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> tuple[list[AuditEvent], str | None]:
+        query = db.query(AuditEvent)
+        if entity_type:
+            query = query.filter(AuditEvent.entity_type == entity_type)
+        if entity_id:
+            query = query.filter(AuditEvent.entity_id == entity_id)
+        if start:
+            query = query.filter(AuditEvent.timestamp_utc >= start)
+        if end:
+            query = query.filter(AuditEvent.timestamp_utc <= end)
+        return paginate(
+            query,
+            created_at_col=AuditEvent.timestamp_utc,
+            id_col=AuditEvent.id,
+            cursor=cursor,
+            limit=limit,
+            ts_attr="timestamp_utc",
+        )
+
+    @staticmethod
+    def get_event(db: Session, event_id: uuid.UUID) -> AuditEvent:
+        event = db.get(AuditEvent, event_id)
+        if event is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Audit event not found",
+            )
+        return event
 
 
 def normalize_payload_raw(payload: object | None) -> tuple[str, object]:

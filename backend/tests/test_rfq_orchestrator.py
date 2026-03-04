@@ -1,0 +1,509 @@
+"""Unit tests for RFQOrchestrator — full RFQ lifecycle coordination."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timedelta, timezone, date
+from unittest.mock import MagicMock, patch
+
+import pytest
+from sqlalchemy.orm import Session
+
+from app.core.database import SessionLocal
+from app.core.utils import now_utc
+from app.models.rfqs import (
+    RFQ,
+    RFQDirection,
+    RFQIntent,
+    RFQInvitation,
+    RFQInvitationChannel,
+    RFQInvitationStatus,
+    RFQState,
+)
+from app.schemas.llm import MessageIntent, ParsedQuote
+from app.schemas.whatsapp import WhatsAppInboundMessage, WhatsAppSendResult
+from app.services.llm_agent import LLMUnavailableError
+from app.services.rfq_orchestrator import RFQOrchestrator
+
+
+# ── helpers ──────────────────────────────────────────────────────────────
+
+
+def _create_rfq(
+    session: Session,
+    *,
+    state: RFQState = RFQState.sent,
+    rfq_number: str = "RFQ-TST-001",
+    created_at: datetime | None = None,
+) -> RFQ:
+    rfq = RFQ(
+        id=uuid.uuid4(),
+        rfq_number=rfq_number,
+        intent=RFQIntent.commercial_hedge,
+        commodity="COPPER",
+        quantity_mt=100.0,
+        delivery_window_start=date(2026, 1, 1),
+        delivery_window_end=date(2026, 3, 31),
+        direction=RFQDirection.buy,
+        commercial_active_mt=100.0,
+        commercial_passive_mt=0.0,
+        commercial_net_mt=100.0,
+        commercial_reduction_applied_mt=0.0,
+        exposure_snapshot_timestamp=now_utc(),
+        state=state,
+        created_at=created_at or now_utc(),
+    )
+    session.add(rfq)
+    session.flush()
+    return rfq
+
+
+def _create_invitation(
+    session: Session,
+    rfq: RFQ,
+    *,
+    phone: str = "+5511999990001",
+    name: str = "Counterparty A",
+    channel: RFQInvitationChannel = RFQInvitationChannel.whatsapp,
+    status: RFQInvitationStatus = RFQInvitationStatus.queued,
+    counterparty_id: uuid.UUID | None = None,
+) -> RFQInvitation:
+    inv = RFQInvitation(
+        id=uuid.uuid4(),
+        rfq_id=rfq.id,
+        rfq_number=rfq.rfq_number,
+        counterparty_id=counterparty_id or uuid.uuid4(),
+        recipient_name=name,
+        recipient_phone=phone,
+        channel=channel,
+        message_body="RFQ for 100MT Copper — please reply with your quote.",
+        provider_message_id="",
+        send_status=status,
+        sent_at=now_utc(),
+        idempotency_key=f"idem-{uuid.uuid4()}",
+    )
+    session.add(inv)
+    session.flush()
+    return inv
+
+
+def _make_inbound(
+    phone: str = "+5511999990001",
+    text: str = "I can offer 2550 USD/MT",
+    msg_id: str | None = None,
+) -> WhatsAppInboundMessage:
+    return WhatsAppInboundMessage(
+        message_id=msg_id or f"wamid.{uuid.uuid4().hex[:8]}",
+        from_phone=phone,
+        timestamp=now_utc(),
+        text=text,
+        sender_name="Test Sender",
+    )
+
+
+def _send_result(success: bool = True) -> WhatsAppSendResult:
+    return WhatsAppSendResult(
+        success=success,
+        provider_message_id="wamid.xyz" if success else None,
+        error_code=None if success else "TIMEOUT",
+        error_message=None if success else "Timed out",
+    )
+
+
+def _parsed_quote(
+    intent: MessageIntent = MessageIntent.quote,
+    confidence: float = 0.92,
+    price: float | None = 2550.0,
+) -> ParsedQuote:
+    return ParsedQuote(
+        intent=intent,
+        confidence=confidence,
+        fixed_price_value=price,
+        fixed_price_unit="USD/MT",
+        float_pricing_convention="avg",
+        premium_discount=None,
+        counterparty_name="Test Counterparty",
+        notes=None,
+    )
+
+
+# ── dispatch_whatsapp_invitations ────────────────────────────────────────
+
+
+@patch("app.services.rfq_orchestrator.WhatsAppService.send_text_message")
+def test_dispatch_sends_queued_whatsapp(mock_send):
+    mock_send.return_value = _send_result(True)
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        inv = _create_invitation(session, rfq)
+        session.commit()
+
+        results = RFQOrchestrator.dispatch_whatsapp_invitations(session, rfq.id)
+        session.commit()
+
+    assert results["+5511999990001"] == "sent"
+    mock_send.assert_called_once()
+
+
+@patch("app.services.rfq_orchestrator.WhatsAppService.send_text_message")
+def test_dispatch_marks_failed_on_error(mock_send):
+    mock_send.return_value = _send_result(False)
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq)
+        session.commit()
+
+        results = RFQOrchestrator.dispatch_whatsapp_invitations(session, rfq.id)
+        session.commit()
+
+    assert results["+5511999990001"] == "failed"
+
+
+@patch("app.services.rfq_orchestrator.WhatsAppService.send_text_message")
+def test_dispatch_ignores_already_sent(mock_send):
+    mock_send.return_value = _send_result(True)
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        results = RFQOrchestrator.dispatch_whatsapp_invitations(session, rfq.id)
+        session.commit()
+
+    assert results == {}
+    mock_send.assert_not_called()
+
+
+# ── _process_single_message ──────────────────────────────────────────────
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_no_matching_rfq(mock_parse, mock_auto):
+    msg = _make_inbound(phone="+0000000000")
+
+    with SessionLocal() as session:
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "no_matching_rfq"
+    mock_parse.assert_not_called()
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_rfq_not_quotable(mock_parse, mock_auto):
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.closed)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "rfq_not_quotable"
+    mock_parse.assert_not_called()
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_counterparty_declined(mock_parse, mock_auto):
+    mock_parse.return_value = _parsed_quote(intent=MessageIntent.rejection)
+    mock_auto.return_value = False
+
+    cp_id = uuid.uuid4()
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(
+            session, rfq, status=RFQInvitationStatus.sent, counterparty_id=cp_id
+        )
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001", text="No thanks, passing on this")
+        result = RFQOrchestrator._process_single_message(session, msg)
+        session.commit()
+
+    assert result["status"] == "counterparty_declined"
+    assert result["counterparty"] == str(cp_id)
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_counterparty_question(mock_parse, mock_auto):
+    mock_parse.return_value = _parsed_quote(
+        intent=MessageIntent.question, confidence=0.88
+    )
+    mock_auto.return_value = False
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001", text="What alloy grade?")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "counterparty_question"
+    assert "What alloy grade?" in result["text"]
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_needs_human_review(mock_parse, mock_auto):
+    mock_parse.return_value = _parsed_quote(intent=MessageIntent.other, confidence=0.4)
+    mock_auto.return_value = False
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001", text="Hmm let me think about it")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "needs_human_review"
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_llm_unavailable(mock_parse):
+    mock_parse.side_effect = LLMUnavailableError("LLM is down")
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "llm_unavailable"
+
+
+@patch("app.services.rfq_orchestrator.RFQService.submit_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_auto_quote_created(mock_parse, mock_auto, mock_submit):
+    parsed = _parsed_quote(intent=MessageIntent.quote, confidence=0.95, price=2550.0)
+    mock_parse.return_value = parsed
+    mock_auto.return_value = True
+
+    mock_quote = MagicMock()
+    mock_quote.id = uuid.uuid4()
+    mock_submit.return_value = mock_quote
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001", text="2550 USD/MT avg")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "auto_quote_created"
+    assert result["confidence"] == 0.95
+    mock_submit.assert_called_once()
+
+
+@patch("app.services.rfq_orchestrator.RFQService.submit_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+def test_process_auto_quote_fails_gracefully(mock_parse, mock_auto, mock_submit):
+    parsed = _parsed_quote(intent=MessageIntent.quote, confidence=0.95, price=2550.0)
+    mock_parse.return_value = parsed
+    mock_auto.return_value = True
+    mock_submit.side_effect = RuntimeError("DB conflict")
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001", text="2550 USD/MT")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "auto_quote_failed"
+    assert "DB conflict" in result["error"]
+
+
+# ── process_inbound_queue ────────────────────────────────────────────────
+
+
+@patch("app.services.rfq_orchestrator.dequeue_message")
+def test_process_inbound_empty_queue(mock_dequeue):
+    mock_dequeue.return_value = None
+
+    with SessionLocal() as session:
+        results = RFQOrchestrator.process_inbound_queue(session)
+
+    assert results == []
+
+
+@patch("app.services.rfq_orchestrator.RFQOrchestrator._process_single_message")
+@patch("app.services.rfq_orchestrator.dequeue_message")
+def test_process_inbound_drains_queue(mock_dequeue, mock_process):
+    msgs = [_make_inbound(msg_id=f"msg-{i}") for i in range(3)]
+    mock_dequeue.side_effect = msgs + [None]
+    mock_process.return_value = {"status": "processed"}
+
+    with SessionLocal() as session:
+        results = RFQOrchestrator.process_inbound_queue(session)
+
+    assert len(results) == 3
+    assert mock_process.call_count == 3
+
+
+# ── notify_award / notify_reject ─────────────────────────────────────────
+
+
+@patch("app.services.rfq_orchestrator.WhatsAppService.send_text_message")
+@patch("app.services.rfq_orchestrator.LLMAgent.generate_outbound_message")
+def test_notify_award_sends_message(mock_gen, mock_send):
+    mock_gen.return_value = "Congratulations! You won the RFQ."
+    mock_send.return_value = _send_result(True)
+
+    cp_id = uuid.uuid4()
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.awarded)
+        _create_invitation(
+            session,
+            rfq,
+            status=RFQInvitationStatus.sent,
+            counterparty_id=cp_id,
+        )
+        session.commit()
+
+        RFQOrchestrator.notify_award(
+            session, rfq, str(cp_id), price=2550.0, unit="USD/MT"
+        )
+
+    mock_gen.assert_called_once()
+    mock_send.assert_called_once_with(
+        phone="+5511999990001",
+        text="Congratulations! You won the RFQ.",
+    )
+
+
+@patch("app.services.rfq_orchestrator.WhatsAppService.send_text_message")
+@patch("app.services.rfq_orchestrator.LLMAgent.generate_outbound_message")
+def test_notify_award_no_whatsapp_invitation(mock_gen, mock_send):
+    cp_id = uuid.uuid4()
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.awarded)
+        # No whatsapp invitation — the only channel is whatsapp (enum)
+        # but the counterparty_id doesn't match
+        session.commit()
+
+        RFQOrchestrator.notify_award(session, rfq, str(cp_id), price=2550.0)
+
+    mock_gen.assert_not_called()
+    mock_send.assert_not_called()
+
+
+@patch("app.services.rfq_orchestrator.WhatsAppService.send_text_message")
+@patch("app.services.rfq_orchestrator.LLMAgent.generate_outbound_message")
+def test_notify_reject_sends_to_all(mock_gen, mock_send):
+    mock_gen.return_value = "Unfortunately the RFQ was closed."
+    mock_send.return_value = _send_result(True)
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.closed)
+        _create_invitation(session, rfq, phone="+5511999990001", name="A")
+        _create_invitation(
+            session,
+            rfq,
+            phone="+5511999990002",
+            name="B",
+        )
+        session.commit()
+
+        RFQOrchestrator.notify_reject(session, rfq)
+
+    assert mock_send.call_count == 2
+
+
+# ── check_rfq_timeouts ──────────────────────────────────────────────────
+
+
+@patch("app.services.rfq_orchestrator.RFQService.get_latest_trade_quotes")
+def test_check_rfq_timeouts_flags_stale(mock_quotes):
+    mock_quotes.return_value = {}  # no quotes
+
+    with SessionLocal() as session:
+        old_time = now_utc() - timedelta(hours=48)
+        rfq = _create_rfq(
+            session,
+            state=RFQState.sent,
+            rfq_number="RFQ-STALE-001",
+            created_at=old_time,
+        )
+        session.commit()
+
+        flagged = RFQOrchestrator.check_rfq_timeouts(session, timeout_hours=24)
+
+    assert len(flagged) >= 1
+    stale = [f for f in flagged if f["rfq_number"] == "RFQ-STALE-001"]
+    assert len(stale) == 1
+    assert stale[0]["has_quotes"] is False
+
+
+@patch("app.services.rfq_orchestrator.RFQService.get_latest_trade_quotes")
+def test_check_rfq_timeouts_ignores_recent(mock_quotes):
+    with SessionLocal() as session:
+        rfq = _create_rfq(
+            session,
+            state=RFQState.sent,
+            rfq_number="RFQ-RECENT-002",
+            created_at=now_utc(),
+        )
+        session.commit()
+
+        flagged = RFQOrchestrator.check_rfq_timeouts(session, timeout_hours=24)
+
+    recent_flags = [f for f in flagged if f["rfq_number"] == "RFQ-RECENT-002"]
+    assert len(recent_flags) == 0
+
+
+# ── check_low_response_rfqs ─────────────────────────────────────────────
+
+
+@patch("app.services.rfq_orchestrator.RFQService.get_latest_trade_quotes")
+def test_check_low_response_flags_no_quotes(mock_quotes):
+    mock_quotes.return_value = {}
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent, rfq_number="RFQ-LOW-001")
+        _create_invitation(session, rfq, phone="+5511000000001")
+        _create_invitation(session, rfq, phone="+5511000000002")
+        session.commit()
+
+        flagged = RFQOrchestrator.check_low_response_rfqs(
+            session, min_response_rate=0.5
+        )
+
+    low = [f for f in flagged if f["rfq_number"] == "RFQ-LOW-001"]
+    assert len(low) == 1
+    assert low[0]["response_rate"] == 0.0
+    assert low[0]["total_recipients"] == 2
+
+
+@patch("app.services.rfq_orchestrator.RFQService.get_latest_trade_quotes")
+def test_check_low_response_ok_when_all_replied(mock_quotes):
+    mock_quotes.return_value = {
+        "+5511000000001": MagicMock(),
+        "+5511000000002": MagicMock(),
+    }
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent, rfq_number="RFQ-OK-002")
+        _create_invitation(session, rfq, phone="+5511000000001")
+        _create_invitation(session, rfq, phone="+5511000000002")
+        session.commit()
+
+        flagged = RFQOrchestrator.check_low_response_rfqs(
+            session, min_response_rate=0.5
+        )
+
+    ok = [f for f in flagged if f["rfq_number"] == "RFQ-OK-002"]
+    assert len(ok) == 0

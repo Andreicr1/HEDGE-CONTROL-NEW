@@ -92,6 +92,11 @@ class DealLink(Base):
     __tablename__ = "deal_links"
     __table_args__ = (
         UniqueConstraint("deal_id", "linked_type", "linked_id", name="uq_deal_link"),
+        UniqueConstraint(
+            "linked_type",
+            "linked_id",
+            name="uq_deal_link_entity",
+        ),
     )
 
     id: Mapped[_uuid.UUID] = mapped_column(

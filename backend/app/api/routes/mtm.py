@@ -8,13 +8,14 @@ from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
-from app.models.mtm import MTMObjectType, MTMSnapshot
+from app.models.mtm import MTMObjectType
 from app.schemas.mtm import MTMResultResponse, MTMSnapshotCreate, MTMSnapshotResponse
 from app.services.mtm_contract_service import compute_mtm_for_contract
 from app.services.mtm_order_service import compute_mtm_for_order
 from app.services.mtm_snapshot_service import (
     create_mtm_snapshot_for_contract,
     create_mtm_snapshot_for_order,
+    get_mtm_snapshot as _get_mtm_snapshot,
 )
 
 
@@ -92,17 +93,7 @@ def get_mtm_snapshot(
     _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> MTMSnapshotResponse:
-    snapshot = (
-        session.query(MTMSnapshot)
-        .filter(
-            MTMSnapshot.object_type == object_type,
-            MTMSnapshot.object_id == object_id,
-            MTMSnapshot.as_of_date == as_of_date,
-        )
-        .first()
+    snapshot = _get_mtm_snapshot(
+        session, object_type=object_type, object_id=object_id, as_of_date=as_of_date
     )
-    if snapshot is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="MTM snapshot not found"
-        )
     return MTMSnapshotResponse.model_validate(snapshot)

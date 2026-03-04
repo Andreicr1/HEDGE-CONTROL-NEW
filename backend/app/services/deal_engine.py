@@ -7,12 +7,10 @@ Physical P&L  = SO revenue − PO cost
   * Variable-price orders → qty × settlement_price (market)
 
 Financial P&L = hedge positions linked to the deal
-  * Settled hedges (realized):
-      sell → +tons × price_per_ton
-      buy  → −tons × price_per_ton
-  * Active hedges (MTM / unrealised):
-      buy  → tons × (market_price − price_per_ton)
-      sell → tons × (price_per_ton − market_price)
+  All hedges use a single MTM formula (last settlement price):
+      sell/short → tons × (entry_price − market_price)
+      buy/long   → tons × (market_price − entry_price)
+  Settled hedges are classified as **realized**, active as **MTM**.
 
 Total P&L = physical_revenue − physical_cost + hedge_realized + hedge_mtm
 """
@@ -30,7 +28,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.deal import Deal, DealLink, DealLinkedType, DealPNLSnapshot, DealStatus
-from app.models.hedge import Hedge, HedgeDirection, HedgeStatus
+from app.models.contracts import HedgeContract, HedgeContractStatus, HedgeClassification
 from app.models.orders import Order, OrderType, PriceType
 
 logger = logging.getLogger(__name__)
@@ -60,17 +58,24 @@ def _compute_inputs_hash(
     return hashlib.sha256(data.encode()).hexdigest()
 
 
-def _get_market_price(session: Session, commodity: str, as_of_date: date) -> float | None:
+def _get_market_price(
+    session: Session, commodity: str, as_of_date: date
+) -> float | None:
     """Try to fetch the D-1 settlement price; return None on failure."""
     try:
         from app.services.price_lookup_service import (
             get_cash_settlement_price_d1,
             resolve_symbol,
         )
+
         symbol = resolve_symbol(commodity)
-        return float(get_cash_settlement_price_d1(session, symbol=symbol, as_of_date=as_of_date))
+        return float(
+            get_cash_settlement_price_d1(session, symbol=symbol, as_of_date=as_of_date)
+        )
     except Exception:
-        logger.debug("market_price_unavailable commodity=%s date=%s", commodity, as_of_date)
+        logger.debug(
+            "market_price_unavailable commodity=%s date=%s", commodity, as_of_date
+        )
         return None
 
 
@@ -95,20 +100,123 @@ class DealEngineService:
         session.add(deal)
         session.flush()
 
-        # Add initial links
+        # Add initial links (with cross-deal uniqueness validation)
         for link_data in links_data:
+            resolved_type = DealLinkedType(link_data["linked_type"])
+            linked_id = link_data["linked_id"]
+
+            # Cross-deal uniqueness: entity must not be in another deal
+            cross_deal = (
+                session.query(DealLink)
+                .filter(
+                    DealLink.linked_type == resolved_type,
+                    DealLink.linked_id == linked_id,
+                )
+                .first()
+            )
+            if cross_deal:
+                other_deal = session.get(Deal, cross_deal.deal_id)
+                other_ref = (
+                    other_deal.reference if other_deal else str(cross_deal.deal_id)
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"This {resolved_type.value} is already linked to deal "
+                        f"{other_ref}. Each order/hedge may belong to only one deal."
+                    ),
+                )
+
             link = DealLink(
                 deal_id=deal.id,
-                linked_type=DealLinkedType(link_data["linked_type"]),
-                linked_id=link_data["linked_id"],
+                linked_type=resolved_type,
+                linked_id=linked_id,
             )
             session.add(link)
 
         session.flush()
+
+        # Validate hedge-direction constraints after all links are created
+        DealEngineService._validate_hedge_direction(session, deal)
+
         DealEngineService._recompute_tons(session, deal)
         session.commit()
         session.refresh(deal)
         return deal
+
+    # ------------------------------------------------------------------
+    # VALIDATION HELPERS
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_hedge_direction(session: Session, deal: Deal) -> None:
+        """Validate hedge-direction rules for all hedge links in a deal.
+
+        Rules:
+        - Buy / long hedges require a PO in the deal; qty ≤ PO qty.
+        - Sell / short hedges require a SO in the deal; qty ≤ SO qty.
+        """
+        links = session.query(DealLink).filter(DealLink.deal_id == deal.id).all()
+
+        hedge_links = [
+            lk
+            for lk in links
+            if lk.linked_type in (DealLinkedType.hedge, DealLinkedType.contract)
+        ]
+        order_links = [
+            lk
+            for lk in links
+            if lk.linked_type
+            in (DealLinkedType.sales_order, DealLinkedType.purchase_order)
+        ]
+
+        if not hedge_links or not order_links:
+            return  # nothing to validate
+
+        for hl in hedge_links:
+            contract = session.get(HedgeContract, hl.linked_id)
+            if not contract:
+                continue
+
+            is_buy = contract.classification == HedgeClassification.long
+            expected_type = (
+                DealLinkedType.purchase_order if is_buy else DealLinkedType.sales_order
+            )
+            matching = [ol for ol in order_links if ol.linked_type == expected_type]
+
+            if not matching:
+                side_label = "PO (purchase)" if is_buy else "SO (sales)"
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"A {'buy/long' if is_buy else 'sell/short'} hedge contract "
+                        f"requires a {side_label} order in the deal."
+                    ),
+                )
+
+            for mol in matching:
+                order = session.get(Order, mol.linked_id)
+                if not order:
+                    continue
+                # Fixed-price orders have no price exposure — hedging is unnecessary
+                if order.price_type == PriceType.fixed:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            f"Cannot hedge a fixed-price order. "
+                            f"Only variable-price orders have market exposure "
+                            f"and require hedging."
+                        ),
+                    )
+                if contract.quantity_mt > float(order.quantity_mt):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            f"Hedge quantity ({contract.quantity_mt} MT) exceeds "
+                            f"order quantity ({float(order.quantity_mt)} MT). "
+                            f"Hedge must be ≤ the order it covers."
+                        ),
+                    )
 
     # ------------------------------------------------------------------
     # LINKS
@@ -118,19 +226,28 @@ class DealEngineService:
     def add_link(
         session: Session, deal_id: _uuid.UUID, linked_type: str, linked_id: _uuid.UUID
     ) -> DealLink:
-        """Add a link to a deal."""
+        """Add a link to a deal.
+
+        Business rules enforced:
+        1. Same order / hedge can only appear in ONE deal (cross-deal uniqueness).
+        2. Buy / long hedge contracts may only be linked alongside a PO.
+        3. Sell / short hedge contracts may only be linked alongside a SO.
+        4. Hedge quantity must not exceed the quantity of the order it hedges.
+        """
         deal = DealEngineService.get_by_id(session, deal_id)
         if not deal:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deal not found"
             )
 
-        # Check for duplicate
+        resolved_type = DealLinkedType(linked_type)
+
+        # ── Duplicate within same deal ──
         existing = (
             session.query(DealLink)
             .filter(
                 DealLink.deal_id == deal_id,
-                DealLink.linked_type == DealLinkedType(linked_type),
+                DealLink.linked_type == resolved_type,
                 DealLink.linked_id == linked_id,
             )
             .first()
@@ -141,9 +258,95 @@ class DealEngineService:
                 detail="Link already exists",
             )
 
+        # ── Cross-deal uniqueness: entity must not be in another deal ──
+        cross_deal = (
+            session.query(DealLink)
+            .filter(
+                DealLink.linked_type == resolved_type,
+                DealLink.linked_id == linked_id,
+                DealLink.deal_id != deal_id,
+            )
+            .first()
+        )
+        if cross_deal:
+            other_deal = session.get(Deal, cross_deal.deal_id)
+            other_ref = other_deal.reference if other_deal else str(cross_deal.deal_id)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"This {resolved_type.value} is already linked to deal "
+                    f"{other_ref}. Each order/hedge may belong to only one deal."
+                ),
+            )
+
+        # ── Hedge-direction validation ──
+        if resolved_type in (DealLinkedType.hedge, DealLinkedType.contract):
+            contract = session.get(HedgeContract, linked_id)
+            if contract:
+                # Collect existing order links in this deal
+                order_links = (
+                    session.query(DealLink)
+                    .filter(
+                        DealLink.deal_id == deal_id,
+                        DealLink.linked_type.in_(
+                            [
+                                DealLinkedType.sales_order,
+                                DealLinkedType.purchase_order,
+                            ]
+                        ),
+                    )
+                    .all()
+                )
+
+                if order_links:
+                    is_buy = contract.classification == HedgeClassification.long
+                    expected_type = (
+                        DealLinkedType.purchase_order
+                        if is_buy
+                        else DealLinkedType.sales_order
+                    )
+                    matching_orders = [
+                        ol for ol in order_links if ol.linked_type == expected_type
+                    ]
+                    if not matching_orders:
+                        side_label = "PO (purchase)" if is_buy else "SO (sales)"
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=(
+                                f"A {'buy/long' if is_buy else 'sell/short'} hedge "
+                                f"contract requires a {side_label} order in the deal."
+                            ),
+                        )
+
+                    # Validate price-type and quantity constraints
+                    for mol in matching_orders:
+                        order = session.get(Order, mol.linked_id)
+                        if not order:
+                            continue
+                        # Fixed-price orders have no price exposure
+                        if order.price_type == PriceType.fixed:
+                            raise HTTPException(
+                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail=(
+                                    f"Cannot hedge a fixed-price order. "
+                                    f"Only variable-price orders have market "
+                                    f"exposure and require hedging."
+                                ),
+                            )
+                        if contract.quantity_mt > float(order.quantity_mt):
+                            raise HTTPException(
+                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail=(
+                                    f"Hedge quantity ({contract.quantity_mt} MT) "
+                                    f"exceeds order quantity "
+                                    f"({float(order.quantity_mt)} MT). "
+                                    f"Hedge must be ≤ the order it covers."
+                                ),
+                            )
+
         link = DealLink(
             deal_id=deal_id,
-            linked_type=DealLinkedType(linked_type),
+            linked_type=resolved_type,
             linked_id=linked_id,
         )
         session.add(link)
@@ -185,7 +388,8 @@ class DealEngineService:
 
     @staticmethod
     def _order_value(
-        order: Order, market_price: float | None,
+        order: Order,
+        market_price: float | None,
     ) -> float:
         """Return the monetary value for one order (qty × effective price).
 
@@ -248,31 +452,33 @@ class DealEngineService:
             elif link.linked_type == DealLinkedType.purchase_order:
                 order = session.get(Order, link.linked_id)
                 if order:
-                    physical_cost += DealEngineService._order_value(
-                        order, market_price
-                    )
+                    physical_cost += DealEngineService._order_value(order, market_price)
 
-            # ── Financial side (hedges) ──
-            elif link.linked_type == DealLinkedType.hedge:
-                hedge = session.get(Hedge, link.linked_id)
-                if not hedge:
+            # ── Financial side (hedges / contracts) ──
+            # Single MTM formula for all contracts; bucket differs
+            # (settled → realized, active → unrealised).
+            elif link.linked_type in (DealLinkedType.hedge, DealLinkedType.contract):
+                contract = session.get(HedgeContract, link.linked_id)
+                if not contract:
                     continue
 
-                tons = float(hedge.tons)
-                price = float(hedge.price_per_ton)
-                is_sell = hedge.direction == HedgeDirection.sell
+                tons = float(contract.quantity_mt)
+                price = float(contract.fixed_price_value or 0)
+                is_sell = contract.classification == HedgeClassification.short
 
-                if hedge.status == HedgeStatus.settled:
-                    if is_sell:
-                        hedge_pnl_realized += tons * price
-                    else:
-                        hedge_pnl_realized -= tons * price
+                if market_price is not None:
+                    mtm = (
+                        tons * (price - market_price)
+                        if is_sell
+                        else tons * (market_price - price)
+                    )
                 else:
-                    if market_price is not None:
-                        if is_sell:
-                            hedge_pnl_mtm += tons * (price - market_price)
-                        else:
-                            hedge_pnl_mtm += tons * (market_price - price)
+                    mtm = 0.0
+
+                if contract.status == HedgeContractStatus.settled:
+                    hedge_pnl_realized += mtm
+                else:
+                    hedge_pnl_mtm += mtm
 
         total_pnl = (
             physical_revenue - physical_cost + hedge_pnl_realized + hedge_pnl_mtm
@@ -307,6 +513,175 @@ class DealEngineService:
             .order_by(DealPNLSnapshot.snapshot_date.desc())
             .all()
         )
+
+    # ------------------------------------------------------------------
+    # P&L BREAKDOWN (batch computation with per-item detail)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def compute_pnl_breakdown(
+        session: Session,
+        deal_ids: list[_uuid.UUID],
+        snapshot_date: date,
+    ) -> dict:
+        """Compute P&L breakdown for multiple deals with line-item detail.
+
+        If *deal_ids* is empty every active deal is included.
+        Returns a dict ready to be serialised as ``PnlBreakdownResponse``.
+        """
+        if deal_ids:
+            deals = (
+                session.query(Deal)
+                .filter(Deal.id.in_(deal_ids), Deal.is_deleted == False)  # noqa: E712
+                .order_by(Deal.created_at.desc())
+                .all()
+            )
+        else:
+            deals = (
+                session.query(Deal)
+                .filter(Deal.is_deleted == False)  # noqa: E712
+                .order_by(Deal.created_at.desc())
+                .all()
+            )
+
+        tot_revenue = 0.0
+        tot_cost = 0.0
+        tot_hedge_real = 0.0
+        tot_hedge_mtm = 0.0
+        tot_pnl = 0.0
+        result_deals: list[dict] = []
+
+        for deal in deals:
+            market_price = _get_market_price(session, deal.commodity, snapshot_date)
+            links = session.query(DealLink).filter(DealLink.deal_id == deal.id).all()
+
+            physical_revenue = 0.0
+            physical_cost = 0.0
+            hedge_pnl_realized = 0.0
+            hedge_pnl_mtm = 0.0
+            physical_items: list[dict] = []
+            financial_items: list[dict] = []
+
+            for link in links:
+                # ── Physical side ──
+                if link.linked_type == DealLinkedType.sales_order:
+                    order = session.get(Order, link.linked_id)
+                    if order:
+                        value = DealEngineService._order_value(order, market_price)
+                        physical_revenue += value
+                        physical_items.append(
+                            {
+                                "id": order.id,
+                                "order_type": "SO",
+                                "commodity": deal.commodity,
+                                "quantity_mt": float(order.quantity_mt),
+                                "price": float(order.avg_entry_price or 0),
+                                "value": value,
+                            }
+                        )
+
+                elif link.linked_type == DealLinkedType.purchase_order:
+                    order = session.get(Order, link.linked_id)
+                    if order:
+                        value = DealEngineService._order_value(order, market_price)
+                        physical_cost += value
+                        physical_items.append(
+                            {
+                                "id": order.id,
+                                "order_type": "PO",
+                                "commodity": deal.commodity,
+                                "quantity_mt": float(order.quantity_mt),
+                                "price": float(order.avg_entry_price or 0),
+                                "value": -value,
+                            }
+                        )
+
+                # ── Financial side ──
+                # Single MTM formula; settled → realized, active → MTM.
+                elif link.linked_type in (
+                    DealLinkedType.hedge,
+                    DealLinkedType.contract,
+                ):
+                    contract = session.get(HedgeContract, link.linked_id)
+                    if not contract:
+                        continue
+
+                    tons = float(contract.quantity_mt)
+                    price = float(contract.fixed_price_value or 0)
+                    is_sell = contract.classification == HedgeClassification.short
+
+                    if market_price is not None:
+                        pnl = (
+                            tons * (price - market_price)
+                            if is_sell
+                            else tons * (market_price - price)
+                        )
+                    else:
+                        pnl = 0.0
+
+                    if contract.status == HedgeContractStatus.settled:
+                        hedge_pnl_realized += pnl
+                    else:
+                        hedge_pnl_mtm += pnl
+
+                    financial_items.append(
+                        {
+                            "id": contract.id,
+                            "reference": getattr(contract, "reference", None)
+                            or str(contract.id)[:8],
+                            "classification": (
+                                contract.classification.value
+                                if hasattr(contract.classification, "value")
+                                else str(contract.classification)
+                            ),
+                            "status": (
+                                contract.status.value
+                                if hasattr(contract.status, "value")
+                                else str(contract.status)
+                            ),
+                            "quantity_mt": tons,
+                            "entry_price": price,
+                            "market_price": market_price,
+                            "pnl": pnl,
+                        }
+                    )
+
+            total_pnl = (
+                physical_revenue - physical_cost + hedge_pnl_realized + hedge_pnl_mtm
+            )
+
+            result_deals.append(
+                {
+                    "deal_id": deal.id,
+                    "deal_reference": deal.reference,
+                    "deal_name": deal.name,
+                    "commodity": deal.commodity,
+                    "physical_revenue": physical_revenue,
+                    "physical_cost": physical_cost,
+                    "hedge_pnl_realized": hedge_pnl_realized,
+                    "hedge_pnl_mtm": hedge_pnl_mtm,
+                    "total_pnl": total_pnl,
+                    "physical_items": physical_items,
+                    "financial_items": financial_items,
+                }
+            )
+
+            tot_revenue += physical_revenue
+            tot_cost += physical_cost
+            tot_hedge_real += hedge_pnl_realized
+            tot_hedge_mtm += hedge_pnl_mtm
+            tot_pnl += total_pnl
+
+        return {
+            "deals": result_deals,
+            "totals": {
+                "physical_revenue": tot_revenue,
+                "physical_cost": tot_cost,
+                "hedge_pnl_realized": tot_hedge_real,
+                "hedge_pnl_mtm": tot_hedge_mtm,
+                "total_pnl": tot_pnl,
+            },
+        }
 
     # ------------------------------------------------------------------
     # STATUS
@@ -412,10 +787,14 @@ class DealEngineService:
                 order = session.query(Order).filter(Order.id == link.linked_id).first()
                 if order:
                     physical_tons += float(order.quantity_mt)
-            elif link.linked_type == DealLinkedType.hedge:
-                hedge = session.query(Hedge).filter(Hedge.id == link.linked_id).first()
-                if hedge:
-                    hedge_tons += float(hedge.tons)
+            elif link.linked_type in (DealLinkedType.hedge, DealLinkedType.contract):
+                contract = (
+                    session.query(HedgeContract)
+                    .filter(HedgeContract.id == link.linked_id)
+                    .first()
+                )
+                if contract:
+                    hedge_tons += float(contract.quantity_mt)
 
         deal.total_physical_tons = physical_tons
         deal.total_hedge_tons = hedge_tons

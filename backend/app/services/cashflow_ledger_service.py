@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.models.cashflow import CashFlowLedgerEntry, HedgeContractSettlementEvent
 from app.models.contracts import HedgeContract, HedgeContractStatus
-from app.schemas.cashflow import HedgeContractSettlementCreate, HedgeContractSettlementLeg
+from app.schemas.cashflow import (
+    HedgeContractSettlementCreate,
+    HedgeContractSettlementLeg,
+)
 
 
 SOURCE_EVENT_TYPE = "HEDGE_CONTRACT_SETTLED"
@@ -51,16 +54,23 @@ def _build_expected_entry(
 
 def _assert_contract_active(contract: HedgeContract) -> None:
     if contract.status != HedgeContractStatus.active:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Hedge contract is not active")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Hedge contract is not active"
+        )
 
 
 def _validate_currency(payload: HedgeContractSettlementCreate) -> None:
     if payload.currency is not None and payload.currency != "USD":
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="currency must be USD")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="currency must be USD",
+        )
 
 
 def _raise_conflict() -> None:
-    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Settlement ledger conflict")
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT, detail="Settlement ledger conflict"
+    )
 
 
 def ingest_hedge_contract_settlement(
@@ -70,12 +80,16 @@ def ingest_hedge_contract_settlement(
 ) -> tuple[HedgeContractSettlementEvent, list[CashFlowLedgerEntry]]:
     contract = db.get(HedgeContract, contract_id)
     if not contract:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Hedge contract not found"
+        )
 
     _validate_currency(payload)
 
     existing_event = db.get(HedgeContractSettlementEvent, payload.source_event_id)
-    expected_entries = [_build_expected_entry(contract_id, payload, leg) for leg in payload.legs]
+    expected_entries = [
+        _build_expected_entry(contract_id, payload, leg) for leg in payload.legs
+    ]
 
     existing_entries = (
         db.query(CashFlowLedgerEntry)
@@ -92,22 +106,42 @@ def ingest_hedge_contract_settlement(
         if existing_event is None or len(existing_entries) != 2:
             _raise_conflict()
         for expected in expected_entries:
-            match = next((entry for entry in existing_entries if entry.leg_id == expected["leg_id"]), None)
+            match = next(
+                (
+                    entry
+                    for entry in existing_entries
+                    if entry.leg_id == expected["leg_id"]
+                ),
+                None,
+            )
             if match is None or not _ledger_entry_matches(match, expected):
                 _raise_conflict()
-        if existing_event.hedge_contract_id != contract_id or existing_event.cashflow_date != payload.cashflow_date:
+        if (
+            existing_event.hedge_contract_id != contract_id
+            or existing_event.cashflow_date != payload.cashflow_date
+        ):
             _raise_conflict()
         return existing_event, existing_entries
 
     _assert_contract_active(contract)
 
     if existing_event is not None:
-        if existing_event.hedge_contract_id != contract_id or existing_event.cashflow_date != payload.cashflow_date:
+        if (
+            existing_event.hedge_contract_id != contract_id
+            or existing_event.cashflow_date != payload.cashflow_date
+        ):
             _raise_conflict()
         if len(existing_entries) != 2:
             _raise_conflict()
         for expected in expected_entries:
-            match = next((entry for entry in existing_entries if entry.leg_id == expected["leg_id"]), None)
+            match = next(
+                (
+                    entry
+                    for entry in existing_entries
+                    if entry.leg_id == expected["leg_id"]
+                ),
+                None,
+            )
             if match is None or not _ledger_entry_matches(match, expected):
                 _raise_conflict()
         return existing_event, existing_entries
@@ -145,3 +179,38 @@ def ingest_hedge_contract_settlement(
         db.refresh(entry)
 
     return settlement_event, ledger_entries
+
+
+def list_entries_by_contract(
+    db: Session,
+    contract_id: UUID,
+    start: date | None = None,
+    end: date | None = None,
+) -> list[CashFlowLedgerEntry]:
+    query = db.query(CashFlowLedgerEntry).filter(
+        CashFlowLedgerEntry.hedge_contract_id == contract_id
+    )
+    if start is not None:
+        query = query.filter(CashFlowLedgerEntry.cashflow_date >= start)
+    if end is not None:
+        query = query.filter(CashFlowLedgerEntry.cashflow_date <= end)
+    return query.order_by(
+        CashFlowLedgerEntry.cashflow_date.asc(),
+        CashFlowLedgerEntry.created_at.asc(),
+    ).all()
+
+
+def list_entries_by_event(
+    db: Session,
+    source_event_id: UUID,
+    source_event_type: str = SOURCE_EVENT_TYPE,
+) -> list[CashFlowLedgerEntry]:
+    return (
+        db.query(CashFlowLedgerEntry)
+        .filter(
+            CashFlowLedgerEntry.source_event_type == source_event_type,
+            CashFlowLedgerEntry.source_event_id == source_event_id,
+        )
+        .order_by(CashFlowLedgerEntry.leg_id.asc())
+        .all()
+    )

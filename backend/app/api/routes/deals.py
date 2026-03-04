@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_user
 from app.core.database import get_session
 from app.core.pagination import paginate
-from app.models.deal import Deal
+from app.models.deal import Deal, DealLink, DealLinkedType
 from app.schemas.deal import (
     DealCreate,
     DealDetailRead,
@@ -20,6 +20,8 @@ from app.schemas.deal import (
     DealPNLHistoryResponse,
     DealPNLSnapshotRead,
     DealRead,
+    PnlBreakdownRequest,
+    PnlBreakdownResponse,
 )
 from app.services.deal_engine import DealEngineService
 
@@ -29,6 +31,40 @@ router = APIRouter()
 # ------------------------------------------------------------------
 # Static paths first
 # ------------------------------------------------------------------
+
+
+@router.get("/by-linked-entity", response_model=DealRead)
+def find_deal_by_linked_entity(
+    linked_type: str = Query(..., description="e.g. sales_order, purchase_order"),
+    linked_id: UUID = Query(...),
+    _user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Find the deal that contains a given linked entity (order or contract)."""
+    try:
+        resolved_type = DealLinkedType(linked_type)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid linked_type: {linked_type}",
+        )
+    link = (
+        session.query(DealLink)
+        .filter(DealLink.linked_type == resolved_type, DealLink.linked_id == linked_id)
+        .first()
+    )
+    if not link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No deal found for the given entity.",
+        )
+    deal = session.get(Deal, link.deal_id)
+    if not deal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Deal not found.",
+        )
+    return deal
 
 
 @router.post("", response_model=DealRead, status_code=status.HTTP_201_CREATED)
@@ -65,6 +101,19 @@ def list_deals(
         limit=limit,
     )
     return {"items": items, "next_cursor": next_cursor}
+
+
+@router.post("/pnl-breakdown", response_model=PnlBreakdownResponse)
+def pnl_breakdown(
+    body: PnlBreakdownRequest,
+    _user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Compute P&L breakdown for one, many, or all deals."""
+    result = DealEngineService.compute_pnl_breakdown(
+        session, body.deal_ids, body.snapshot_date
+    )
+    return result
 
 
 # ------------------------------------------------------------------

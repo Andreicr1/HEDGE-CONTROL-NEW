@@ -135,6 +135,27 @@ sap.ui.define([
 
     onClose: function () {
       this.navToList("deals");
+    },
+
+    onNavigateToLinked: function (oEvent) {
+      var oCtx = oEvent.getSource().getBindingContext("dealDet");
+      if (!oCtx) { return; }
+      var sType = oCtx.getProperty("linked_type");
+      var sId = oCtx.getProperty("linked_id");
+      if (!sId) { return; }
+
+      var mRoutes = {
+        sales_order:    { route: "orderDetail",    param: "orderId" },
+        purchase_order: { route: "orderDetail",    param: "orderId" },
+        hedge:          { route: "contractDetail", param: "contractId" },
+        contract:       { route: "contractDetail", param: "contractId" }
+      };
+      var oTarget = mRoutes[sType];
+      if (oTarget) {
+        var oParams = {};
+        oParams[oTarget.param] = sId;
+        this.getRouter().navTo(oTarget.route, oParams);
+      }
     }
   });
 });

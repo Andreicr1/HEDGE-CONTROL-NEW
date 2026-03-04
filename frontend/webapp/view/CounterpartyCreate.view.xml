@@ -35,9 +35,8 @@
                 <form:FormElement label="{i18n>colType}">
                   <form:fields>
                     <Select selectedKey="{cptyCrt>/form/type}">
-                      <core:Item key="customer" text="{i18n>typeCustomer}" />
-                      <core:Item key="supplier" text="{i18n>typeSupplier}" />
                       <core:Item key="broker" text="{i18n>typeBroker}" />
+                      <core:Item key="bank_br" text="{i18n>typeBankBr}" />
                     </Select>
                   </form:fields>
                 </form:FormElement>
@@ -85,15 +84,15 @@
                     <Input value="{cptyCrt>/form/contact_phone}" type="Tel" />
                   </form:fields>
                 </form:FormElement>
+                <form:FormElement label="{i18n>colWhatsAppPhone}">
+                  <form:fields>
+                    <Input value="{cptyCrt>/form/whatsapp_phone}" type="Tel" placeholder="+5511999999999" />
+                  </form:fields>
+                </form:FormElement>
               </form:formElements>
             </form:FormContainer>
             <form:FormContainer title="{i18n>sectionFinancial}">
               <form:formElements>
-                <form:FormElement label="{i18n>colPaymentTerms}">
-                  <form:fields>
-                    <Input value="{cptyCrt>/form/payment_terms_days}" type="Number" />
-                  </form:fields>
-                </form:FormElement>
                 <form:FormElement label="{i18n>colCreditLimit}">
                   <form:fields>
                     <Input value="{cptyCrt>/form/credit_limit_usd}" type="Number" placeholder="0.00" />

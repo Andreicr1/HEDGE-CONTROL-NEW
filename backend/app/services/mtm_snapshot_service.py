@@ -18,7 +18,9 @@ def _as_decimal(value) -> Decimal:
     return Decimal(str(value))
 
 
-def create_mtm_snapshot_for_contract(db: Session, contract_id: UUID, as_of_date: date, correlation_id: str) -> MTMSnapshot:
+def create_mtm_snapshot_for_contract(
+    db: Session, contract_id: UUID, as_of_date: date, correlation_id: str
+) -> MTMSnapshot:
     existing = (
         db.query(MTMSnapshot)
         .filter(
@@ -29,7 +31,9 @@ def create_mtm_snapshot_for_contract(db: Session, contract_id: UUID, as_of_date:
         .first()
     )
 
-    computed = compute_mtm_for_contract(db, contract_id=contract_id, as_of_date=as_of_date)
+    computed = compute_mtm_for_contract(
+        db, contract_id=contract_id, as_of_date=as_of_date
+    )
 
     if existing is not None:
         if (
@@ -38,7 +42,9 @@ def create_mtm_snapshot_for_contract(db: Session, contract_id: UUID, as_of_date:
             or _as_decimal(existing.entry_price) != _as_decimal(computed.entry_price)
             or _as_decimal(existing.quantity_mt) != _as_decimal(computed.quantity_mt)
         ):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MTM snapshot conflict")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="MTM snapshot conflict"
+            )
         return existing
 
     snapshot = MTMSnapshot(
@@ -57,7 +63,9 @@ def create_mtm_snapshot_for_contract(db: Session, contract_id: UUID, as_of_date:
     return snapshot
 
 
-def create_mtm_snapshot_for_order(db: Session, order_id: UUID, as_of_date: date, correlation_id: str) -> MTMSnapshot:
+def create_mtm_snapshot_for_order(
+    db: Session, order_id: UUID, as_of_date: date, correlation_id: str
+) -> MTMSnapshot:
     existing = (
         db.query(MTMSnapshot)
         .filter(
@@ -77,7 +85,9 @@ def create_mtm_snapshot_for_order(db: Session, order_id: UUID, as_of_date: date,
             or _as_decimal(existing.entry_price) != _as_decimal(computed.entry_price)
             or _as_decimal(existing.quantity_mt) != _as_decimal(computed.quantity_mt)
         ):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MTM snapshot conflict")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="MTM snapshot conflict"
+            )
         return existing
 
     snapshot = MTMSnapshot(
@@ -93,4 +103,26 @@ def create_mtm_snapshot_for_order(db: Session, order_id: UUID, as_of_date: date,
     db.add(snapshot)
     db.commit()
     db.refresh(snapshot)
+    return snapshot
+
+
+def get_mtm_snapshot(
+    db: Session,
+    object_type: MTMObjectType,
+    object_id: UUID,
+    as_of_date: date,
+) -> MTMSnapshot:
+    snapshot = (
+        db.query(MTMSnapshot)
+        .filter(
+            MTMSnapshot.object_type == object_type,
+            MTMSnapshot.object_id == object_id,
+            MTMSnapshot.as_of_date == as_of_date,
+        )
+        .first()
+    )
+    if snapshot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="MTM snapshot not found"
+        )
     return snapshot

@@ -79,12 +79,7 @@ class RFQ(Base):
 
 
 class RFQInvitationChannel(enum.Enum):
-    email = "email"
-    api = "api"
     whatsapp = "whatsapp"
-    bank = "bank"
-    broker = "broker"
-    other = "other"
 
 
 class RFQInvitationStatus(enum.Enum):
@@ -103,8 +98,13 @@ class RFQInvitation(Base):
         UUID(as_uuid=True), ForeignKey("rfqs.id", ondelete="RESTRICT"), nullable=False
     )
     rfq_number: Mapped[str] = mapped_column(String(length=32), nullable=False)
-    recipient_id: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    counterparty_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("counterparties.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     recipient_name: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    recipient_phone: Mapped[str] = mapped_column(String(length=50), nullable=False)
     channel: Mapped[RFQInvitationChannel] = mapped_column(
         Enum(RFQInvitationChannel, name="rfq_invitation_channel"),
         nullable=False,

@@ -12,28 +12,28 @@ from app.core.pagination import paginate
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.quotes import RFQQuote
-from app.models.rfqs import RFQ, RFQDirection, RFQIntent, RFQState
+from app.models.rfqs import RFQ, RFQDirection, RFQIntent, RFQState, RFQStateEvent
 from app.schemas.rfq import (
     RFQCreate,
     RFQAwardRequest,
+    RFQAwardQuoteRequest,
     RFQListResponse,
     RFQQuoteCreate,
     RFQQuoteRead,
     RFQRefreshRequest,
+    RFQRefreshCounterpartyRequest,
     RFQRejectRequest,
+    RFQRejectQuoteRequest,
     RFQRead,
     RFQInvitationRead,
+    RFQStateEventRead,
     RFQTextPreviewRequest,
     RFQTextPreviewResponse,
     SpreadRankingRead,
     TradeRankingFailureCode,
     TradeRankingRead,
 )
-from app.core.logging import get_logger
-from app.services.rfq_orchestrator import RFQOrchestrator
 from app.services.rfq_service import RFQService
-
-logger = get_logger()
 
 router = APIRouter()
 
@@ -134,7 +134,7 @@ def preview_rfq_text(
         TradeType,
         compute_trade_ppt_dates,
     )
-    from app.services.rfq_message_builder import build_rfq_message
+    from app.services.rfq_message_builder import build_rfq_message, build_pt_summary
 
     def _to_leg(inp: "RFQLegInput") -> Leg:  # noqa: F821
         order = None
@@ -167,17 +167,16 @@ def preview_rfq_text(
     )
 
     try:
-        text_en = build_rfq_message(
-            channel_type="BROKER_LME",
+        text = build_rfq_message(
+            channel_type=payload.channel_type,
             trade=trade,
             company_header=payload.company_header,
             company_label_for_payoff=payload.company_label_for_payoff,
         )
-        text_pt = build_rfq_message(
-            channel_type="BANK",
+
+        text_pt = build_pt_summary(
             trade=trade,
             company_header=payload.company_header,
-            company_label_for_payoff=payload.company_label_for_payoff,
         )
 
         ppts = compute_trade_ppt_dates(trade)
@@ -185,8 +184,8 @@ def preview_rfq_text(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return RFQTextPreviewResponse(
-        text=text_en,
-        text_en=text_en,
+        text=text,
+        text_en=text,
         text_pt=text_pt,
         leg1_ppt=ppts["leg1_ppt"],
         leg2_ppt=ppts["leg2_ppt"],
@@ -218,6 +217,27 @@ def list_rfq_quotes(
         .all()
     )
     return [RFQQuoteRead.model_validate(q) for q in quotes]
+
+
+@router.get("/{rfq_id}/state-events", response_model=list[RFQStateEventRead])
+def list_rfq_state_events(
+    rfq_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> list[RFQStateEventRead]:
+    """List all state-transition events for an RFQ (timeline)."""
+    rfq = session.get(RFQ, rfq_id)
+    if not rfq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="RFQ not found"
+        )
+    events = (
+        session.query(RFQStateEvent)
+        .filter(RFQStateEvent.rfq_id == rfq_id)
+        .order_by(RFQStateEvent.created_at)
+        .all()
+    )
+    return [RFQStateEventRead.model_validate(e) for e in events]
 
 
 @router.post(
@@ -285,16 +305,85 @@ def reject_rfq(
     __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
-    rfq = RFQService.reject(session, rfq_id, payload.user_id)
+    RFQService.reject(session, rfq_id, payload.user_id)
     session.commit()
     mark_audit_success(request, rfq_id)
     request.state.audit_commit()
+    return _build_rfq_read(session, rfq_id)
 
-    try:
-        RFQOrchestrator.notify_reject(session, rfq)
-    except Exception:
-        logger.exception("reject_notification_failed", rfq_id=str(rfq_id))
 
+# ─── Per-counterparty / per-quote actions ────────────────────────────────────
+
+
+@router.post("/{rfq_id}/actions/reject-quote", response_model=RFQRead)
+@limiter.limit(RATE_LIMIT_MUTATION)
+def reject_quote(
+    rfq_id: UUID,
+    quote_id: UUID,
+    payload: RFQRejectQuoteRequest,
+    request: Request,
+    _: None = Depends(
+        audit_event(
+            entity_type="rfq_quote",
+            event_type="quote_rejected",
+        )
+    ),
+    __: None = Depends(require_role("trader")),
+    session: Session = Depends(get_session),
+) -> RFQRead:
+    """Reject a specific counterparty quote without closing the RFQ."""
+    RFQService.reject_quote(session, rfq_id, quote_id)
+    session.commit()
+    mark_audit_success(request, rfq_id)
+    request.state.audit_commit()
+    return _build_rfq_read(session, rfq_id)
+
+
+@router.post("/{rfq_id}/actions/refresh-counterparty", response_model=RFQRead)
+@limiter.limit(RATE_LIMIT_MUTATION)
+def refresh_counterparty(
+    rfq_id: UUID,
+    payload: RFQRefreshCounterpartyRequest,
+    request: Request,
+    _: None = Depends(
+        audit_event(
+            entity_type="rfq",
+            event_type="counterparty_refreshed",
+        )
+    ),
+    __: None = Depends(require_role("trader")),
+    session: Session = Depends(get_session),
+) -> RFQRead:
+    """Re-send invitation to a specific counterparty."""
+    RFQService.refresh_counterparty(
+        session, rfq_id, payload.counterparty_id, payload.user_id
+    )
+    session.commit()
+    mark_audit_success(request, rfq_id)
+    request.state.audit_commit()
+    return _build_rfq_read(session, rfq_id)
+
+
+@router.post("/{rfq_id}/actions/award-quote", response_model=RFQRead)
+@limiter.limit(RATE_LIMIT_MUTATION)
+def award_quote(
+    rfq_id: UUID,
+    payload: RFQAwardQuoteRequest,
+    request: Request,
+    _: None = Depends(
+        audit_event(
+            entity_type="rfq",
+            event_type="quote_awarded",
+        )
+    ),
+    __: None = Depends(require_role("trader")),
+    session: Session = Depends(get_session),
+) -> RFQRead:
+    """Award a specific quote — creates a contract from this counterparty's quote."""
+    RFQService.award_quote(session, rfq_id, payload.quote_id, payload.user_id)
+    session.commit()
+    mark_audit_success(request, rfq_id)
+    request.state.audit_commit()
     return _build_rfq_read(session, rfq_id)
 
 
@@ -335,34 +424,10 @@ def award_rfq(
     __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> RFQRead:
-    rfq = RFQService.award(session, rfq_id, payload.user_id)
+    RFQService.award(session, rfq_id, payload.user_id)
     session.commit()
     mark_audit_success(request, rfq_id)
     request.state.audit_commit()
-
-    try:
-        from app.models.rfqs import RFQStateEvent as _SE
-
-        award_event = (
-            session.query(_SE)
-            .filter(
-                _SE.rfq_id == rfq_id,
-                _SE.to_state == RFQState.awarded,
-            )
-            .order_by(_SE.event_timestamp.desc())
-            .first()
-        )
-        if award_event and award_event.winning_counterparty_ids:
-            import json as _json
-
-            winners = _json.loads(award_event.winning_counterparty_ids)
-            for cp_id in winners:
-                RFQOrchestrator.notify_award(
-                    session, rfq, cp_id, price=0.0, unit="USD/MT"
-                )
-    except Exception:
-        logger.exception("award_notification_failed", rfq_id=str(rfq_id))
-
     return _build_rfq_read(session, rfq_id)
 
 

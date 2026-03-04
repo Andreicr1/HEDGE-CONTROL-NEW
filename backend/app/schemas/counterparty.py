@@ -6,15 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CounterpartyType(str, Enum):
-    customer = "customer"
-    supplier = "supplier"
     broker = "broker"
-
-
-class RfqChannelType(str, Enum):
-    broker_lme = "broker_lme"
-    banco_br = "banco_br"
-    none = "none"
+    bank_br = "bank_br"
 
 
 class KycStatus(str, Enum):
@@ -47,9 +40,13 @@ class CounterpartyCreate(BaseModel):
     contact_name: str | None = Field(None, max_length=200)
     contact_email: str | None = Field(None, max_length=200)
     contact_phone: str | None = Field(None, max_length=50)
-    payment_terms_days: int = 30
+    whatsapp_phone: str | None = Field(
+        None,
+        max_length=50,
+        description="WhatsApp number in E.164 format, e.g. +5511999999999",
+    )
+    payment_terms_days: int | None = None
     credit_limit_usd: float | None = None
-    rfq_channel_type: RfqChannelType = RfqChannelType.none
     kyc_status: KycStatus = KycStatus.pending
     sanctions_status: SanctionsStatus = SanctionsStatus.clear
     risk_rating: RiskRating = RiskRating.medium
@@ -67,9 +64,8 @@ class CounterpartyUpdate(BaseModel):
     contact_name: str | None = Field(None, max_length=200)
     contact_email: str | None = Field(None, max_length=200)
     contact_phone: str | None = Field(None, max_length=50)
-    payment_terms_days: int | None = None
+    whatsapp_phone: str | None = Field(None, max_length=50)
     credit_limit_usd: float | None = None
-    rfq_channel_type: RfqChannelType | None = None
     kyc_status: KycStatus | None = None
     sanctions_status: SanctionsStatus | None = None
     risk_rating: RiskRating | None = None
@@ -91,9 +87,9 @@ class CounterpartyRead(BaseModel):
     contact_name: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
-    payment_terms_days: int
+    whatsapp_phone: str | None = None
+    payment_terms_days: int | None = None
     credit_limit_usd: float | None = None
-    rfq_channel_type: RfqChannelType
     kyc_status: KycStatus
     sanctions_status: SanctionsStatus
     risk_rating: RiskRating

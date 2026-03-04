@@ -1,7 +1,26 @@
 from datetime import datetime, timezone
 
 
-def _create_trade_rfq(client, direction: str) -> str:
+def _create_counterparty(
+    client, name: str = "Counterparty", phone: str = "+5511999990001"
+) -> str:
+    """Create a counterparty with whatsapp_phone and return its UUID."""
+    resp = client.post(
+        "/counterparties",
+        json={
+            "type": "broker",
+            "name": name,
+            "country": "BRA",
+            "whatsapp_phone": phone,
+        },
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+def _create_trade_rfq(client, direction: str, cp_id: str | None = None) -> str:
+    if cp_id is None:
+        cp_id = _create_counterparty(client)
     response = client.post(
         "/rfqs",
         json={
@@ -12,18 +31,7 @@ def _create_trade_rfq(client, direction: str) -> str:
             "delivery_window_end": "2026-03-31",
             "direction": direction,
             "order_id": None,
-            "invitations": [
-                {
-                    "recipient_id": "CP_INV",
-                    "recipient_name": "Counterparty",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
         },
     )
     assert response.status_code == 201
@@ -310,4 +318,3 @@ def test_spread_ranking_tie_fails(client) -> None:
     payload = ranking.json()
     assert payload["status"] == "FAILURE"
     assert payload["failure_code"] == "TIE"
-

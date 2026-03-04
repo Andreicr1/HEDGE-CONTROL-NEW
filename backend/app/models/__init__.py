@@ -35,7 +35,6 @@ from app.models.exposure import (
     HedgeTaskAction,
     HedgeTaskStatus,
 )
-from app.models.hedge import Hedge, HedgeDirection, HedgeSourceType, HedgeStatus
 from app.models.linkages import HedgeOrderLinkage
 from app.models.market_data import CashSettlementPrice
 from app.models.mtm import MTMObjectType, MTMSnapshot
@@ -47,6 +46,7 @@ from app.models.orders import (
     PricingType,
     SoPoLink,
 )
+from app.models.pl import PLSnapshot
 from app.models.quotes import RFQQuote
 from app.models.rfqs import (
     RFQ,
@@ -74,16 +74,12 @@ __all__ = [
     "ExposureDirection",
     "ExposureSourceType",
     "ExposureStatus",
-    "Hedge",
     "HedgeClassification",
     "HedgeContract",
     "HedgeContractStatus",
-    "HedgeDirection",
     "HedgeExposure",
     "HedgeLegSide",
     "HedgeOrderLinkage",
-    "HedgeSourceType",
-    "HedgeStatus",
     "HedgeTask",
     "HedgeTaskAction",
     "HedgeTaskStatus",
@@ -99,6 +95,7 @@ __all__ = [
     "Order",
     "OrderPricingConvention",
     "OrderType",
+    "PLSnapshot",
     "PriceType",
     "PricingType",
     "SoPoLink",

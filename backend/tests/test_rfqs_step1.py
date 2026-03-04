@@ -1,6 +1,23 @@
 from datetime import datetime, timezone
 
 
+def _create_counterparty(
+    client, name: str = "Counterparty 1", phone: str = "+5511999990001"
+) -> str:
+    """Create a counterparty with whatsapp_phone and return its UUID."""
+    resp = client.post(
+        "/counterparties",
+        json={
+            "type": "broker",
+            "name": name,
+            "country": "BRA",
+            "whatsapp_phone": phone,
+        },
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
 def _create_sales_order(client, quantity_mt: float) -> str:
     response = client.post(
         "/orders/sales",
@@ -26,10 +43,16 @@ def _create_hedge_contract(client, quantity_mt: float) -> str:
     return response.json()["id"]
 
 
-def _create_linkage(client, order_id: str, contract_id: str, quantity_mt: float) -> None:
+def _create_linkage(
+    client, order_id: str, contract_id: str, quantity_mt: float
+) -> None:
     response = client.post(
         "/linkages",
-        json={"order_id": order_id, "contract_id": contract_id, "quantity_mt": quantity_mt},
+        json={
+            "order_id": order_id,
+            "contract_id": contract_id,
+            "quantity_mt": quantity_mt,
+        },
     )
     assert response.status_code == 201
 
@@ -95,32 +118,7 @@ def test_rfq_number_is_deterministic_and_server_generated(client) -> None:
 
 
 def test_rfq_state_transitions_valid(client) -> None:
-    response = _create_rfq(
-        client,
-        {
-            "intent": "GLOBAL_POSITION",
-            "commodity": "LME_AL",
-            "quantity_mt": 3.0,
-            "delivery_window_start": "2026-03-01",
-            "delivery_window_end": "2026-03-31",
-            "direction": "BUY",
-            "order_id": None,
-            "invitations": [
-                {
-                    "recipient_id": "CP1",
-                    "recipient_name": "Counterparty",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-1",
-                    "send_status": "queued",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-1",
-                }
-            ],
-        },
-    )
-    assert response.status_code == 201
-    assert response.json()["state"] == "SENT"
+    cp_id = _create_counterparty(client)
 
     response = _create_rfq(
         client,
@@ -132,18 +130,24 @@ def test_rfq_state_transitions_valid(client) -> None:
             "delivery_window_end": "2026-03-31",
             "direction": "BUY",
             "order_id": None,
-            "invitations": [
-                {
-                    "recipient_id": "CP2",
-                    "recipient_name": "Counterparty",
-                    "channel": "email",
-                    "message_body": "RFQ request",
-                    "provider_message_id": "msg-2",
-                    "send_status": "failed",
-                    "sent_at": datetime(2026, 2, 1, tzinfo=timezone.utc).isoformat(),
-                    "idempotency_key": "idem-2",
-                }
-            ],
+            "invitations": [{"counterparty_id": cp_id}],
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["state"] == "SENT"
+
+    # No invitations → stays in CREATED
+    response = _create_rfq(
+        client,
+        {
+            "intent": "GLOBAL_POSITION",
+            "commodity": "LME_AL",
+            "quantity_mt": 3.0,
+            "delivery_window_start": "2026-03-01",
+            "delivery_window_end": "2026-03-31",
+            "direction": "BUY",
+            "order_id": None,
+            "invitations": [],
         },
     )
     assert response.status_code == 201

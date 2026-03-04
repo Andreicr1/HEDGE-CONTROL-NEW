@@ -1,7 +1,15 @@
+"""HedgeContract model — unified hedge/derivative position.
+
+Replaces the old separate Hedge model. Every hedge position (whether created
+manually or via RFQ award) is stored as a HedgeContract with two legs (fixed
+and variable) and a classification (long/short).
+"""
+
 import enum
 import uuid
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, String
+from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -21,8 +29,31 @@ class HedgeClassification(enum.Enum):
 
 class HedgeContractStatus(enum.Enum):
     active = "active"
-    cancelled = "cancelled"
+    partially_settled = "partially_settled"
     settled = "settled"
+    cancelled = "cancelled"
+
+
+# Valid state transitions for the status lifecycle
+VALID_STATUS_TRANSITIONS: dict[HedgeContractStatus, set[HedgeContractStatus]] = {
+    HedgeContractStatus.active: {
+        HedgeContractStatus.partially_settled,
+        HedgeContractStatus.settled,
+        HedgeContractStatus.cancelled,
+    },
+    HedgeContractStatus.partially_settled: {
+        HedgeContractStatus.settled,
+        HedgeContractStatus.cancelled,
+    },
+    HedgeContractStatus.settled: set(),
+    HedgeContractStatus.cancelled: set(),
+}
+
+
+class HedgeSourceType(enum.Enum):
+    rfq_award = "rfq_award"
+    manual = "manual"
+    auto = "auto"
 
 
 class HedgeContract(Base):
@@ -30,6 +61,9 @@ class HedgeContract(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    reference: Mapped[str | None] = mapped_column(
+        String(length=50), unique=True, nullable=True
     )
     commodity: Mapped[str] = mapped_column(String(length=64), nullable=False)
     quantity_mt: Mapped[float] = mapped_column(Float, nullable=False)
@@ -42,7 +76,7 @@ class HedgeContract(Base):
         nullable=True,
     )
     counterparty_id: Mapped[str | None] = mapped_column(
-        String(length=64), nullable=True
+        String(length=100), nullable=True
     )
     fixed_price_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     fixed_price_unit: Mapped[str | None] = mapped_column(
@@ -50,6 +84,23 @@ class HedgeContract(Base):
     )
     float_pricing_convention: Mapped[str | None] = mapped_column(
         String(length=64), nullable=True
+    )
+    premium_discount: Mapped[float | None] = mapped_column(
+        Float, default=0, nullable=True
+    )
+
+    # ── Verification period fields ──
+    pricing_period_month: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Reference month for avg convention (1-12)"
+    )
+    pricing_period_year: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Reference year for avg convention"
+    )
+    fixing_date: Mapped[date | None] = mapped_column(
+        Date, nullable=True, comment="Fixing date for c2r convention"
+    )
+    avg_computation_days: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Number of days for avginter convention"
     )
     status: Mapped[HedgeContractStatus] = mapped_column(
         Enum(HedgeContractStatus, name="hedge_contract_status"),
@@ -68,9 +119,45 @@ class HedgeContract(Base):
         Enum(HedgeClassification, name="hedge_classification"),
         nullable=False,
     )
+
+    # ── Dates ──
+    settlement_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    prompt_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    trade_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # ── Provenance ──
+    source_type: Mapped[str | None] = mapped_column(String(length=20), nullable=True)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    # ── Metadata ──
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(length=200), nullable=True)
+
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True
     )
     deleted_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+
+    # ── Convenience properties for backward compatibility ──
+
+    @property
+    def direction(self) -> str:
+        """Derive direction from classification: long=buy, short=sell."""
+        return "buy" if self.classification == HedgeClassification.long else "sell"
+
+    @property
+    def tons(self) -> float:
+        """Alias for quantity_mt."""
+        return self.quantity_mt
+
+    @property
+    def price_per_ton(self) -> float:
+        """Alias for fixed_price_value."""
+        return self.fixed_price_value or 0.0

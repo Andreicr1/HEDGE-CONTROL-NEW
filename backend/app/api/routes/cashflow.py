@@ -1,13 +1,12 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
-from app.models.cashflow import CashFlowBaselineSnapshot
 from app.schemas.cashflow import (
     CashFlowAnalyticResponse,
     CashFlowBaselineSnapshotCreate,
@@ -15,7 +14,10 @@ from app.schemas.cashflow import (
     CashFlowProjectionResponse,
 )
 from app.services.cashflow_analytic_service import compute_cashflow_analytic
-from app.services.cashflow_baseline_service import create_cashflow_baseline_snapshot
+from app.services.cashflow_baseline_service import (
+    create_cashflow_baseline_snapshot,
+    get_cashflow_baseline_snapshot,
+)
 from app.services.cashflow_projection_service import compute_cashflow_projection
 
 
@@ -72,13 +74,5 @@ def get_baseline_snapshot(
     _: None = Depends(require_any_role("risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> CashFlowBaselineSnapshotResponse:
-    snapshot = (
-        session.query(CashFlowBaselineSnapshot)
-        .filter(CashFlowBaselineSnapshot.as_of_date == as_of_date)
-        .first()
-    )
-    if snapshot is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Baseline snapshot not found"
-        )
+    snapshot = get_cashflow_baseline_snapshot(session, as_of_date=as_of_date)
     return CashFlowBaselineSnapshotResponse.model_validate(snapshot)

@@ -11,15 +11,11 @@ from app.models.base import Base
 
 
 class CounterpartyType(enum.Enum):
-    customer = "customer"
-    supplier = "supplier"
     broker = "broker"
+    bank_br = "bank_br"
 
 
-class RfqChannelType(enum.Enum):
-    broker_lme = "broker_lme"
-    banco_br = "banco_br"
-    none = "none"
+# RfqChannelType removed — all RFQ communication is via WhatsApp only
 
 
 class KycStatus(enum.Enum):
@@ -59,7 +55,10 @@ class Counterparty(Base):
     contact_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    payment_terms_days: Mapped[int] = mapped_column(Integer, default=30)
+    whatsapp_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payment_terms_days: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
+    )
     credit_limit_usd: Mapped[float | None] = mapped_column(
         Numeric(15, 2), nullable=True
     )
@@ -78,11 +77,7 @@ class Counterparty(Base):
         nullable=False,
         default=RiskRating.medium,
     )
-    rfq_channel_type: Mapped[RfqChannelType] = mapped_column(
-        Enum(RfqChannelType, name="rfq_channel_type"),
-        nullable=False,
-        default=RfqChannelType.none,
-    )
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

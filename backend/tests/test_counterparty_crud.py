@@ -7,7 +7,7 @@ from uuid import uuid4
 ENDPOINT = "/counterparties"
 
 VALID_COUNTERPARTY = {
-    "type": "customer",
+    "type": "broker",
     "name": "Aluminium Corp",
     "short_name": "AluCorp",
     "tax_id": "BR123456789",
@@ -15,7 +15,6 @@ VALID_COUNTERPARTY = {
     "city": "São Paulo",
     "contact_name": "João Silva",
     "contact_email": "joao@alucorp.com",
-    "payment_terms_days": 45,
     "credit_limit_usd": 500000.00,
     "kyc_status": "approved",
     "risk_rating": "low",
@@ -27,7 +26,7 @@ def test_create_counterparty(client):
     assert r.status_code == 201
     body = r.json()
     assert body["name"] == "Aluminium Corp"
-    assert body["type"] == "customer"
+    assert body["type"] == "broker"
     assert body["kyc_status"] == "approved"
     assert body["is_deleted"] is False
 
@@ -41,32 +40,31 @@ def test_create_counterparty_defaults(client):
     assert body["kyc_status"] == "pending"
     assert body["sanctions_status"] == "clear"
     assert body["risk_rating"] == "medium"
-    assert body["payment_terms_days"] == 30
 
 
 def test_list_counterparties(client):
-    client.post(ENDPOINT, json={"type": "customer", "name": "C1", "country": "USA"})
-    client.post(ENDPOINT, json={"type": "supplier", "name": "S1", "country": "DEU"})
+    client.post(ENDPOINT, json={"type": "broker", "name": "C1", "country": "USA"})
+    client.post(ENDPOINT, json={"type": "bank_br", "name": "S1", "country": "DEU"})
     r = client.get(ENDPOINT)
     assert r.status_code == 200
     assert len(r.json()["items"]) == 2
 
 
 def test_list_filter_by_type(client):
-    client.post(ENDPOINT, json={"type": "customer", "name": "C1", "country": "USA"})
-    client.post(ENDPOINT, json={"type": "supplier", "name": "S1", "country": "DEU"})
-    r = client.get(ENDPOINT, params={"type": "customer"})
+    client.post(ENDPOINT, json={"type": "broker", "name": "C1", "country": "USA"})
+    client.post(ENDPOINT, json={"type": "bank_br", "name": "S1", "country": "DEU"})
+    r = client.get(ENDPOINT, params={"type": "broker"})
     assert r.status_code == 200
     items = r.json()["items"]
     assert len(items) == 1
-    assert items[0]["type"] == "customer"
+    assert items[0]["type"] == "broker"
 
 
 def test_list_filter_by_kyc_status(client):
     client.post(
         ENDPOINT,
         json={
-            "type": "customer",
+            "type": "broker",
             "name": "C1",
             "country": "USA",
             "kyc_status": "approved",
@@ -75,7 +73,7 @@ def test_list_filter_by_kyc_status(client):
     client.post(
         ENDPOINT,
         json={
-            "type": "customer",
+            "type": "broker",
             "name": "C2",
             "country": "USA",
             "kyc_status": "pending",
@@ -135,7 +133,7 @@ def test_update_tax_id_duplicate_rejected(client):
     r2 = client.post(
         ENDPOINT,
         json={
-            "type": "supplier",
+            "type": "bank_br",
             "name": "S2",
             "country": "USA",
             "tax_id": "UNIQUE999",
@@ -150,7 +148,7 @@ def test_list_filter_by_is_active(client):
     client.post(
         ENDPOINT,
         json={
-            "type": "customer",
+            "type": "broker",
             "name": "Active",
             "country": "USA",
             "is_active": True,
@@ -159,7 +157,7 @@ def test_list_filter_by_is_active(client):
     client.post(
         ENDPOINT,
         json={
-            "type": "customer",
+            "type": "broker",
             "name": "Inactive",
             "country": "USA",
             "is_active": False,

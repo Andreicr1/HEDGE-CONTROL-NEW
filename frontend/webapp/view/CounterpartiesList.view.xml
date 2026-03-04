@@ -34,19 +34,19 @@
           visible="{= !!${cpty>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
         <List id="counterpartiesList" items="{cpty>/items}" growing="true" growingThreshold="50"
-          noDataText="{i18n>noData}" mode="SingleSelectMaster" selectionChange=".onCounterpartySelect">
+          noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onCounterpartySelect"
+          class="counterpartiesList">
           <items>
             <ObjectListItem
               title="{cpty>name}"
-              intro="{path: 'cpty>type', formatter: 'formatter.capitalize'}"
+              intro="{path: 'cpty>type', formatter: 'formatter.counterpartyType'}"
               type="Navigation"
               number="{path: 'cpty>risk_rating', formatter: 'formatter.capitalize'}"
               numberUnit="Risk"
               numberState="{= ${cpty>risk_rating} === 'low' ? 'Success' : (${cpty>risk_rating} === 'high' ? 'Error' : 'Warning')}"
-              icon="{= ${cpty>is_active} ? 'sap-icon://accept' : 'sap-icon://decline'}">
+              class="sapUiSmallMarginTopBottom">
               <attributes>
                 <ObjectAttribute text="{cpty>country}" />
-                <ObjectAttribute text="{i18n>colTaxId}: {cpty>tax_id}" />
               </attributes>
               <firstStatus>
                 <ObjectStatus text="{path: 'cpty>kyc_status', formatter: 'formatter.capitalize'}"

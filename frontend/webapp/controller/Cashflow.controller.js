@@ -1,12 +1,8 @@
 sap.ui.define([
   "hedgecontrol/controller/BaseController",
-  "hedgecontrol/service/cashflowAnalyticService",
-  "hedgecontrol/service/cashflowBaselineSnapshotsService",
-  "hedgecontrol/service/cashflowLedgerService",
   "hedgecontrol/service/cashflowProjectionService",
-  "sap/m/MessageBox",
-  "sap/m/MessageToast"
-], function (BaseController, analyticService, baselineService, ledgerService, projectionService, MessageBox, MessageToast) {
+  "sap/m/MessageBox"
+], function (BaseController, projectionService, MessageBox) {
   "use strict";
 
   var INSTRUMENT_LABELS = {
@@ -23,18 +19,17 @@ sap.ui.define([
     entry: "priceSourceEntry"
   };
 
+  var MONTH_NAMES = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+
   return BaseController.extend("hedgecontrol.controller.Cashflow", {
 
     onInit: function () {
       this.initViewModel("cf", {
-        analytic: { cashflow_items: [], total_net_cashflow: 0 },
-        analyticBusy: false,
-        baseline: {},
-        baselineLoaded: false,
-        baselineError: "",
-        ledger: { entries: [] },
-        ledgerBusy: false,
         projection: { items: [], summary: { total_inflows: 0, total_outflows: 0, net_cashflow: 0, instrument_count: 0 } },
+        projectionTree: [],
         projectionBusy: false,
         projectionLoaded: false
       });
@@ -43,83 +38,6 @@ sap.ui.define([
 
     _onRouteMatched: function () {
       // Reset state on navigation
-    },
-
-    onLoadAnalytic: function () {
-      var sDate = this.byId("analyticDate").getValue();
-      if (!sDate) {
-        MessageBox.warning(this.getI18nText("dateRequired"));
-        return;
-      }
-      var oModel = this.getViewModel();
-      oModel.setProperty("/analyticBusy", true);
-      analyticService.get(sDate).then(function (oData) {
-        oModel.setProperty("/analytic", oData);
-      }).catch(function (oError) {
-        MessageBox.error(this._formatError(oError));
-      }.bind(this)).finally(function () {
-        oModel.setProperty("/analyticBusy", false);
-      });
-    },
-
-    onLoadBaseline: function () {
-      var sDate = this.byId("baselineDate").getValue();
-      if (!sDate) {
-        MessageBox.warning(this.getI18nText("dateRequired"));
-        return;
-      }
-      var oModel = this.getViewModel();
-      oModel.setProperty("/baselineError", "");
-      oModel.setProperty("/busy", true);
-      baselineService.get(sDate).then(function (oData) {
-        oModel.setProperty("/baseline", oData);
-        oModel.setProperty("/baselineLoaded", true);
-      }).catch(function (oError) {
-        oModel.setProperty("/baselineError", this._formatError(oError));
-        oModel.setProperty("/baselineLoaded", false);
-      }.bind(this)).finally(function () {
-        oModel.setProperty("/busy", false);
-      });
-    },
-
-    onCreateBaseline: function () {
-      var sDate = this.byId("baselineDate").getValue();
-      if (!sDate) {
-        MessageBox.warning(this.getI18nText("dateRequired"));
-        return;
-      }
-      var that = this;
-      var oPayload = {
-        as_of_date: sDate,
-        correlation_id: "ui-" + Date.now()
-      };
-      baselineService.create(oPayload).then(function (oData) {
-        MessageToast.show(that.getI18nText("snapshotCreated"));
-        that.getViewModel().setProperty("/baseline", oData);
-        that.getViewModel().setProperty("/baselineLoaded", true);
-      }).catch(function (oError) {
-        MessageBox.error(that._formatError(oError));
-      });
-    },
-
-    onLoadLedger: function () {
-      var sContractId = this.byId("ledgerContractId").getValue().trim();
-      if (!sContractId) {
-        MessageBox.warning(this.getI18nText("contractIdRequired"));
-        return;
-      }
-      var sStart = this.byId("ledgerStart").getValue();
-      var sEnd = this.byId("ledgerEnd").getValue();
-
-      var oModel = this.getViewModel();
-      oModel.setProperty("/ledgerBusy", true);
-      ledgerService.listForContract(sContractId, sStart, sEnd).then(function (oData) {
-        oModel.setProperty("/ledger/entries", Array.isArray(oData) ? oData : (oData.items || []));
-      }).catch(function (oError) {
-        MessageBox.error(this._formatError(oError));
-      }.bind(this)).finally(function () {
-        oModel.setProperty("/ledgerBusy", false);
-      });
     },
 
     onLoadProjection: function () {
@@ -131,8 +49,11 @@ sap.ui.define([
       var oModel = this.getViewModel();
       oModel.setProperty("/projectionBusy", true);
       oModel.setProperty("/projectionLoaded", false);
+      var that = this;
       projectionService.get(sDate).then(function (oData) {
         oModel.setProperty("/projection", oData);
+        var aTree = that._buildProjectionTree(oData.items || [], sDate);
+        oModel.setProperty("/projectionTree", aTree);
         oModel.setProperty("/projectionLoaded", true);
       }).catch(function (oError) {
         MessageBox.error(this._formatError(oError));
@@ -141,14 +62,190 @@ sap.ui.define([
       });
     },
 
-    onTabSelect: function () {
-      // Tab change handler — no action needed
+    /* ─── Projection TreeTable: expand / collapse ─── */
+
+    onProjectionExpandAll: function () {
+      this.byId("projectionTreeTable").expandToLevel(3);
     },
 
-    formatDirectionState: function (sDirection) {
-      if (sDirection === "IN") { return "Success"; }
-      if (sDirection === "OUT") { return "Error"; }
-      return "None";
+    onProjectionCollapseAll: function () {
+      this.byId("projectionTreeTable").collapseAll();
+    },
+
+    /* ─────────────────────────────────────────────────
+       Build projection tree: Quarter → Month → Items
+       Each item carries its settlement day for drill-down
+       ───────────────────────────────────────────────── */
+
+    _buildProjectionTree: function (aItems, sAsOfDate) {
+      var that = this;
+
+      var oBase = new Date(sAsOfDate);
+      var aQuarters = this._getNextQuarters(oBase, 4);
+
+      // Bucket items into quarters
+      var mBuckets = {};
+      aQuarters.forEach(function (oQ) { mBuckets[oQ.key] = []; });
+      mBuckets["beyond"] = [];
+
+      aItems.forEach(function (oItem) {
+        var dSettle = new Date(oItem.settlement_date);
+        var bPlaced = false;
+        for (var i = 0; i < aQuarters.length; i++) {
+          if (dSettle >= aQuarters[i].start && dSettle <= aQuarters[i].end) {
+            mBuckets[aQuarters[i].key].push(oItem);
+            bPlaced = true;
+            break;
+          }
+        }
+        if (!bPlaced) {
+          mBuckets["beyond"].push(oItem);
+        }
+      });
+
+      var aTree = [];
+
+      aQuarters.forEach(function (oQ) {
+        var aQItems = mBuckets[oQ.key];
+        aTree.push(that._buildQuarterNode(oQ, aQItems));
+      });
+
+      var aBeyond = mBuckets["beyond"];
+      if (aBeyond.length > 0) {
+        aTree.push(that._buildQuarterNode(
+          { label: that.getI18nText("projectionBeyondLabel"), start: null, end: null },
+          aBeyond
+        ));
+      }
+
+      return aTree;
+    },
+
+    /**
+     * Quarter → Month children.
+     * Each month groups items that fall within it; months sorted ascending.
+     */
+    _buildQuarterNode: function (oQ, aItems) {
+      var that = this;
+
+      // Group items by YYYY-MM
+      var mMonths = {};
+      aItems.forEach(function (oItem) {
+        var d = new Date(oItem.settlement_date);
+        var sKey = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+        if (!mMonths[sKey]) { mMonths[sKey] = []; }
+        mMonths[sKey].push(oItem);
+      });
+
+      // Sort month keys ascending
+      var aSortedKeys = Object.keys(mMonths).sort();
+
+      var aMonthChildren = aSortedKeys.map(function (sMonthKey) {
+        return that._buildMonthNode(sMonthKey, mMonths[sMonthKey]);
+      });
+
+      var fQIn = aMonthChildren.reduce(function (s, c) { return s + (c.inflows || 0); }, 0);
+      var fQOut = aMonthChildren.reduce(function (s, c) { return s + (c.outflows || 0); }, 0);
+
+      return that._makeNode(
+        oQ.label + " (" + aItems.length + " itens)",
+        "", "", "", null, null, fQIn, fQOut, fQIn + fQOut, "", "",
+        aMonthChildren
+      );
+    },
+
+    /**
+     * Month → individual cashflow items (leaves).
+     */
+    _buildMonthNode: function (sMonthKey, aItems) {
+      var that = this;
+      var aParts = sMonthKey.split("-");
+      var iYear = parseInt(aParts[0], 10);
+      var iMonth = parseInt(aParts[1], 10) - 1; // 0-based
+      var sMonthLabel = MONTH_NAMES[iMonth] + " " + iYear;
+
+      // Sort items by settlement_date ascending
+      aItems.sort(function (a, b) {
+        return new Date(a.settlement_date) - new Date(b.settlement_date);
+      });
+
+      var aLeaves = aItems.map(function (oItem) {
+        var fAmount = parseFloat(oItem.amount_usd) || 0;
+        return that._makeNode(
+          that.formatInstrumentType(oItem.instrument_type) +
+            " #" + (oItem.instrument_id || "").substring(0, 8),
+          that.formatInstrumentType(oItem.instrument_type),
+          oItem.commodity || "",
+          that._formatDateShort(oItem.settlement_date),
+          parseFloat(oItem.quantity_mt) || null,
+          parseFloat(oItem.price_per_mt) || null,
+          fAmount > 0 ? fAmount : null,
+          fAmount < 0 ? fAmount : null,
+          fAmount,
+          that.formatPriceSource(oItem.price_source),
+          oItem.deal_id ? oItem.deal_id.substring(0, 8) : "",
+          []
+        );
+      });
+
+      var fIn = aLeaves.reduce(function (s, c) { return s + (c.inflows || 0); }, 0);
+      var fOut = aLeaves.reduce(function (s, c) { return s + (c.outflows || 0); }, 0);
+
+      return that._makeNode(
+        sMonthLabel + " (" + aLeaves.length + ")",
+        "", "", "", null, null, fIn || null, fOut || null, fIn + fOut, "", "",
+        aLeaves
+      );
+    },
+
+    /** Helper: create tree node object */
+    _makeNode: function (desc, instrType, commodity, settleDate, qty, price, inflows, outflows, net, source, dealId, children) {
+      return {
+        description: desc,
+        instrumentType: instrType,
+        commodity: commodity,
+        settlementDate: settleDate,
+        quantity: qty,
+        price: price,
+        inflows: inflows,
+        outflows: outflows,
+        net: net,
+        priceSource: source,
+        dealId: dealId,
+        children: children
+      };
+    },
+
+    _getNextQuarters: function (oDate, nCount) {
+      var aQuarters = [];
+      var iYear = oDate.getFullYear();
+      var iMonth = oDate.getMonth();
+      var iCurrentQ = Math.floor(iMonth / 3);
+
+      for (var i = 0; i < nCount; i++) {
+        var iQ = (iCurrentQ + i) % 4;
+        var iY = iYear + Math.floor((iCurrentQ + i) / 4);
+        var iStartMonth = iQ * 3;
+        var iEndMonth = iStartMonth + 2;
+        var sLabel = this.getI18nText("projectionQuarter", [iQ + 1, iY]);
+
+        aQuarters.push({
+          key: "Q" + (iQ + 1) + "_" + iY,
+          label: sLabel,
+          start: new Date(iY, iStartMonth, 1),
+          end: new Date(iY, iEndMonth + 1, 0, 23, 59, 59, 999)
+        });
+      }
+      return aQuarters;
+    },
+
+    _formatDateShort: function (sDate) {
+      if (!sDate) { return ""; }
+      var d = new Date(sDate);
+      if (isNaN(d.getTime())) { return sDate; }
+      var sDay = String(d.getDate()).padStart(2, "0");
+      var sMonth = String(d.getMonth() + 1).padStart(2, "0");
+      return sDay + "/" + sMonth + "/" + d.getFullYear();
     },
 
     formatInstrumentType: function (sType) {
@@ -162,12 +259,6 @@ sap.ui.define([
     },
 
     formatAmountState: function (fAmount) {
-      if (fAmount > 0) { return "Success"; }
-      if (fAmount < 0) { return "Error"; }
-      return "None";
-    },
-
-    formatAmountHighlight: function (fAmount) {
       if (fAmount > 0) { return "Success"; }
       if (fAmount < 0) { return "Error"; }
       return "None";

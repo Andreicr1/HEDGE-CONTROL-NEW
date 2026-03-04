@@ -39,65 +39,118 @@ from app.services.rfq_engine import (
 # Bank message (Portuguese)
 # ─────────────────────────────────────────────────────────────────────────────
 
-PRICE_TYPE_PT = {
-    PriceType.AVG: "Média Mensal LME",
-    PriceType.AVG_INTER: "Média de Período",
-    PriceType.FIX: "Preço Fixo",
-    PriceType.C2R: "Cash-to-Ring",
+_MONTH_PT = {
+    "January": "Janeiro",
+    "February": "Fevereiro",
+    "March": "Março",
+    "April": "Abril",
+    "May": "Maio",
+    "June": "Junho",
+    "July": "Julho",
+    "August": "Agosto",
+    "September": "Setembro",
+    "October": "Outubro",
+    "November": "Novembro",
+    "December": "Dezembro",
 }
 
-
-def _fmt_leg_pt(leg: Leg) -> str:
-    """Format a single leg description in Portuguese."""
-    sentido = "Compra" if leg.side == Side.BUY else "Venda"
-    qty = int(leg.quantity_mt) if float(int(leg.quantity_mt)) == float(leg.quantity_mt) else leg.quantity_mt
-    tipo = PRICE_TYPE_PT.get(leg.price_type, str(leg.price_type))
-
-    txt = f"{sentido} {qty} mt Al – {tipo}"
-
-    if leg.price_type == PriceType.AVG and leg.month_name and leg.year is not None:
-        txt += f" ({leg.month_name} {leg.year})"
-    elif leg.price_type == PriceType.AVG_INTER and leg.start_date and leg.end_date:
-        s = leg.start_date.strftime("%d/%m/%Y")
-        e = leg.end_date.strftime("%d/%m/%Y")
-        txt += f" ({s} a {e})"
-    elif leg.price_type in (PriceType.FIX, PriceType.C2R) and leg.fixing_date:
-        txt += f" (fixing {leg.fixing_date.strftime('%d/%m/%Y')})"
-
-    return txt
+_PRICE_TYPE_PT = {
+    PriceType.AVG: "Média",
+    PriceType.AVG_INTER: "Média Período",
+    PriceType.FIX: "Fix",
+    PriceType.C2R: "C2R",
+}
 
 
 def _build_bank_message(
     trade: RfqTrade,
     company_header: Optional[str] = None,
 ) -> str:
-    """Human-friendly Portuguese text for bank counterparties."""
-    header = company_header or "Alcast"
+    """Human-friendly Portuguese text for bank counterparties.
 
+    Banks execute the LME trade on behalf of the client.  The message is a
+    high-level summary rather than the technical "How can I …" wording.
+    """
+    leg = trade.leg1
+    sentido = "Compra" if leg.side == Side.BUY else "Venda"
+    qty = (
+        int(leg.quantity_mt)
+        if float(int(leg.quantity_mt)) == float(leg.quantity_mt)
+        else leg.quantity_mt
+    )
+
+    # Derive period label
+    if leg.price_type == PriceType.AVG and leg.month_name and leg.year is not None:
+        periodo = f"{leg.month_name} {leg.year}"
+    elif leg.price_type == PriceType.AVG_INTER and leg.start_date and leg.end_date:
+        periodo = f"{leg.start_date.strftime('%d/%m/%Y')} a {leg.end_date.strftime('%d/%m/%Y')}"
+    elif leg.fixing_date:
+        periodo = leg.fixing_date.strftime("%d/%m/%Y")
+    else:
+        periodo = "conforme especificação"
+
+    header = company_header or "Alcast"
     lines = [
         "Bom dia,",
         "",
-        f"Solicitação de cotação – {header}",
-        f"Commodity: Alumínio LME",
+        f"RFQ – {header}",
         "",
+        f"{sentido}: {qty} toneladas de alumínio LME",
+        "Preço: conforme condições técnicas LME, com média mensal (Monthly Average) "
+        "e datas conforme especificação do RFQ",
+        "",
+        f"Período: {periodo}",
+        "",
+        "Fico no aguardo da cotação.",
     ]
-
-    lines.append(_fmt_leg_pt(trade.leg1))
-
-    if trade.leg2 is not None:
-        lines.append(_fmt_leg_pt(trade.leg2))
-
-    if trade.trade_type == TradeType.SWAP and trade.leg2 is not None:
-        lines.append("")
-        lines.append("Tipo: Swap (contra)")
-
-    lines.extend(["", "Fico no aguardo da cotação.", "Att."])
     return "\n".join(lines)
+
+
+def _leg_summary_pt(leg: Leg) -> str:
+    """Build a one-segment Portuguese summary for a single leg."""
+    sentido = "Compra" if leg.side == Side.BUY else "Vende"
+    tipo = _PRICE_TYPE_PT.get(leg.price_type, str(leg.price_type.value))
+
+    qty = (
+        int(leg.quantity_mt)
+        if float(int(leg.quantity_mt)) == float(leg.quantity_mt)
+        else leg.quantity_mt
+    )
+    qty_str = f"{qty}T"
+
+    if leg.price_type == PriceType.AVG and leg.month_name and leg.year is not None:
+        month_pt = _MONTH_PT.get(leg.month_name, leg.month_name)
+        return f"{sentido} {qty_str} - {tipo} {month_pt} {leg.year}"
+    elif leg.price_type == PriceType.AVG_INTER and leg.start_date and leg.end_date:
+        s = leg.start_date.strftime("%d/%m/%Y")
+        e = leg.end_date.strftime("%d/%m/%Y")
+        return f"{sentido} {qty_str} - {tipo} {s} a {e}"
+    elif leg.price_type in (PriceType.FIX, PriceType.C2R) and leg.fixing_date:
+        return f"{sentido} {qty_str} - {tipo} {leg.fixing_date.strftime('%d/%m/%Y')}"
+    else:
+        return f"{sentido} {qty_str} - {tipo}"
+
+
+def build_pt_summary(
+    trade: RfqTrade,
+    company_header: Optional[str] = None,
+) -> str:
+    """Build a simplified one-line Portuguese summary.
+
+    Example output: ``Alcast Brasil: Vende 3000T - Média Abril 2026``
+    For swaps:      ``Alcast Brasil: Compra 3000T - Média Abril 2026 / Vende 3000T - Fix 30/04/2026``
+    """
+    header = company_header or "Alcast"
+    parts = [_leg_summary_pt(trade.leg1)]
+    if trade.trade_type == TradeType.SWAP and trade.leg2 is not None:
+        parts.append(_leg_summary_pt(trade.leg2))
+    return f"{header}: {' / '.join(parts)}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def build_rfq_message(
     channel_type: str,

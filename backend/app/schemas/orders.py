@@ -36,7 +36,24 @@ class OrderBase(BaseModel):
         None, description="Required only for variable orders (AVG, AVGInter, C2R)"
     )
     avg_entry_price: float | None = Field(
-        None, description="Required only for variable orders (USD/MT)"
+        None, description="Fixed price value (USD/MT) — required when price_type=fixed"
+    )
+    counterparty_name: str | None = Field(
+        None, max_length=200, description="Client or supplier name (free text)"
+    )
+    reference_month: str | None = Field(
+        None,
+        max_length=7,
+        description="Reference month yyyy-MM — required for AVG convention",
+    )
+    observation_date_start: date | None = Field(
+        None, description="Observation window start — required for AVGInter convention"
+    )
+    observation_date_end: date | None = Field(
+        None, description="Observation window end — required for AVGInter convention"
+    )
+    fixing_date: date | None = Field(
+        None, description="Fixing date — required for C2R convention"
     )
     counterparty_id: UUID | None = Field(None, description="FK to counterparties")
     pricing_type: PricingType | None = Field(None, description="Pricing type detail")

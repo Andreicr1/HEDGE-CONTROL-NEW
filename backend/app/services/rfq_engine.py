@@ -53,6 +53,7 @@ from app.services.lme_calendar import (
 # Enums / Data Models
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class Side(str, Enum):
     BUY = "buy"
     SELL = "sell"
@@ -76,15 +77,15 @@ class TradeType(str, Enum):
 class OrderType(str, Enum):
     AT_MARKET = "At Market"
     LIMIT = "Limit"
-    RANGE = "Range"        # reserved
+    RANGE = "Range"  # reserved
     RESTING = "Resting"
 
 
 @dataclass(frozen=True)
 class OrderInstruction:
     order_type: OrderType
-    validity: Optional[str] = None      # e.g. "Day", "GTC", "3 Hours"
-    limit_price: Optional[str] = None   # string to preserve formatting
+    validity: Optional[str] = None  # e.g. "Day", "GTC", "3 Hours"
+    limit_price: Optional[str] = None  # string to preserve formatting
 
 
 @dataclass(frozen=True)
@@ -94,8 +95,8 @@ class Leg:
     quantity_mt: float
 
     # AVG fields
-    month_name: Optional[str] = None   # e.g. "January"
-    year: Optional[int] = None         # e.g. 2025
+    month_name: Optional[str] = None  # e.g. "January"
+    year: Optional[int] = None  # e.g. 2025
 
     # AVGInter fields
     start_date: Optional[date] = None
@@ -115,8 +116,8 @@ class Leg:
 class RfqTrade:
     trade_type: TradeType
     leg1: Leg
-    leg2: Optional[Leg] = None   # None for single-leg Forward
-    sync_ppt: bool = False       # Forward + sync_ppt generates two lines
+    leg2: Optional[Leg] = None  # None for single-leg Forward
+    sync_ppt: bool = False  # Forward + sync_ppt generates two lines
 
 
 @dataclass(frozen=True)
@@ -130,8 +131,18 @@ class ValidationError:
 # ─────────────────────────────────────────────────────────────────────────────
 
 MONTHS_EN = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ]
 MONTH_INDEX: Dict[str, int] = {m: i for i, m in enumerate(MONTHS_EN)}
 
@@ -151,6 +162,7 @@ def fmt_qty(qty: float) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # PPT computation
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def compute_ppt_for_leg(leg: Leg, cal: LMECalendar) -> Optional[date]:
     """Compute the PPT (Prompt Payment Terms) settlement date for a single leg.
@@ -189,6 +201,7 @@ def compute_ppt_for_leg(leg: Leg, cal: LMECalendar) -> Optional[date]:
 # Pair override logic (extracted — was duplicated in legacy)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _compute_pair_overrides(
     leg_a: Leg,
     leg_b: Optional[Leg],
@@ -217,12 +230,20 @@ def _compute_pair_overrides(
     ppt_b = compute_ppt_for_leg(b, cal)
 
     # --- AVGInter ↔ Fix/C2R ---
-    if a.price_type == PriceType.AVG_INTER and b.price_type in (PriceType.FIX, PriceType.C2R) and a.end_date:
+    if (
+        a.price_type == PriceType.AVG_INTER
+        and b.price_type in (PriceType.FIX, PriceType.C2R)
+        and a.end_date
+    ):
         b_fix = a.end_date
         b_ppt = ppt_a if sync_ppt else ppt_b
         b = Leg(**{**b.__dict__, "fixing_date": b_fix, "ppt": b_ppt})
         ppt_b = b_ppt
-    if b.price_type == PriceType.AVG_INTER and a.price_type in (PriceType.FIX, PriceType.C2R) and b.end_date:
+    if (
+        b.price_type == PriceType.AVG_INTER
+        and a.price_type in (PriceType.FIX, PriceType.C2R)
+        and b.end_date
+    ):
         a_fix = b.end_date
         a_ppt = ppt_b if sync_ppt else ppt_a
         a = Leg(**{**a.__dict__, "fixing_date": a_fix, "ppt": a_ppt})
@@ -256,6 +277,7 @@ def _compute_pair_overrides(
 # ─────────────────────────────────────────────────────────────────────────────
 # Leg text
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def build_leg_text(leg: Leg, cal: LMECalendar) -> str:
     """Build the single-leg text fragment used inside the RFQ message."""
@@ -303,6 +325,7 @@ def build_leg_text(leg: Leg, cal: LMECalendar) -> str:
 # Execution Instruction (Limit / Resting)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def build_execution_instruction(order: OrderInstruction, side: Side) -> str:
     """Build execution-instruction line for Limit / Resting order types."""
     validity = order.validity or "Day"
@@ -329,6 +352,7 @@ def build_execution_instruction(order: OrderInstruction, side: Side) -> str:
 # Expected Payoff
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def build_expected_payoff_text(
     fixed_leg: Leg,
     other_leg: Optional[Leg],
@@ -345,11 +369,20 @@ def build_expected_payoff_text(
         return "pays" if receives_if_higher else "receives"
 
     # --- Floating leg is AVG / AVGInter ---
-    if other_leg is not None and other_leg.price_type in (PriceType.AVG, PriceType.AVG_INTER):
-        if other_leg.price_type == PriceType.AVG and other_leg.month_name and other_leg.year is not None:
+    if other_leg is not None and other_leg.price_type in (
+        PriceType.AVG,
+        PriceType.AVG_INTER,
+    ):
+        if (
+            other_leg.price_type == PriceType.AVG
+            and other_leg.month_name
+            and other_leg.year is not None
+        ):
             month_year = f"{other_leg.month_name} {other_leg.year}"
         elif other_leg.price_type == PriceType.AVG_INTER and other_leg.end_date:
-            month_year = f"{MONTHS_EN[other_leg.end_date.month - 1]} {other_leg.end_date.year}"
+            month_year = (
+                f"{MONTHS_EN[other_leg.end_date.month - 1]} {other_leg.end_date.year}"
+            )
         else:
             month_year = "the relevant month"
 
@@ -362,12 +395,18 @@ def build_expected_payoff_text(
 
     # --- Floating leg is C2R or single-leg Fix ---
     official_date: Optional[date] = None
-    if other_leg is not None and other_leg.price_type == PriceType.C2R and other_leg.fixing_date:
+    if (
+        other_leg is not None
+        and other_leg.price_type == PriceType.C2R
+        and other_leg.fixing_date
+    ):
         official_date = other_leg.fixing_date
     elif fixed_leg.fixing_date:
         official_date = fixed_leg.fixing_date
 
-    official_str = fmt_date_short(official_date) if official_date else "the relevant date"
+    official_str = (
+        fmt_date_short(official_date) if official_date else "the relevant date"
+    )
 
     return (
         "Expected Payoff:\n"
@@ -381,29 +420,55 @@ def build_expected_payoff_text(
 # Validation
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def validate_trade(trade: RfqTrade) -> List[ValidationError]:
     """Validate trade legs, returning a list of errors (empty = valid)."""
     errs: List[ValidationError] = []
 
     def _check_leg(leg: Leg, idx: int) -> None:
         if leg.quantity_mt is None or not isinstance(leg.quantity_mt, (int, float)):
-            errs.append(ValidationError("qty_invalid", f"Leg {idx}: Please enter a valid quantity."))
+            errs.append(
+                ValidationError(
+                    "qty_invalid", f"Leg {idx}: Please enter a valid quantity."
+                )
+            )
             return
         if leg.quantity_mt <= 0:
-            errs.append(ValidationError("qty_non_positive", f"Leg {idx}: Quantity must be greater than zero."))
+            errs.append(
+                ValidationError(
+                    "qty_non_positive",
+                    f"Leg {idx}: Quantity must be greater than zero.",
+                )
+            )
 
         if leg.price_type == PriceType.C2R and leg.fixing_date is None:
-            errs.append(ValidationError("missing_fixing_date", "Please provide a fixing date."))
+            errs.append(
+                ValidationError("missing_fixing_date", "Please provide a fixing date.")
+            )
 
         if leg.price_type == PriceType.AVG:
             if not leg.month_name or leg.year is None:
-                errs.append(ValidationError("avg_missing_month_year", f"Leg {idx}: AVG requires month/year."))
+                errs.append(
+                    ValidationError(
+                        "avg_missing_month_year", f"Leg {idx}: AVG requires month/year."
+                    )
+                )
 
         if leg.price_type == PriceType.AVG_INTER:
             if not leg.start_date or not leg.end_date:
-                errs.append(ValidationError("avginter_missing_dates", f"Leg {idx}: AVGInter requires start/end."))
+                errs.append(
+                    ValidationError(
+                        "avginter_missing_dates",
+                        f"Leg {idx}: AVGInter requires start/end.",
+                    )
+                )
             elif leg.start_date > leg.end_date:
-                errs.append(ValidationError("avginter_bad_range", f"Leg {idx}: Start date must be <= end date."))
+                errs.append(
+                    ValidationError(
+                        "avginter_bad_range",
+                        f"Leg {idx}: Start date must be <= end date.",
+                    )
+                )
 
     _check_leg(trade.leg1, 1)
     if trade.leg2 is not None:
@@ -415,6 +480,7 @@ def validate_trade(trade: RfqTrade) -> List[ValidationError]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Core RFQ message builder
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def generate_rfq_text(
     trade: RfqTrade,
@@ -505,11 +571,18 @@ def generate_rfq_text(
         text = f"How can I {leg1_text}?\nHow can I {leg2_text}?"
     elif trade.trade_type == TradeType.FORWARD and l2_adj is None:
         text = f"How can I {leg1_text}?"
-    elif trade.trade_type == TradeType.FORWARD and l2_adj is not None and l2_adj.price_type is None:
+    elif (
+        trade.trade_type == TradeType.FORWARD
+        and l2_adj is not None
+        and l2_adj.price_type is None
+    ):
         text = f"How can I {leg1_text}?"
     else:
         # Swap — determine leg ordering (Fix/C2R first)
-        assert l2_adj is not None and leg2_text is not None
+        if l2_adj is None or leg2_text is None:
+            raise ValueError(
+                "Swap trade requires both legs (l2_adj and leg2_text must not be None)"
+            )
 
         fix_types = {PriceType.FIX, PriceType.C2R}
 
@@ -535,7 +608,11 @@ def generate_rfq_text(
             ),
             l1_adj.side,
         )
-    elif l2_adj and l2_adj.order and l2_adj.order.order_type in (OrderType.LIMIT, OrderType.RESTING):
+    elif (
+        l2_adj
+        and l2_adj.order
+        and l2_adj.order.order_type in (OrderType.LIMIT, OrderType.RESTING)
+    ):
         exec_line = build_execution_instruction(
             OrderInstruction(
                 order_type=l2_adj.order.order_type,
@@ -553,29 +630,45 @@ def generate_rfq_text(
     if l2_adj is None:
         if l1_adj.price_type == PriceType.FIX and l1_adj.fixing_date:
             payoff = build_expected_payoff_text(
-                fixed_leg=l1_adj, other_leg=None,
-                cal=cal, company_label=company_label_for_payoff,
+                fixed_leg=l1_adj,
+                other_leg=None,
+                cal=cal,
+                company_label=company_label_for_payoff,
             )
     else:
-        if l1_adj.price_type in (PriceType.FIX, PriceType.C2R) and l2_adj.price_type in (PriceType.AVG, PriceType.AVG_INTER):
+        if l1_adj.price_type in (
+            PriceType.FIX,
+            PriceType.C2R,
+        ) and l2_adj.price_type in (PriceType.AVG, PriceType.AVG_INTER):
             payoff = build_expected_payoff_text(
-                fixed_leg=l1_adj, other_leg=l2_adj,
-                cal=cal, company_label=company_label_for_payoff,
+                fixed_leg=l1_adj,
+                other_leg=l2_adj,
+                cal=cal,
+                company_label=company_label_for_payoff,
             )
-        elif l2_adj.price_type in (PriceType.FIX, PriceType.C2R) and l1_adj.price_type in (PriceType.AVG, PriceType.AVG_INTER):
+        elif l2_adj.price_type in (
+            PriceType.FIX,
+            PriceType.C2R,
+        ) and l1_adj.price_type in (PriceType.AVG, PriceType.AVG_INTER):
             payoff = build_expected_payoff_text(
-                fixed_leg=l2_adj, other_leg=l1_adj,
-                cal=cal, company_label=company_label_for_payoff,
+                fixed_leg=l2_adj,
+                other_leg=l1_adj,
+                cal=cal,
+                company_label=company_label_for_payoff,
             )
         elif l1_adj.price_type == PriceType.FIX and l2_adj.price_type == PriceType.C2R:
             payoff = build_expected_payoff_text(
-                fixed_leg=l1_adj, other_leg=l2_adj,
-                cal=cal, company_label=company_label_for_payoff,
+                fixed_leg=l1_adj,
+                other_leg=l2_adj,
+                cal=cal,
+                company_label=company_label_for_payoff,
             )
         elif l1_adj.price_type == PriceType.C2R and l2_adj.price_type == PriceType.FIX:
             payoff = build_expected_payoff_text(
-                fixed_leg=l2_adj, other_leg=l1_adj,
-                cal=cal, company_label=company_label_for_payoff,
+                fixed_leg=l2_adj,
+                other_leg=l1_adj,
+                cal=cal,
+                company_label=company_label_for_payoff,
             )
 
     if payoff:
@@ -591,6 +684,7 @@ def generate_rfq_text(
 # ─────────────────────────────────────────────────────────────────────────────
 # PPT date computation (public API)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def compute_trade_ppt_dates(
     trade: RfqTrade,
@@ -613,7 +707,10 @@ def compute_trade_ppt_dates(
         raise ValueError(errs[0].message)
 
     l1_adj, l2_adj = _compute_pair_overrides(
-        trade.leg1, trade.leg2, cal, trade.sync_ppt,
+        trade.leg1,
+        trade.leg2,
+        cal,
+        trade.sync_ppt,
     )
     ppt1 = compute_ppt_for_leg(l1_adj, cal)
     ppt2 = compute_ppt_for_leg(l2_adj, cal) if l2_adj else None

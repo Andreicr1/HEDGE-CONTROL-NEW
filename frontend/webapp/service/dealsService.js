@@ -42,6 +42,18 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     },
     getPnlHistory: function (sDealId) {
       return apiClient.getJson("/deals/" + _enc(sDealId) + "/pnl-history");
+    },
+    getPnlBreakdown: function (aIds, sDate) {
+      return apiClient.postJson("/deals/pnl-breakdown", {
+        deal_ids: aIds || [],
+        snapshot_date: sDate
+      });
+    },
+    findByLinkedEntity: function (sLinkedType, sLinkedId) {
+      return apiClient.getJson(_withQuery("/deals/by-linked-entity", {
+        linked_type: sLinkedType,
+        linked_id: sLinkedId
+      }));
     }
   };
 });

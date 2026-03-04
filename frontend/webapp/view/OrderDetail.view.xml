@@ -18,6 +18,8 @@
           </HBox>
         </uxap:heading>
         <uxap:actions>
+          <Button text="Hedge" icon="sap-icon://shield" press=".onHedge" type="Emphasized"
+                  visible="{= !${ordDet>/detail/deleted_at} &amp;&amp; ${ordDet>/detail/price_type} === 'variable'}" />
           <Button icon="sap-icon://decline" press=".onClose" tooltip="{i18n>close}" type="Transparent" />
         </uxap:actions>
       </uxap:ObjectPageDynamicHeaderTitle>
@@ -63,6 +65,12 @@
                             <Text text="{ordDet>/detail/order_type}" />
                           </form:fields>
                         </form:FormElement>
+                        <form:FormElement label="{i18n>counterpartyNameLabel}"
+                          visible="{= !!${ordDet>/detail/counterparty_name} }">
+                          <form:fields>
+                            <Text text="{ordDet>/detail/counterparty_name}" />
+                          </form:fields>
+                        </form:FormElement>
                         <form:FormElement label="{i18n>colPriceType}">
                           <form:fields>
                             <Text text="{path: 'ordDet>/detail/price_type', formatter: 'formatter.capitalize'}" />
@@ -73,14 +81,52 @@
                             <Text text="{path: 'ordDet>/detail/quantity_mt', formatter: 'formatter.numberTwoDecimals'}" />
                           </form:fields>
                         </form:FormElement>
-                        <form:FormElement label="{i18n>colPricingConvention}">
+                        <!-- Fixed price -->
+                        <form:FormElement label="{i18n>colFixedPriceValue}"
+                          visible="{= ${ordDet>/detail/price_type} === 'fixed' &amp;&amp; !!${ordDet>/detail/avg_entry_price} }">
+                          <form:fields>
+                            <Text text="{path: 'ordDet>/detail/avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
+                          </form:fields>
+                        </form:FormElement>
+                        <!-- Variable: convention -->
+                        <form:FormElement label="{i18n>colPricingConvention}"
+                          visible="{= ${ordDet>/detail/price_type} === 'variable' &amp;&amp; !!${ordDet>/detail/pricing_convention} }">
                           <form:fields>
                             <Text text="{ordDet>/detail/pricing_convention}" />
                           </form:fields>
                         </form:FormElement>
-                        <form:FormElement label="{i18n>colAvgEntryPrice}">
+                        <!-- AVG: reference month -->
+                        <form:FormElement label="{i18n>referenceMonth}"
+                          visible="{= ${ordDet>/detail/pricing_convention} === 'AVG' &amp;&amp; !!${ordDet>/detail/reference_month} }">
                           <form:fields>
-                            <Text text="{path: 'ordDet>/detail/avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
+                            <Text text="{ordDet>/detail/reference_month}" />
+                          </form:fields>
+                        </form:FormElement>
+                        <!-- AVGInter: observation dates -->
+                        <form:FormElement label="{i18n>observationDateStart}"
+                          visible="{= ${ordDet>/detail/pricing_convention} === 'AVGInter' &amp;&amp; !!${ordDet>/detail/observation_date_start} }">
+                          <form:fields>
+                            <Text text="{ordDet>/detail/observation_date_start}" />
+                          </form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>observationDateEnd}"
+                          visible="{= ${ordDet>/detail/pricing_convention} === 'AVGInter' &amp;&amp; !!${ordDet>/detail/observation_date_end} }">
+                          <form:fields>
+                            <Text text="{ordDet>/detail/observation_date_end}" />
+                          </form:fields>
+                        </form:FormElement>
+                        <!-- C2R: fixing date -->
+                        <form:FormElement label="{i18n>fixingDate}"
+                          visible="{= ${ordDet>/detail/pricing_convention} === 'C2R' &amp;&amp; !!${ordDet>/detail/fixing_date} }">
+                          <form:fields>
+                            <Text text="{ordDet>/detail/fixing_date}" />
+                          </form:fields>
+                        </form:FormElement>
+                        <!-- Notes -->
+                        <form:FormElement label="{i18n>notes}"
+                          visible="{= !!${ordDet>/detail/notes} }">
+                          <form:fields>
+                            <Text text="{ordDet>/detail/notes}" />
                           </form:fields>
                         </form:FormElement>
                       </form:formElements>
@@ -106,37 +152,18 @@
           </uxap:ObjectPageSubSection>
         </uxap:subSections>
       </uxap:ObjectPageSection>
-      <uxap:ObjectPageSection title="{i18n>sectionSoPoLinks}" titleUppercase="false">
+      <uxap:ObjectPageSection title="{i18n>sectionDeal}" titleUppercase="false">
         <uxap:subSections>
           <uxap:ObjectPageSubSection>
             <uxap:blocks>
-              <VBox>
-                <Table items="{ordDet>/links}" noDataText="{i18n>noSoPoLinks}">
-                  <headerToolbar>
-                    <OverflowToolbar>
-                      <Title text="{i18n>sectionSoPoLinks}" level="H3" />
-                      <ToolbarSpacer />
-                      <Button text="{i18n>addSoPoLink}" icon="sap-icon://add" press=".onAddLink" type="Emphasized"
-                        visible="{= !${ordDet>/detail/deleted_at}}" />
-                    </OverflowToolbar>
-                  </headerToolbar>
-                  <columns>
-                    <Column><header><Text text="{i18n>colSalesOrderId}" /></header></Column>
-                    <Column><header><Text text="{i18n>colPurchaseOrderId}" /></header></Column>
-                    <Column hAlign="End"><header><Text text="{i18n>linkedTons}" /></header></Column>
-                    <Column><header><Text text="{i18n>colCreatedAt}" /></header></Column>
-                  </columns>
-                  <items>
-                    <ColumnListItem>
-                      <cells>
-                        <Text text="{path: 'ordDet>sales_order_id', formatter: 'formatter.shortUuid'}" />
-                        <Text text="{path: 'ordDet>purchase_order_id', formatter: 'formatter.shortUuid'}" />
-                        <Text text="{path: 'ordDet>linked_tons', formatter: 'formatter.numberTwoDecimals'}" />
-                        <Text text="{path: 'ordDet>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-                      </cells>
-                    </ColumnListItem>
-                  </items>
-                </Table>
+              <VBox class="sapUiSmallMargin">
+                <MessageStrip text="{i18n>noDealLinked}" type="Warning" showIcon="true"
+                  visible="{= !${ordDet>/deal} }" class="sapUiSmallMarginBottom" />
+                <HBox alignItems="Center" visible="{= !!${ordDet>/deal} }">
+                  <core:Icon src="sap-icon://chain-link" class="sapUiSmallMarginEnd" />
+                  <Link text="{ordDet>/deal/name}" press=".onNavigateToDeal" />
+                  <Text text=" — {ordDet>/deal/commodity}" class="sapUiSmallMarginBegin" />
+                </HBox>
               </VBox>
             </uxap:blocks>
           </uxap:ObjectPageSubSection>

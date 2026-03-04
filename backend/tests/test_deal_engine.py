@@ -7,7 +7,12 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.models.counterparty import Counterparty
-from app.models.hedge import Hedge, HedgeDirection, HedgeSourceType, HedgeStatus
+from app.models.contracts import (
+    HedgeClassification,
+    HedgeContract,
+    HedgeContractStatus,
+    HedgeLegSide,
+)
 from app.models.orders import Order, OrderType, PriceType
 
 
@@ -42,23 +47,26 @@ def _create_order(
 def _create_hedge(
     session: Session, cp_id: uuid.UUID, tons: float = 100.0, premium: float = 5.0
 ) -> uuid.UUID:
-    hedge = Hedge(
-        reference=f"H-{uuid.uuid4().hex[:8].upper()}",
-        counterparty_id=cp_id,
+    contract = HedgeContract(
+        reference=f"HC-{uuid.uuid4().hex[:8].upper()}",
+        counterparty_id=str(cp_id),
         commodity="ALUMINUM",
-        direction=HedgeDirection.buy,
-        tons=tons,
-        price_per_ton=2450.0,
+        quantity_mt=tons,
+        fixed_price_value=2450.0,
+        fixed_price_unit="USD/MT",
+        fixed_leg_side=HedgeLegSide.buy,
+        variable_leg_side=HedgeLegSide.sell,
+        classification=HedgeClassification.long,
         premium_discount=premium,
         settlement_date=date(2025, 9, 30),
         trade_date=date.today(),
-        status=HedgeStatus.active,
-        source_type=HedgeSourceType.manual,
+        status=HedgeContractStatus.active,
+        source_type="manual",
     )
-    session.add(hedge)
+    session.add(contract)
     session.commit()
-    session.refresh(hedge)
-    return hedge.id
+    session.refresh(contract)
+    return contract.id
 
 
 # -----------------------------------------------------------------------

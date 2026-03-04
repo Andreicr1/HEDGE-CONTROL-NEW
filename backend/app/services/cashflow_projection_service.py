@@ -5,8 +5,6 @@ the expected cash inflows and outflows:
 
 * Sales Orders (SO)  → inflow  (+qty × price)
 * Purchase Orders (PO) → outflow (−qty × price)
-* Hedges (sell)       → inflow  (+tons × price_per_ton)
-* Hedges (buy)        → outflow (−tons × price_per_ton)
 * Hedge Contracts     → net of fixed vs. variable leg
 
 For variable-price instruments the latest market price is used as estimate.
@@ -20,9 +18,8 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models.contracts import HedgeContract, HedgeContractStatus
+from app.models.contracts import HedgeClassification, HedgeContract, HedgeContractStatus
 from app.models.deal import DealLink, DealLinkedType
-from app.models.hedge import Hedge, HedgeDirection, HedgeStatus
 from app.models.orders import Order, OrderType, PriceType
 from app.schemas.cashflow import (
     CashFlowProjectionItem,
@@ -34,20 +31,33 @@ from app.schemas.cashflow import (
 logger = logging.getLogger(__name__)
 
 
-def _get_market_price(session: Session, commodity: str, as_of_date: date) -> Decimal | None:
+def _get_market_price(
+    session: Session, commodity: str, as_of_date: date
+) -> Decimal | None:
     try:
         from app.services.price_lookup_service import (
             get_cash_settlement_price_d1,
             resolve_symbol,
         )
+
         symbol = resolve_symbol(commodity)
-        return Decimal(str(get_cash_settlement_price_d1(session, symbol=symbol, as_of_date=as_of_date)))
+        return Decimal(
+            str(
+                get_cash_settlement_price_d1(
+                    session, symbol=symbol, as_of_date=as_of_date
+                )
+            )
+        )
     except Exception:
-        logger.debug("market_price_unavailable commodity=%s date=%s", commodity, as_of_date)
+        logger.debug(
+            "market_price_unavailable commodity=%s date=%s", commodity, as_of_date
+        )
         return None
 
 
-def _resolve_deal_id(session: Session, linked_type: DealLinkedType, linked_id) -> str | None:
+def _resolve_deal_id(
+    session: Session, linked_type: DealLinkedType, linked_id
+) -> str | None:
     """Find the deal_id if this instrument is linked to a deal."""
     link = (
         session.query(DealLink)
@@ -60,9 +70,17 @@ def _resolve_deal_id(session: Session, linked_type: DealLinkedType, linked_id) -
 def _order_settlement_date(order: Order) -> date | None:
     """Best available future date for an order."""
     if order.delivery_date_end:
-        return order.delivery_date_end if isinstance(order.delivery_date_end, date) else None
+        return (
+            order.delivery_date_end
+            if isinstance(order.delivery_date_end, date)
+            else None
+        )
     if order.delivery_date_start:
-        return order.delivery_date_start if isinstance(order.delivery_date_start, date) else None
+        return (
+            order.delivery_date_start
+            if isinstance(order.delivery_date_start, date)
+            else None
+        )
     return None
 
 
@@ -74,11 +92,7 @@ def compute_cashflow_projection(
     market_price = _get_market_price(session, "LME_AL", as_of_date)
 
     # ── Orders (SO + PO) ──
-    orders = (
-        session.query(Order)
-        .filter(Order.deleted_at.is_(None))
-        .all()
-    )
+    orders = session.query(Order).filter(Order.deleted_at.is_(None)).all()
     for order in orders:
         settle_dt = _order_settlement_date(order)
         if settle_dt is None or settle_dt < as_of_date:
@@ -106,68 +120,41 @@ def compute_cashflow_projection(
             deal_type = DealLinkedType.purchase_order
             amount = -amount
 
-        items.append(CashFlowProjectionItem(
-            instrument_type=instr_type,
-            instrument_id=str(order.id),
-            reference="",
-            counterparty="",
-            commodity="Al",
-            settlement_date=settle_dt,
-            quantity_mt=qty,
-            price_per_mt=price,
-            amount_usd=amount,
-            price_source=price_src,
-            deal_id=_resolve_deal_id(session, deal_type, order.id),
-        ))
-
-    # ── Hedges ──
-    hedges = (
-        session.query(Hedge)
-        .filter(
-            Hedge.is_deleted == False,  # noqa: E712
-            Hedge.status.in_((HedgeStatus.active, HedgeStatus.partially_settled)),
+        items.append(
+            CashFlowProjectionItem(
+                instrument_type=instr_type,
+                instrument_id=str(order.id),
+                reference="",
+                counterparty="",
+                commodity="Al",
+                settlement_date=settle_dt,
+                quantity_mt=qty,
+                price_per_mt=price,
+                amount_usd=amount,
+                price_source=price_src,
+                deal_id=_resolve_deal_id(session, deal_type, order.id),
+            )
         )
-        .all()
-    )
-    for hedge in hedges:
-        if hedge.settlement_date < as_of_date:
-            continue
 
-        tons = Decimal(str(hedge.tons))
-        price = Decimal(str(hedge.price_per_ton))
-        is_sell = hedge.direction == HedgeDirection.sell
-
-        if is_sell:
-            amount = tons * price
-            instr_type = ProjectionInstrumentType.hedge_sell
-        else:
-            amount = -(tons * price)
-            instr_type = ProjectionInstrumentType.hedge_buy
-
-        items.append(CashFlowProjectionItem(
-            instrument_type=instr_type,
-            instrument_id=str(hedge.id),
-            reference=hedge.reference,
-            counterparty="",
-            commodity=hedge.commodity,
-            settlement_date=hedge.settlement_date,
-            quantity_mt=tons,
-            price_per_mt=price,
-            amount_usd=amount,
-            price_source="fixed",
-            deal_id=_resolve_deal_id(session, DealLinkedType.hedge, hedge.id),
-        ))
-
-    # ── Hedge Contracts (active, not yet settled) ──
+    # ── Hedge Contracts (active / partially_settled, not deleted) ──
     contracts = (
         session.query(HedgeContract)
         .filter(
-            HedgeContract.status == HedgeContractStatus.active,
+            HedgeContract.status.in_(
+                (
+                    HedgeContractStatus.active,
+                    HedgeContractStatus.partially_settled,
+                )
+            ),
             HedgeContract.deleted_at.is_(None),
         )
         .all()
     )
     for contract in contracts:
+        settle_dt = contract.settlement_date or as_of_date
+        if settle_dt < as_of_date:
+            continue
+
         qty = Decimal(str(contract.quantity_mt))
         fixed_price = Decimal(str(contract.fixed_price_value or 0))
 
@@ -184,19 +171,27 @@ def compute_cashflow_projection(
         else:
             amount = qty * (fixed_price - est_variable)
 
-        items.append(CashFlowProjectionItem(
-            instrument_type=ProjectionInstrumentType.hedge_contract,
-            instrument_id=str(contract.id),
-            reference="",
-            counterparty=contract.counterparty_id or "",
-            commodity=contract.commodity,
-            settlement_date=as_of_date,
-            quantity_mt=qty,
-            price_per_mt=fixed_price,
-            amount_usd=amount,
-            price_source=price_src,
-            deal_id=_resolve_deal_id(session, DealLinkedType.contract, contract.id),
-        ))
+        # Determine instrument type from classification
+        if contract.classification == HedgeClassification.short:
+            instr_type = ProjectionInstrumentType.hedge_sell
+        else:
+            instr_type = ProjectionInstrumentType.hedge_buy
+
+        items.append(
+            CashFlowProjectionItem(
+                instrument_type=instr_type,
+                instrument_id=str(contract.id),
+                reference=contract.reference or "",
+                counterparty=contract.counterparty_id or "",
+                commodity=contract.commodity,
+                settlement_date=settle_dt,
+                quantity_mt=qty,
+                price_per_mt=fixed_price,
+                amount_usd=amount,
+                price_source=price_src,
+                deal_id=_resolve_deal_id(session, DealLinkedType.contract, contract.id),
+            )
+        )
 
     items.sort(key=lambda x: x.settlement_date)
 
