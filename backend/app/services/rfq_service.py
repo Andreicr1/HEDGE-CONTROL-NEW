@@ -633,8 +633,9 @@ class RFQService:
         )
         recipients: dict[str, RFQInvitation] = {}
         for inv in existing:
-            if inv.recipient_phone not in recipients:
-                recipients[inv.recipient_phone] = inv
+            cp_key = str(inv.counterparty_id) if inv.counterparty_id else inv.recipient_phone
+            if cp_key not in recipients:
+                recipients[cp_key] = inv
 
         if not recipients:
             raise HTTPException(
@@ -647,12 +648,20 @@ class RFQService:
         )
         now = now_utc()
         for recipient in recipients.values():
+            # Fetch the current phone from the Counterparty table in case
+            # it has been updated since the original invitation was created.
+            current_phone = recipient.recipient_phone
+            if recipient.counterparty_id:
+                cp = session.get(Counterparty, recipient.counterparty_id)
+                if cp and cp.whatsapp_phone:
+                    current_phone = cp.whatsapp_phone
+
             send_status = RFQInvitationStatus.queued
-            provider_msg_id = f"refresh-{rfq.rfq_number}-{recipient.recipient_phone}"
+            provider_msg_id = f"refresh-{rfq.rfq_number}-{current_phone}"
 
             if recipient.channel == RFQInvitationChannel.whatsapp:
                 result = WhatsAppService.send_text_message(
-                    phone=recipient.recipient_phone,
+                    phone=current_phone,
                     text=message_body,
                 )
                 if result.success:
@@ -661,14 +670,14 @@ class RFQService:
                     _logger.info(
                         "rfq_refresh_whatsapp_sent",
                         rfq_number=rfq.rfq_number,
-                        recipient=recipient.recipient_phone,
+                        recipient=current_phone,
                     )
                 else:
                     send_status = RFQInvitationStatus.failed
                     _logger.error(
                         "rfq_refresh_whatsapp_failed",
                         rfq_number=rfq.rfq_number,
-                        recipient=recipient.recipient_phone,
+                        recipient=current_phone,
                         error_code=result.error_code,
                         error_message=result.error_message,
                     )
@@ -678,14 +687,14 @@ class RFQService:
                     rfq_id=rfq.id,
                     rfq_number=rfq.rfq_number,
                     counterparty_id=recipient.counterparty_id,
-                    recipient_phone=recipient.recipient_phone,
+                    recipient_phone=current_phone,
                     recipient_name=recipient.recipient_name,
                     channel=recipient.channel,
                     message_body=message_body,
                     provider_message_id=provider_msg_id,
                     send_status=send_status,
                     sent_at=now if send_status == RFQInvitationStatus.sent else None,
-                    idempotency_key=f"refresh-{rfq.rfq_number}-{recipient.recipient_phone}",
+                    idempotency_key=f"refresh-{rfq.rfq_number}-{current_phone}",
                 )
             )
 
@@ -773,13 +782,21 @@ class RFQService:
         )
         now = now_utc()
 
+        # Fetch the current phone from the Counterparty table in case
+        # it has been updated since the original invitation was created.
+        current_phone = existing.recipient_phone
+        if existing.counterparty_id:
+            cp = session.get(Counterparty, existing.counterparty_id)
+            if cp and cp.whatsapp_phone:
+                current_phone = cp.whatsapp_phone
+
         # Actually send the WhatsApp message
         send_status = RFQInvitationStatus.queued
-        provider_message_id = f"refresh-{rfq.rfq_number}-{existing.recipient_phone}-{now.isoformat()}"
+        provider_message_id = f"refresh-{rfq.rfq_number}-{current_phone}-{now.isoformat()}"
 
         if existing.channel == RFQInvitationChannel.whatsapp:
             result = WhatsAppService.send_text_message(
-                phone=existing.recipient_phone,
+                phone=current_phone,
                 text=message_body,
             )
             if result.success:
@@ -788,14 +805,14 @@ class RFQService:
                 _logger.info(
                     "rfq_refresh_whatsapp_sent",
                     rfq_number=rfq.rfq_number,
-                    recipient=existing.recipient_phone,
+                    recipient=current_phone,
                 )
             else:
                 send_status = RFQInvitationStatus.failed
                 _logger.error(
                     "rfq_refresh_whatsapp_failed",
                     rfq_number=rfq.rfq_number,
-                    recipient=existing.recipient_phone,
+                    recipient=current_phone,
                     error_code=result.error_code,
                     error_message=result.error_message,
                 )
@@ -805,14 +822,14 @@ class RFQService:
                 rfq_id=rfq.id,
                 rfq_number=rfq.rfq_number,
                 counterparty_id=existing.counterparty_id,
-                recipient_phone=existing.recipient_phone,
+                recipient_phone=current_phone,
                 recipient_name=existing.recipient_name,
                 channel=existing.channel,
                 message_body=message_body,
                 provider_message_id=provider_message_id,
                 send_status=send_status,
                 sent_at=now if send_status == RFQInvitationStatus.sent else None,
-                idempotency_key=f"refresh-{rfq.rfq_number}-{existing.recipient_phone}-{now.isoformat()}",
+                idempotency_key=f"refresh-{rfq.rfq_number}-{current_phone}-{now.isoformat()}",
             )
         )
         return rfq
