@@ -269,6 +269,44 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
             return phone
         return f"whatsapp:{phone}"
 
+    @staticmethod
+    def _brazilian_phone_variant(whatsapp_phone: str) -> str | None:
+        """Return an alternative Brazilian mobile number format.
+
+        Brazilian mobile numbers changed from 8 to 9 digits (a leading ``9``
+        was prepended to the subscriber number).  WhatsApp and the Twilio
+        Sandbox may recognise either format, so when one fails we can retry
+        with the other.
+
+        Returns ``None`` if the number is not a Brazilian mobile or no
+        variant can be derived.
+        """
+        # Strip the whatsapp: prefix for analysis
+        raw = whatsapp_phone
+        if raw.startswith("whatsapp:"):
+            raw = raw[len("whatsapp:"):]
+
+        if not raw.startswith("+55"):
+            return None
+
+        digits = raw[3:]  # after +55
+        if len(digits) < 10 or len(digits) > 11:
+            return None
+
+        area_code = digits[:2]
+
+        if len(digits) == 11 and digits[2] == "9":
+            # 9-digit subscriber → try 8-digit (strip leading 9)
+            alt = f"whatsapp:+55{area_code}{digits[3:]}"
+            return alt
+
+        if len(digits) == 10:
+            # 8-digit subscriber → try 9-digit (prepend 9)
+            alt = f"whatsapp:+55{area_code}9{digits[2:]}"
+            return alt
+
+        return None
+
     def send_text_message(self, phone: str, text: str) -> WhatsAppSendResult:
         return self._send(phone=phone, body=text)
 
@@ -314,8 +352,16 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
         body: str | None = None,
         content_sid: str | None = None,
         content_variables: dict | None = None,
+        _is_retry: bool = False,
     ) -> WhatsAppSendResult:
-        """Execute the HTTP POST to Twilio Messages API."""
+        """Execute the HTTP POST to Twilio Messages API.
+
+        If the first attempt fails with Twilio error **63015** (recipient
+        not recognised / session expired) and the number is a Brazilian
+        mobile, automatically retry with the alternative 8/9-digit format.
+        This works around a known Twilio Sandbox limitation where Brazilian
+        numbers are not normalised to canonical E.164.
+        """
         to_number = self._normalize_phone(phone)
 
         try:
@@ -358,6 +404,7 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
             provider="twilio",
             to=to_number,
             msg_type="content_template" if content_sid else "text",
+            is_retry=_is_retry,
         )
 
         try:
@@ -385,6 +432,29 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
 
             error_code = str(resp_json.get("code", response.status_code))
             error_msg = resp_json.get("message", "Unknown Twilio error")
+
+            # ----- Brazilian phone fallback (sandbox workaround) -----
+            # Error 63015 = recipient not in sandbox / session expired.
+            # Brazilian mobiles have 8-digit and 9-digit variants that
+            # map to the same canonical E.164.  Retry with the alternate
+            # format if we haven't already.
+            if error_code == "63015" and not _is_retry:
+                alt = self._brazilian_phone_variant(to_number)
+                if alt:
+                    logger.warning(
+                        "whatsapp_br_phone_retry",
+                        provider="twilio",
+                        original_to=to_number,
+                        retry_to=alt,
+                    )
+                    return self._send(
+                        phone=alt,
+                        body=body,
+                        content_sid=content_sid,
+                        content_variables=content_variables,
+                        _is_retry=True,
+                    )
+
             logger.error(
                 "whatsapp_send_api_error",
                 provider="twilio",

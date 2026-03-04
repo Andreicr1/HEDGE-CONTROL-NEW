@@ -889,3 +889,119 @@ class TestRFQTimeoutTask:
 
         mock_orchestrator.check_low_response_rfqs.assert_called_once()
         mock_orchestrator.check_rfq_timeouts.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Brazilian phone variant & retry tests
+# ---------------------------------------------------------------------------
+
+
+class TestBrazilianPhoneVariant:
+    """Unit tests for TwilioWhatsAppProvider._brazilian_phone_variant()."""
+
+    def _variant(self, phone: str) -> str | None:
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        return TwilioWhatsAppProvider._brazilian_phone_variant(phone)
+
+    def test_9digit_to_8digit(self) -> None:
+        assert self._variant("whatsapp:+5541991022018") == "whatsapp:+554191022018"
+
+    def test_8digit_to_9digit(self) -> None:
+        assert self._variant("whatsapp:+554191022018") == "whatsapp:+5541991022018"
+
+    def test_non_brazilian_returns_none(self) -> None:
+        assert self._variant("whatsapp:+14155238886") is None
+
+    def test_raw_phone_9digit(self) -> None:
+        assert self._variant("+5541991022018") == "whatsapp:+554191022018"
+
+    def test_raw_phone_8digit(self) -> None:
+        assert self._variant("+554191022018") == "whatsapp:+5541991022018"
+
+    def test_short_number_returns_none(self) -> None:
+        assert self._variant("+551234") is None
+
+    def test_non_9_prefix_11digit(self) -> None:
+        # 11 digits after +55 but 3rd digit is not 9 → no variant
+        assert self._variant("whatsapp:+5541891022018") is None
+
+
+class TestTwilioBrazilianRetry:
+    """Test that _send() retries with BR phone variant on error 63015."""
+
+    @patch("app.services.whatsapp_providers.httpx.post")
+    def test_retry_on_63015_with_br_phone(self, mock_post: MagicMock) -> None:
+        """First call fails with 63015, retry with 8-digit variant succeeds."""
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        fail_resp = MagicMock()
+        fail_resp.status_code = 400
+        fail_resp.json.return_value = {"code": 63015, "message": "sandbox error"}
+
+        ok_resp = MagicMock()
+        ok_resp.status_code = 201
+        ok_resp.json.return_value = {"sid": "SM_retry_ok", "status": "queued"}
+
+        mock_post.side_effect = [fail_resp, ok_resp]
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._send(phone="+5541991022018", body="Test")
+
+        assert result.success is True
+        assert result.provider_message_id == "SM_retry_ok"
+        assert mock_post.call_count == 2
+        # Second call should use the 8-digit variant
+        second_data = mock_post.call_args_list[1].kwargs.get("data") or mock_post.call_args_list[1][1].get("data")
+        assert second_data["To"] == "whatsapp:+554191022018"
+
+    @patch("app.services.whatsapp_providers.httpx.post")
+    def test_no_retry_on_non_br_phone(self, mock_post: MagicMock) -> None:
+        """Non-Brazilian phone with 63015 error should NOT retry."""
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        fail_resp = MagicMock()
+        fail_resp.status_code = 400
+        fail_resp.json.return_value = {"code": 63015, "message": "sandbox error"}
+
+        mock_post.return_value = fail_resp
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._send(phone="+14155551234", body="Test")
+
+        assert result.success is False
+        assert result.error_code == "63015"
+        assert mock_post.call_count == 1
+
+    @patch("app.services.whatsapp_providers.httpx.post")
+    def test_no_infinite_retry(self, mock_post: MagicMock) -> None:
+        """Even if retry also gets 63015, it should not recurse further."""
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        fail_resp = MagicMock()
+        fail_resp.status_code = 400
+        fail_resp.json.return_value = {"code": 63015, "message": "sandbox error"}
+
+        mock_post.return_value = fail_resp
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._send(phone="+5541991022018", body="Test")
+
+        assert result.success is False
+        # Exactly 2 calls: original + 1 retry (no infinite loop)
+        assert mock_post.call_count == 2
