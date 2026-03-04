@@ -614,15 +614,15 @@ class RFQService:
 
     @staticmethod
     def refresh(session: Session, rfq_id: UUID, user_id: str) -> RFQ:
-        """Re-send invitations for an RFQ in QUOTED state.
+        """Re-send invitations for an RFQ in SENT or QUOTED state.
 
         The caller must ``session.commit()`` afterwards.
         """
         rfq = RFQService.get(session, rfq_id)
-        if rfq.state != RFQState.quoted:
+        if rfq.state not in (RFQState.sent, RFQState.quoted):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="RFQ must be in QUOTED state",
+                detail="RFQ must be in SENT or QUOTED state",
             )
 
         existing = (
