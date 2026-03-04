@@ -307,6 +307,53 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
 
         return None
 
+    def _is_sandbox(self) -> bool:
+        """Detect if we are using the Twilio WhatsApp Sandbox.
+
+        The sandbox uses the well-known number ``+14155238886``.
+        """
+        try:
+            from_num = self._from_number()
+        except ValueError:
+            return False
+        return "+14155238886" in from_num
+
+    def _sandbox_normalize_brazilian(self, to_number: str) -> str:
+        """In sandbox mode, convert Brazilian 9-digit mobiles to 8-digit.
+
+        The Twilio Sandbox does **not** normalise Brazilian phone numbers.
+        Users typically join the sandbox with their old 8-digit number, so
+        the canonical 9-digit E.164 format (``+55 XX 9XXXX XXXX``) won't
+        match.  This helper strips the leading ``9`` from the subscriber
+        part so that ``+5541991022018`` → ``+554191022018``.
+
+        For non-Brazilian numbers or non-sandbox mode, the number is
+        returned unchanged.
+        """
+        if not self._is_sandbox():
+            return to_number
+
+        raw = to_number
+        prefix = ""
+        if raw.startswith("whatsapp:"):
+            prefix = "whatsapp:"
+            raw = raw[len("whatsapp:"):]
+
+        if not raw.startswith("+55"):
+            return to_number
+
+        digits = raw[3:]  # after +55
+        if len(digits) == 11 and digits[2] == "9":
+            alt = f"{prefix}+55{digits[:2]}{digits[3:]}"
+            logger.info(
+                "whatsapp_sandbox_br_normalize",
+                original=to_number,
+                normalized=alt,
+            )
+            return alt
+
+        return to_number
+
     def send_text_message(self, phone: str, text: str) -> WhatsAppSendResult:
         return self._send(phone=phone, body=text)
 
@@ -356,13 +403,22 @@ class TwilioWhatsAppProvider(WhatsAppProviderBase):
     ) -> WhatsAppSendResult:
         """Execute the HTTP POST to Twilio Messages API.
 
-        If the first attempt fails with Twilio error **63015** (recipient
-        not recognised / session expired) and the number is a Brazilian
-        mobile, automatically retry with the alternative 8/9-digit format.
-        This works around a known Twilio Sandbox limitation where Brazilian
-        numbers are not normalised to canonical E.164.
+        **Proactive sandbox normalisation**: when running against the
+        Twilio Sandbox (detected via the well-known FROM number
+        ``+14155238886``), Brazilian 9-digit mobile numbers are
+        automatically converted to 8-digit format BEFORE the API call.
+        This prevents the async error 63015 that would otherwise occur
+        because the sandbox doesn't normalise E.164 variants.
+
+        **Reactive fallback** (kept as safety-net): if the API returns
+        error 63015 synchronously, retry with the alternative BR format.
         """
         to_number = self._normalize_phone(phone)
+
+        # ---- Proactive sandbox normalisation for Brazilian numbers ----
+        # Only on first attempt; retries pass the alternate format directly.
+        if not _is_retry:
+            to_number = self._sandbox_normalize_brazilian(to_number)
 
         try:
             url = self._build_url()

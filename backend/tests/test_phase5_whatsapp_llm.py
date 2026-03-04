@@ -927,12 +927,189 @@ class TestBrazilianPhoneVariant:
         assert self._variant("whatsapp:+5541891022018") is None
 
 
+class TestSandboxDetection:
+    """Tests for _is_sandbox() and _sandbox_normalize_brazilian()."""
+
+    def test_is_sandbox_true(self) -> None:
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            assert provider._is_sandbox() is True
+
+    def test_is_sandbox_false_production(self) -> None:
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+5511999888777",
+        }):
+            provider = TwilioWhatsAppProvider()
+            assert provider._is_sandbox() is False
+
+    def test_is_sandbox_false_missing_env(self) -> None:
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+        }, clear=False):
+            # Remove TWILIO_WHATSAPP_FROM if present
+            env = os.environ.copy()
+            env.pop("TWILIO_WHATSAPP_FROM", None)
+            with patch.dict(os.environ, env, clear=True):
+                provider = TwilioWhatsAppProvider()
+                assert provider._is_sandbox() is False
+
+    def test_sandbox_normalize_9digit_to_8digit(self) -> None:
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._sandbox_normalize_brazilian("whatsapp:+5541991022018")
+            assert result == "whatsapp:+554191022018"
+
+    def test_sandbox_normalize_8digit_unchanged(self) -> None:
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._sandbox_normalize_brazilian("whatsapp:+554191022018")
+            # Already 8-digit → no change
+            assert result == "whatsapp:+554191022018"
+
+    def test_sandbox_normalize_non_br_unchanged(self) -> None:
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._sandbox_normalize_brazilian("whatsapp:+14155551234")
+            assert result == "whatsapp:+14155551234"
+
+    def test_production_no_normalize(self) -> None:
+        """In production mode, Brazilian 9-digit numbers stay as-is."""
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+5511999888777",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._sandbox_normalize_brazilian("whatsapp:+5541991022018")
+            # Production → no change
+            assert result == "whatsapp:+5541991022018"
+
+
+class TestTwilioProactiveSandboxSend:
+    """Test that _send() proactively normalizes BR phones in sandbox mode."""
+
+    @patch("app.services.whatsapp_providers.httpx.post")
+    def test_sandbox_sends_8digit_for_br_9digit(self, mock_post: MagicMock) -> None:
+        """In sandbox mode, 9-digit BR phone should be converted to 8-digit BEFORE sending."""
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        ok_resp = MagicMock()
+        ok_resp.status_code = 201
+        ok_resp.json.return_value = {"sid": "SM_proactive", "status": "queued"}
+
+        mock_post.return_value = ok_resp
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._send(phone="+5541991022018", body="Test")
+
+        assert result.success is True
+        assert result.provider_message_id == "SM_proactive"
+        # Should have sent to the 8-digit variant (proactive normalization)
+        assert mock_post.call_count == 1
+        sent_data = mock_post.call_args.kwargs.get("data") or mock_post.call_args[1].get("data")
+        assert sent_data["To"] == "whatsapp:+554191022018"
+
+    @patch("app.services.whatsapp_providers.httpx.post")
+    def test_production_sends_9digit_as_is(self, mock_post: MagicMock) -> None:
+        """In production mode, 9-digit BR phone should be sent unchanged."""
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        ok_resp = MagicMock()
+        ok_resp.status_code = 201
+        ok_resp.json.return_value = {"sid": "SM_prod", "status": "queued"}
+
+        mock_post.return_value = ok_resp
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+5511999888777",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._send(phone="+5541991022018", body="Test")
+
+        assert result.success is True
+        assert mock_post.call_count == 1
+        sent_data = mock_post.call_args.kwargs.get("data") or mock_post.call_args[1].get("data")
+        assert sent_data["To"] == "whatsapp:+5541991022018"
+
+    @patch("app.services.whatsapp_providers.httpx.post")
+    def test_sandbox_non_br_phone_unchanged(self, mock_post: MagicMock) -> None:
+        """In sandbox mode, non-BR phones are not modified."""
+        from app.services.whatsapp_providers import TwilioWhatsAppProvider
+
+        ok_resp = MagicMock()
+        ok_resp.status_code = 201
+        ok_resp.json.return_value = {"sid": "SM_nonbr", "status": "queued"}
+
+        mock_post.return_value = ok_resp
+
+        with patch.dict(os.environ, {
+            "TWILIO_ACCOUNT_SID": "ACtest",
+            "TWILIO_AUTH_TOKEN": "token",
+            "TWILIO_WHATSAPP_FROM": "+14155238886",
+        }):
+            provider = TwilioWhatsAppProvider()
+            result = provider._send(phone="+14155551234", body="Test")
+
+        assert result.success is True
+        assert mock_post.call_count == 1
+        sent_data = mock_post.call_args.kwargs.get("data") or mock_post.call_args[1].get("data")
+        assert sent_data["To"] == "whatsapp:+14155551234"
+
+
 class TestTwilioBrazilianRetry:
-    """Test that _send() retries with BR phone variant on error 63015."""
+    """Test that _send() retries with BR phone variant on error 63015.
+
+    NOTE: With proactive sandbox normalization, the first call already
+    goes to the 8-digit variant. The sync retry only triggers if:
+    (a) we're NOT in sandbox mode, or
+    (b) the proactively-normalized number ALSO returns 63015 synchronously.
+    In practice these tests set sandbox FROM so proactive norm fires first.
+    """
 
     @patch("app.services.whatsapp_providers.httpx.post")
     def test_retry_on_63015_with_br_phone(self, mock_post: MagicMock) -> None:
-        """First call fails with 63015, retry with 8-digit variant succeeds."""
+        """First call (already proactively normalized) fails sync 63015,
+        retry with the 9-digit variant succeeds."""
         from app.services.whatsapp_providers import TwilioWhatsAppProvider
 
         fail_resp = MagicMock()
@@ -956,9 +1133,12 @@ class TestTwilioBrazilianRetry:
         assert result.success is True
         assert result.provider_message_id == "SM_retry_ok"
         assert mock_post.call_count == 2
-        # Second call should use the 8-digit variant
+        # First call: proactive norm → 8-digit
+        first_data = mock_post.call_args_list[0].kwargs.get("data") or mock_post.call_args_list[0][1].get("data")
+        assert first_data["To"] == "whatsapp:+554191022018"
+        # Second call (retry): variant of 8-digit → 9-digit
         second_data = mock_post.call_args_list[1].kwargs.get("data") or mock_post.call_args_list[1][1].get("data")
-        assert second_data["To"] == "whatsapp:+554191022018"
+        assert second_data["To"] == "whatsapp:+5541991022018"
 
     @patch("app.services.whatsapp_providers.httpx.post")
     def test_no_retry_on_non_br_phone(self, mock_post: MagicMock) -> None:
@@ -1003,5 +1183,5 @@ class TestTwilioBrazilianRetry:
             result = provider._send(phone="+5541991022018", body="Test")
 
         assert result.success is False
-        # Exactly 2 calls: original + 1 retry (no infinite loop)
+        # Exactly 2 calls: original (proactive 8-digit) + 1 retry (9-digit)
         assert mock_post.call_count == 2

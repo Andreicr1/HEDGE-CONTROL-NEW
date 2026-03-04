@@ -323,7 +323,8 @@ def test_twilio_send_text_success(mock_post):
     call_kwargs = mock_post.call_args
     sent_data = call_kwargs.kwargs.get("data")
     assert sent_data["Body"] == "Hello Twilio!"
-    assert sent_data["To"] == "whatsapp:+5511999990001"
+    # Sandbox mode (_ENV_TWILIO uses +14155238886) normalises BR 9-digit → 8-digit
+    assert sent_data["To"] == "whatsapp:+551199990001"
     assert sent_data["From"] == "whatsapp:+14155238886"
 
     # Basic auth with SID:token
