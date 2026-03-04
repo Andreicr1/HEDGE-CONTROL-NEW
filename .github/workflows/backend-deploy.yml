@@ -50,9 +50,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Set correct subscription
-        run: az account set --subscription 24c48dc0-9cd8-47f0-9f25-cdd33073b389
-
       - name: Build and push to ACR
         run: |
           az acr build \
