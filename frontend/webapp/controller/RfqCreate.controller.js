@@ -765,6 +765,12 @@ sap.ui.define([
         }
       }
 
+      // Attach generated preview texts (used as WhatsApp message body)
+      var sTextEn = oModel.getProperty("/textEn");
+      var sTextPt = oModel.getProperty("/textPt");
+      if (sTextEn) { oPayloadResult.text_en = sTextEn; }
+      if (sTextPt) { oPayloadResult.text_pt = sTextPt; }
+
       return oPayloadResult;
     },
 

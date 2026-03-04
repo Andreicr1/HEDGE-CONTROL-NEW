@@ -20,7 +20,7 @@ from app.models.rfqs import (
     RFQInvitationStatus,
     RFQState,
 )
-from app.schemas.llm import MessageIntent, ParsedQuote
+from app.schemas.llm import LLMClassifyResult, MessageIntent, ParsedQuote
 from app.schemas.whatsapp import WhatsAppInboundMessage, WhatsAppSendResult
 from app.services.llm_agent import LLMUnavailableError
 from app.services.rfq_orchestrator import RFQOrchestrator
@@ -207,11 +207,11 @@ def test_process_rfq_not_quotable(mock_parse, mock_auto):
     mock_parse.assert_not_called()
 
 
-@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
-@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
-def test_process_counterparty_declined(mock_parse, mock_auto):
-    mock_parse.return_value = _parsed_quote(intent=MessageIntent.rejection)
-    mock_auto.return_value = False
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_process_counterparty_declined(mock_classify):
+    mock_classify.return_value = LLMClassifyResult(
+        intent=MessageIntent.rejection, confidence=0.95, raw_reasoning=None
+    )
 
     cp_id = uuid.uuid4()
     with SessionLocal() as session:
@@ -227,15 +227,14 @@ def test_process_counterparty_declined(mock_parse, mock_auto):
 
     assert result["status"] == "counterparty_declined"
     assert result["counterparty"] == str(cp_id)
+    mock_classify.assert_called_once()
 
 
-@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
-@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
-def test_process_counterparty_question(mock_parse, mock_auto):
-    mock_parse.return_value = _parsed_quote(
-        intent=MessageIntent.question, confidence=0.88
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_process_counterparty_question(mock_classify):
+    mock_classify.return_value = LLMClassifyResult(
+        intent=MessageIntent.question, confidence=0.88, raw_reasoning=None
     )
-    mock_auto.return_value = False
 
     with SessionLocal() as session:
         rfq = _create_rfq(session, state=RFQState.sent)
@@ -247,13 +246,14 @@ def test_process_counterparty_question(mock_parse, mock_auto):
 
     assert result["status"] == "counterparty_question"
     assert "What alloy grade?" in result["text"]
+    mock_classify.assert_called_once()
 
 
-@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
-@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
-def test_process_needs_human_review(mock_parse, mock_auto):
-    mock_parse.return_value = _parsed_quote(intent=MessageIntent.other, confidence=0.4)
-    mock_auto.return_value = False
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_process_needs_human_review(mock_classify):
+    mock_classify.return_value = LLMClassifyResult(
+        intent=MessageIntent.other, confidence=0.4, raw_reasoning=None
+    )
 
     with SessionLocal() as session:
         rfq = _create_rfq(session, state=RFQState.sent)
@@ -264,10 +264,13 @@ def test_process_needs_human_review(mock_parse, mock_auto):
         result = RFQOrchestrator._process_single_message(session, msg)
 
     assert result["status"] == "needs_human_review"
+    mock_classify.assert_called_once()
 
 
 @patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
-def test_process_llm_unavailable(mock_parse):
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_process_llm_unavailable(mock_classify, mock_parse):
+    mock_classify.side_effect = LLMUnavailableError("LLM is down")
     mock_parse.side_effect = LLMUnavailableError("LLM is down")
 
     with SessionLocal() as session:
@@ -284,7 +287,11 @@ def test_process_llm_unavailable(mock_parse):
 @patch("app.services.rfq_orchestrator.RFQService.submit_quote")
 @patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
 @patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
-def test_process_auto_quote_created(mock_parse, mock_auto, mock_submit):
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_process_auto_quote_created(mock_classify, mock_parse, mock_auto, mock_submit):
+    mock_classify.return_value = LLMClassifyResult(
+        intent=MessageIntent.quote, confidence=0.95, raw_reasoning=None
+    )
     parsed = _parsed_quote(intent=MessageIntent.quote, confidence=0.95, price=2550.0)
     mock_parse.return_value = parsed
     mock_auto.return_value = True
@@ -304,12 +311,19 @@ def test_process_auto_quote_created(mock_parse, mock_auto, mock_submit):
     assert result["status"] == "auto_quote_created"
     assert result["confidence"] == 0.95
     mock_submit.assert_called_once()
+    mock_classify.assert_called_once()
 
 
 @patch("app.services.rfq_orchestrator.RFQService.submit_quote")
 @patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
 @patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
-def test_process_auto_quote_fails_gracefully(mock_parse, mock_auto, mock_submit):
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_process_auto_quote_fails_gracefully(
+    mock_classify, mock_parse, mock_auto, mock_submit
+):
+    mock_classify.return_value = LLMClassifyResult(
+        intent=MessageIntent.quote, confidence=0.95, raw_reasoning=None
+    )
     parsed = _parsed_quote(intent=MessageIntent.quote, confidence=0.95, price=2550.0)
     mock_parse.return_value = parsed
     mock_auto.return_value = True
@@ -507,3 +521,133 @@ def test_check_low_response_ok_when_all_replied(mock_quotes):
 
     ok = [f for f in flagged if f["rfq_number"] == "RFQ-OK-002"]
     assert len(ok) == 0
+
+
+# ── Anti-hallucination guards ────────────────────────────────────────────
+
+
+class TestIsTrivialMessage:
+    """Unit tests for _is_trivial_message guard."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "oi",
+            "Ola",
+            "olá",
+            "OK",
+            "ok.",
+            "Bom dia!",
+            "hi",
+            "Hello",
+            "thanks!",
+            "Got it",
+            "sim",
+            "valeu",
+            "",
+            "a",
+            "ok",
+        ],
+    )
+    def test_trivial_messages_detected(self, text):
+        assert RFQOrchestrator._is_trivial_message(text) is True
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "No thanks, passing on this",
+            "What alloy grade?",
+            "I can offer 2550 USD/MT",
+            "2550 USD/MT avg",
+            "Hmm let me think about it",
+            "Can we do 2600 instead?",
+            "We quote 2729 USD/MT for Q1 delivery",
+            "Oferecemos 2550 USD/MT média",
+        ],
+    )
+    def test_non_trivial_messages_pass(self, text):
+        assert RFQOrchestrator._is_trivial_message(text) is False
+
+
+class TestPriceAppearsInText:
+    """Unit tests for _price_appears_in_text guard."""
+
+    def test_integer_price_found(self):
+        assert RFQOrchestrator._price_appears_in_text(2550.0, "We offer 2550 USD/MT") is True
+
+    def test_float_price_found(self):
+        assert RFQOrchestrator._price_appears_in_text(2550.5, "Price is 2550.5 USD") is True
+
+    def test_comma_decimal_found(self):
+        assert RFQOrchestrator._price_appears_in_text(2550.5, "Preço 2550,5 USD") is True
+
+    def test_price_not_in_text(self):
+        assert RFQOrchestrator._price_appears_in_text(2729.0, "ola") is False
+
+    def test_price_not_in_greeting(self):
+        assert RFQOrchestrator._price_appears_in_text(2729.0, "ok bom dia") is False
+
+    def test_none_price(self):
+        assert RFQOrchestrator._price_appears_in_text(None, "some text") is False
+
+
+# ── Hallucinated price blocking (integration) ───────────────────────────
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
+@patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_hallucinated_price_blocked(mock_classify, mock_parse, mock_auto):
+    """Guard 3: LLM extracts a price that doesn't exist in the raw text."""
+    mock_classify.return_value = LLMClassifyResult(
+        intent=MessageIntent.quote, confidence=0.95, raw_reasoning=None
+    )
+    # LLM hallucinates 2729.0 from a message that says "ola tudo bem?"
+    mock_parse.return_value = _parsed_quote(
+        intent=MessageIntent.quote, confidence=0.95, price=2729.0
+    )
+    mock_auto.return_value = True
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001", text="ola tudo bem amigo?")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "hallucinated_price_blocked"
+    assert result["hallucinated_price"] == 2729.0
+
+
+def test_trivial_message_skipped_in_flow():
+    """Guard 1: trivial greetings are rejected before any LLM call."""
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        msg = _make_inbound(phone="+5511999990001", text="ok")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "trivial_message_skipped"
+
+
+@patch("app.services.rfq_orchestrator.LLMAgent.classify_intent")
+def test_classify_first_blocks_greeting_with_digits(mock_classify):
+    """Guard 2: classify intent blocks non-quote messages that have digits."""
+    mock_classify.return_value = LLMClassifyResult(
+        intent=MessageIntent.other, confidence=0.6, raw_reasoning=None
+    )
+
+    with SessionLocal() as session:
+        rfq = _create_rfq(session, state=RFQState.sent)
+        _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
+        session.commit()
+
+        # Has digits but not a quote — classify catches it
+        msg = _make_inbound(phone="+5511999990001", text="received your msg at 3pm")
+        result = RFQOrchestrator._process_single_message(session, msg)
+
+    assert result["status"] == "needs_human_review"
+    mock_classify.assert_called_once()

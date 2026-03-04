@@ -16,7 +16,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.contracts import HedgeClassification, HedgeContract, HedgeLegSide
-from app.models.counterparty import Counterparty
+from app.models.counterparty import Counterparty, CounterpartyType
 from app.models.orders import Order, OrderType, PriceType
 from app.models.quotes import RFQQuote
 from app.models.rfqs import (
@@ -377,6 +377,8 @@ class RFQService:
             delivery_window_start=payload.delivery_window_start,
             delivery_window_end=payload.delivery_window_end,
             direction=RFQDirection(payload.direction.value),
+            text_en=payload.text_en,
+            text_pt=payload.text_pt,
             order_id=payload.order_id,
             buy_trade_id=payload.buy_trade_id,
             sell_trade_id=payload.sell_trade_id,
@@ -410,12 +412,18 @@ class RFQService:
             provider_message_id = ""
 
             # --- Send WhatsApp message ---
-            # Build a summary message using the rfq_message_builder if available,
-            # otherwise use a default text
-            message_body = (
+            # Use the preview text matching the counterparty language:
+            # bank_br → Portuguese, all others → English LME
+            fallback_body = (
                 f"RFQ {rfq.rfq_number} — {rfq.commodity} "
                 f"{rfq.quantity_mt}MT {rfq.direction.value}"
             )
+            if cp.type == CounterpartyType.bank_br and payload.text_pt:
+                message_body = payload.text_pt
+            elif payload.text_en:
+                message_body = payload.text_en
+            else:
+                message_body = fallback_body
 
             result = WhatsAppService.send_text_message(
                 phone=phone,
@@ -643,7 +651,7 @@ class RFQService:
                 detail="No recipients to refresh",
             )
 
-        message_body = (
+        refresh_header = (
             f"RFQ#{rfq.rfq_number} — REFRESH: please resend your FIXED price quote."
         )
         now = now_utc()
@@ -651,10 +659,19 @@ class RFQService:
             # Fetch the current phone from the Counterparty table in case
             # it has been updated since the original invitation was created.
             current_phone = recipient.recipient_phone
+            cp = None
             if recipient.counterparty_id:
                 cp = session.get(Counterparty, recipient.counterparty_id)
                 if cp and cp.whatsapp_phone:
                     current_phone = cp.whatsapp_phone
+
+            # Choose the right language text for this counterparty
+            if cp and cp.type == CounterpartyType.bank_br and rfq.text_pt:
+                message_body = rfq.text_pt
+            elif rfq.text_en:
+                message_body = rfq.text_en
+            else:
+                message_body = refresh_header
 
             send_status = RFQInvitationStatus.queued
             provider_msg_id = f"refresh-{rfq.rfq_number}-{current_phone}"
@@ -785,10 +802,17 @@ class RFQService:
         # Fetch the current phone from the Counterparty table in case
         # it has been updated since the original invitation was created.
         current_phone = existing.recipient_phone
+        cp = None
         if existing.counterparty_id:
             cp = session.get(Counterparty, existing.counterparty_id)
             if cp and cp.whatsapp_phone:
                 current_phone = cp.whatsapp_phone
+
+        # Choose the right language text for this counterparty
+        if cp and cp.type == CounterpartyType.bank_br and rfq.text_pt:
+            message_body = rfq.text_pt
+        elif rfq.text_en:
+            message_body = rfq.text_en
 
         # Actually send the WhatsApp message
         send_status = RFQInvitationStatus.queued

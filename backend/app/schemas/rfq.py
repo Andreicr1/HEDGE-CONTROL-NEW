@@ -74,6 +74,11 @@ class RFQCreate(BaseModel):
     )
     invitations: list[RFQInvitationCreate] = Field(default_factory=list)
 
+    # Optional preview texts — if provided, used as WhatsApp message body
+    # per counterparty type (bank_br → text_pt, others → text_en)
+    text_en: str | None = Field(None, description="English LME text for brokers")
+    text_pt: str | None = Field(None, description="Portuguese text for BR banks")
+
     @model_validator(mode="after")
     def validate_intent(self) -> "RFQCreate":
         if self.quantity_mt <= 0:

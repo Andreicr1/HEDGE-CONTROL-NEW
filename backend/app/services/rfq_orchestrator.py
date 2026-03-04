@@ -18,6 +18,7 @@ It does NOT replace the RFQ Service — it delegates to it.
 
 from __future__ import annotations
 
+import re
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -41,9 +42,75 @@ from app.services.webhook_processor import dequeue_message
 
 logger = get_logger()
 
+# ---------------------------------------------------------------------------
+# Trivial-message pre-filter
+# ---------------------------------------------------------------------------
+
+_TRIVIAL_PATTERNS: set[str] = {
+    # Portuguese greetings / acknowledgments
+    "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite",
+    "ok", "tudo bem", "beleza", "sim", "nao", "não",
+    "obrigado", "obrigada", "valeu", "vlw", "blz",
+    "pode ser", "entendi", "certo", "show", "top",
+    "legal", "perfeito", "combinado", "fechado",
+    # English greetings / acknowledgments
+    "hi", "hello", "hey", "good morning", "good afternoon",
+    "yes", "no", "thanks", "thank you", "sure", "okay",
+    "got it", "understood", "noted", "fine", "cool",
+    "great", "perfect", "deal", "sounds good",
+}
+
+# Minimum length (chars) for a message to be considered a potential quote
+_MIN_QUOTE_LENGTH = 3
+
 
 class RFQOrchestrator:
     """Coordinates the automated RFQ flow end-to-end."""
+
+    # ------------------------------------------------------------------
+    # Helpers — anti-hallucination guards
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_trivial_message(text: str) -> bool:
+        """Return True if *text* is a common greeting / acknowledgment
+        that should NOT be sent to the LLM for quote extraction.
+
+        Checks:
+        1. Very short messages (< _MIN_QUOTE_LENGTH chars after strip).
+        2. Exact match against a curated set of trivial phrases.
+        """
+        cleaned = text.strip()
+        if len(cleaned) < _MIN_QUOTE_LENGTH:
+            return True
+        normalised = cleaned.lower().rstrip(".!?")
+        if normalised in _TRIVIAL_PATTERNS:
+            return True
+        return False
+
+    @staticmethod
+    def _price_appears_in_text(price_value: float, raw_text: str) -> bool:
+        """Return True if *price_value* (or its integer part) actually
+        appears somewhere in *raw_text*.
+
+        This prevents the LLM from hallucinating prices that the
+        counterparty never typed.
+        """
+        if price_value is None:
+            return False
+        # Check both the full value and the integer part
+        candidates = {
+            str(price_value),
+            str(int(price_value)),
+        }
+        # Also handle comma-decimal (e.g. "2729,50" for BR locale)
+        if price_value != int(price_value):
+            candidates.add(f"{int(price_value)},{str(price_value).split('.')[1]}")
+
+        for c in candidates:
+            if c in raw_text:
+                return True
+        return False
 
     # ------------------------------------------------------------------
     # 1. Dispatch outbound WhatsApp for all whatsapp invitations
@@ -161,6 +228,60 @@ class RFQOrchestrator:
                 "rfq_id": str(invitation.rfq_id),
             }
 
+        # ── Guard 1: trivial message pre-filter ──
+        if RFQOrchestrator._is_trivial_message(msg.text):
+            logger.info(
+                "orchestrator_trivial_message_skipped",
+                rfq_id=str(rfq.id),
+                text=msg.text[:100],
+            )
+            return {
+                "message_id": msg.message_id,
+                "status": "trivial_message_skipped",
+                "rfq_id": str(rfq.id),
+                "text": msg.text,
+            }
+
+        # ── Guard 2: classify intent FIRST ──
+        try:
+            classification = LLMAgent.classify_intent(msg.text)
+        except LLMUnavailableError:
+            classification = None  # proceed with parse_quote as fallback
+
+        if classification and classification.intent != MessageIntent.quote:
+            logger.info(
+                "orchestrator_classified_non_quote",
+                rfq_id=str(rfq.id),
+                intent=classification.intent.value,
+                confidence=classification.confidence,
+                text=msg.text[:100],
+            )
+            # Handle rejection and question from classification
+            if classification.intent == MessageIntent.rejection:
+                invitation.send_status = RFQInvitationStatus.failed
+                session.flush()
+                return {
+                    "message_id": msg.message_id,
+                    "status": "counterparty_declined",
+                    "rfq_id": str(rfq.id),
+                    "counterparty": str(invitation.counterparty_id),
+                }
+            if classification.intent == MessageIntent.question:
+                return {
+                    "message_id": msg.message_id,
+                    "status": "counterparty_question",
+                    "rfq_id": str(rfq.id),
+                    "counterparty": str(invitation.counterparty_id),
+                    "text": msg.text,
+                }
+            return {
+                "message_id": msg.message_id,
+                "status": "needs_human_review",
+                "rfq_id": str(rfq.id),
+                "intent": classification.intent.value,
+                "confidence": classification.confidence,
+            }
+
         # Build RFQ context for the LLM
         rfq_context = (
             f"RFQ: {rfq.rfq_number}\n"
@@ -195,7 +316,27 @@ class RFQOrchestrator:
             confidence=parsed.confidence,
         )
 
+        # ── Guard 3: price-in-text validation ──
         if LLMAgent.should_auto_create_quote(parsed):
+            price_val = float(
+                parsed.fixed_price_value
+                if parsed.fixed_price_value is not None
+                else (parsed.premium_discount or 0)
+            )
+            if not RFQOrchestrator._price_appears_in_text(price_val, msg.text):
+                logger.warning(
+                    "orchestrator_hallucinated_price_blocked",
+                    rfq_id=str(rfq.id),
+                    hallucinated_price=price_val,
+                    raw_text=msg.text[:200],
+                )
+                return {
+                    "message_id": msg.message_id,
+                    "status": "hallucinated_price_blocked",
+                    "rfq_id": str(rfq.id),
+                    "hallucinated_price": price_val,
+                    "text": msg.text,
+                }
             return RFQOrchestrator._auto_create_quote(
                 session, rfq, invitation, msg, parsed
             )
