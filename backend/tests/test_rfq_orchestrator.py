@@ -575,13 +575,21 @@ class TestPriceAppearsInText:
     """Unit tests for _price_appears_in_text guard."""
 
     def test_integer_price_found(self):
-        assert RFQOrchestrator._price_appears_in_text(2550.0, "We offer 2550 USD/MT") is True
+        assert (
+            RFQOrchestrator._price_appears_in_text(2550.0, "We offer 2550 USD/MT")
+            is True
+        )
 
     def test_float_price_found(self):
-        assert RFQOrchestrator._price_appears_in_text(2550.5, "Price is 2550.5 USD") is True
+        assert (
+            RFQOrchestrator._price_appears_in_text(2550.5, "Price is 2550.5 USD")
+            is True
+        )
 
     def test_comma_decimal_found(self):
-        assert RFQOrchestrator._price_appears_in_text(2550.5, "Preço 2550,5 USD") is True
+        assert (
+            RFQOrchestrator._price_appears_in_text(2550.5, "Preço 2550,5 USD") is True
+        )
 
     def test_price_not_in_text(self):
         assert RFQOrchestrator._price_appears_in_text(2729.0, "ola") is False

@@ -22,7 +22,7 @@ import re
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct
+from sqlalchemy import func, distinct, or_
 
 from app.core.logging import get_logger
 from app.core.utils import now_utc
@@ -50,16 +50,53 @@ logger = get_logger()
 
 _TRIVIAL_PATTERNS: set[str] = {
     # Portuguese greetings / acknowledgments
-    "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite",
-    "ok", "tudo bem", "beleza", "sim", "nao", "não",
-    "obrigado", "obrigada", "valeu", "vlw", "blz",
-    "pode ser", "entendi", "certo", "show", "top",
-    "legal", "perfeito", "combinado", "fechado",
+    "oi",
+    "ola",
+    "olá",
+    "bom dia",
+    "boa tarde",
+    "boa noite",
+    "ok",
+    "tudo bem",
+    "beleza",
+    "sim",
+    "nao",
+    "não",
+    "obrigado",
+    "obrigada",
+    "valeu",
+    "vlw",
+    "blz",
+    "pode ser",
+    "entendi",
+    "certo",
+    "show",
+    "top",
+    "legal",
+    "perfeito",
+    "combinado",
+    "fechado",
     # English greetings / acknowledgments
-    "hi", "hello", "hey", "good morning", "good afternoon",
-    "yes", "no", "thanks", "thank you", "sure", "okay",
-    "got it", "understood", "noted", "fine", "cool",
-    "great", "perfect", "deal", "sounds good",
+    "hi",
+    "hello",
+    "hey",
+    "good morning",
+    "good afternoon",
+    "yes",
+    "no",
+    "thanks",
+    "thank you",
+    "sure",
+    "okay",
+    "got it",
+    "understood",
+    "noted",
+    "fine",
+    "cool",
+    "great",
+    "perfect",
+    "deal",
+    "sounds good",
 }
 
 # Minimum length (chars) for a message to be considered a potential quote
@@ -72,6 +109,27 @@ class RFQOrchestrator:
     # ------------------------------------------------------------------
     # Helpers — anti-hallucination guards
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _phone_variants(phone: str) -> list[str]:
+        """Return a list of phone number variants to match against.
+
+        Brazilian mobiles can be stored as 9-digit (+55XX9XXXXXXXX)
+        but the Twilio sandbox sends replies from 8-digit (+55XXXXXXXXXX).
+        This generates both variants so the DB lookup succeeds.
+        """
+        variants = [phone]
+        raw = phone.lstrip("+")
+        if raw.startswith("55") and len(raw) >= 12:
+            area_code = raw[2:4]
+            digits = raw[4:]
+            if len(digits) == 9 and digits[0] == "9":
+                # 9-digit → also try 8-digit
+                variants.append(f"+55{area_code}{digits[1:]}")
+            elif len(digits) == 8:
+                # 8-digit → also try 9-digit
+                variants.append(f"+55{area_code}9{digits}")
+        return variants
 
     @staticmethod
     def _is_trivial_message(text: str) -> bool:
@@ -195,17 +253,20 @@ class RFQOrchestrator:
     ) -> dict:
         """Process one inbound WhatsApp message."""
         # Find the RFQ by matching sender phone to invitation recipient_phone.
+        # Brazilian mobiles can appear in 8-digit or 9-digit format, so we
+        # check both variants.
         # Join with RFQ to only match invitations whose RFQ is in a quotable
         # state (SENT or QUOTED), preventing replies from being attributed
         # to stale/old RFQs.
         # ORDER BY RFQ.created_at DESC (not invitation.created_at) so the
         # NEWEST RFQ wins — refresh actions create many invitation rows and
         # would otherwise cause the wrong RFQ to be selected.
+        phone_variants = RFQOrchestrator._phone_variants(msg.from_phone)
         invitation = (
             session.query(RFQInvitation)
             .join(RFQ, RFQInvitation.rfq_id == RFQ.id)
             .filter(
-                RFQInvitation.recipient_phone == msg.from_phone,
+                RFQInvitation.recipient_phone.in_(phone_variants),
                 RFQInvitation.channel == RFQInvitationChannel.whatsapp,
                 RFQ.state.in_([RFQState.sent, RFQState.quoted]),
             )
@@ -230,7 +291,7 @@ class RFQOrchestrator:
             session.query(func.count(distinct(RFQ.id)))
             .join(RFQInvitation, RFQInvitation.rfq_id == RFQ.id)
             .filter(
-                RFQInvitation.recipient_phone == msg.from_phone,
+                RFQInvitation.recipient_phone.in_(phone_variants),
                 RFQInvitation.channel == RFQInvitationChannel.whatsapp,
                 RFQ.state.in_([RFQState.sent, RFQState.quoted]),
             )
