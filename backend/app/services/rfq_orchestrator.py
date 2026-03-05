@@ -192,12 +192,17 @@ class RFQOrchestrator:
         msg: WhatsAppInboundMessage,
     ) -> dict:
         """Process one inbound WhatsApp message."""
-        # Find the RFQ by matching sender phone to invitation recipient_phone
+        # Find the RFQ by matching sender phone to invitation recipient_phone.
+        # Join with RFQ to only match invitations whose RFQ is in a quotable
+        # state (SENT or QUOTED), preventing replies from being attributed
+        # to stale/old RFQs.
         invitation = (
             session.query(RFQInvitation)
+            .join(RFQ, RFQInvitation.rfq_id == RFQ.id)
             .filter(
                 RFQInvitation.recipient_phone == msg.from_phone,
                 RFQInvitation.channel == RFQInvitationChannel.whatsapp,
+                RFQ.state.in_([RFQState.sent, RFQState.quoted]),
             )
             .order_by(RFQInvitation.created_at.desc())
             .first()

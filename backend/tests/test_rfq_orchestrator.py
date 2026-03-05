@@ -195,6 +195,8 @@ def test_process_no_matching_rfq(mock_parse, mock_auto):
 @patch("app.services.rfq_orchestrator.LLMAgent.should_auto_create_quote")
 @patch("app.services.rfq_orchestrator.LLMAgent.parse_quote_message")
 def test_process_rfq_not_quotable(mock_parse, mock_auto):
+    """Invitation for a closed RFQ is now excluded by the JOIN filter,
+    so the orchestrator returns no_matching_rfq instead of rfq_not_quotable."""
     with SessionLocal() as session:
         rfq = _create_rfq(session, state=RFQState.closed)
         _create_invitation(session, rfq, status=RFQInvitationStatus.sent)
@@ -203,7 +205,7 @@ def test_process_rfq_not_quotable(mock_parse, mock_auto):
         msg = _make_inbound(phone="+5511999990001")
         result = RFQOrchestrator._process_single_message(session, msg)
 
-    assert result["status"] == "rfq_not_quotable"
+    assert result["status"] == "no_matching_rfq"
     mock_parse.assert_not_called()
 
 

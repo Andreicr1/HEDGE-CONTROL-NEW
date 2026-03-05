@@ -32,18 +32,45 @@ sap.ui.define([
       this.getRouter().getRoute("rfqDocument").attachPatternMatched(this._onRouteMatched, this);
     },
 
+    onExit: function () {
+      this._stopPolling();
+    },
+
     _onRouteMatched: function (oEvent) {
       var sRfqId = oEvent.getParameter("arguments").rfqId;
       this._sRfqId = sRfqId;
       this._loadRfq(sRfqId);
       this._loadQuotes(sRfqId);
       this._loadStateEvents(sRfqId);
+      this._startPolling();
     },
 
     _loadRfq: function (sRfqId) {
       this.loadData(function () {
         return rfqService.getById(sRfqId);
       }, "/detail");
+ },
+
+    /**
+     * Start polling for new quotes / state changes every 10 seconds.
+     */
+    _startPolling: function () {
+      this._stopPolling();
+      var that = this;
+      this._pollTimer = setInterval(function () {
+        if (that._sRfqId) {
+          that._loadQuotes(that._sRfqId);
+          that._loadRfq(that._sRfqId);
+          that._loadStateEvents(that._sRfqId);
+        }
+      }, 10000);
+    },
+
+    _stopPolling: function () {
+      if (this._pollTimer) {
+        clearInterval(this._pollTimer);
+        this._pollTimer = null;
+      }
     },
 
     /**
@@ -479,6 +506,7 @@ sap.ui.define([
     },
 
     onClose: function () {
+      this._stopPolling();
       this.navToList("rfq");
     },
 
