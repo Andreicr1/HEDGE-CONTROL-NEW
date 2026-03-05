@@ -22,6 +22,7 @@ import re
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func, distinct
 
 from app.core.logging import get_logger
 from app.core.utils import now_utc
@@ -32,6 +33,7 @@ from app.models.rfqs import (
     RFQInvitationStatus,
     RFQState,
 )
+from app.models.quotes import RFQQuote
 from app.schemas.llm import MessageIntent, ParsedQuote
 from app.schemas.rfq import RFQQuoteCreate, FloatPricingConvention
 from app.schemas.whatsapp import WhatsAppInboundMessage
@@ -196,6 +198,9 @@ class RFQOrchestrator:
         # Join with RFQ to only match invitations whose RFQ is in a quotable
         # state (SENT or QUOTED), preventing replies from being attributed
         # to stale/old RFQs.
+        # ORDER BY RFQ.created_at DESC (not invitation.created_at) so the
+        # NEWEST RFQ wins — refresh actions create many invitation rows and
+        # would otherwise cause the wrong RFQ to be selected.
         invitation = (
             session.query(RFQInvitation)
             .join(RFQ, RFQInvitation.rfq_id == RFQ.id)
@@ -204,7 +209,7 @@ class RFQOrchestrator:
                 RFQInvitation.channel == RFQInvitationChannel.whatsapp,
                 RFQ.state.in_([RFQState.sent, RFQState.quoted]),
             )
-            .order_by(RFQInvitation.created_at.desc())
+            .order_by(RFQ.created_at.desc(), RFQInvitation.created_at.desc())
             .first()
         )
 
@@ -219,6 +224,26 @@ class RFQOrchestrator:
                 "status": "no_matching_rfq",
                 "from_phone": msg.from_phone,
             }
+
+        # ── Guard: warn when multiple active RFQs match the same phone ──
+        active_rfq_count = (
+            session.query(func.count(distinct(RFQ.id)))
+            .join(RFQInvitation, RFQInvitation.rfq_id == RFQ.id)
+            .filter(
+                RFQInvitation.recipient_phone == msg.from_phone,
+                RFQInvitation.channel == RFQInvitationChannel.whatsapp,
+                RFQ.state.in_([RFQState.sent, RFQState.quoted]),
+            )
+            .scalar()
+        )
+        if active_rfq_count > 1:
+            logger.warning(
+                "orchestrator_multi_rfq_same_phone",
+                from_phone=msg.from_phone,
+                active_rfq_count=active_rfq_count,
+                selected_rfq_id=str(invitation.rfq_id),
+                selected_rfq_number=invitation.rfq_number,
+            )
 
         rfq = session.get(RFQ, invitation.rfq_id)
         if not rfq or rfq.state not in (RFQState.sent, RFQState.quoted):
@@ -342,6 +367,32 @@ class RFQOrchestrator:
                     "hallucinated_price": price_val,
                     "text": msg.text,
                 }
+
+            # ── Guard 4: duplicate quote dedup ──
+            existing_quote = (
+                session.query(RFQQuote)
+                .filter(
+                    RFQQuote.rfq_id == rfq.id,
+                    RFQQuote.counterparty_id == str(invitation.counterparty_id),
+                    RFQQuote.fixed_price_value == price_val,
+                )
+                .first()
+            )
+            if existing_quote:
+                logger.info(
+                    "orchestrator_duplicate_quote_skipped",
+                    rfq_id=str(rfq.id),
+                    counterparty=str(invitation.counterparty_id),
+                    price=price_val,
+                    existing_quote_id=str(existing_quote.id),
+                )
+                return {
+                    "message_id": msg.message_id,
+                    "status": "duplicate_quote_skipped",
+                    "rfq_id": str(rfq.id),
+                    "existing_quote_id": str(existing_quote.id),
+                }
+
             return RFQOrchestrator._auto_create_quote(
                 session, rfq, invitation, msg, parsed
             )
