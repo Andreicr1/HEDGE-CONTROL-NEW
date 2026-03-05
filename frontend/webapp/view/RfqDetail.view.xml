@@ -205,12 +205,15 @@
                         <Text text="{rfqDet>float_pricing_convention}" />
                         <Text text="{path: 'rfqDet>received_at', formatter: 'formatter.dateTimeDisplay'}" />
                         <HBox visible="{= ${rfqDet>/detail/state} === 'QUOTED'}" alignItems="Center">
-                          <Button text="{i18n>btnRefreshQuote}" icon="sap-icon://refresh" type="Transparent"
-                            press=".onQuoteRefresh" tooltip="{i18n>tooltipRefreshQuote}" class="sapUiTinyMarginEnd" />
-                          <Button text="{i18n>btnRejectQuote}" icon="sap-icon://decline" type="Reject"
-                            press=".onQuoteReject" tooltip="{i18n>tooltipRejectQuote}" class="sapUiTinyMarginEnd" />
-                          <Button text="{i18n>btnContractQuote}" icon="sap-icon://accept" type="Emphasized"
-                            press=".onQuoteContract" tooltip="{i18n>tooltipContractQuote}" />
+                          <MenuButton text="{i18n>colActions}" type="Emphasized" icon="sap-icon://action">
+                            <menu>
+                              <Menu>
+                                <MenuItem text="{i18n>btnContractQuote}" icon="sap-icon://accept" press=".onQuoteContract" />
+                                <MenuItem text="{i18n>btnRefreshQuote}" icon="sap-icon://refresh" press=".onQuoteRefresh" />
+                                <MenuItem text="{i18n>btnRejectQuote}" icon="sap-icon://decline" press=".onQuoteReject" />
+                              </Menu>
+                            </menu>
+                          </MenuButton>
                         </HBox>
                       </cells>
                     </ColumnListItem>

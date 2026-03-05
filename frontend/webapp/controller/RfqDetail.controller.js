@@ -2,6 +2,7 @@ sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/rfqService",
   "hedgecontrol/service/counterpartiesService",
+  "hedgecontrol/util/formatter",
   "sap/m/MessageBox",
   "sap/m/Dialog",
   "sap/m/Button",
@@ -11,8 +12,11 @@ sap.ui.define([
   "sap/ui/core/Item",
   "sap/m/VBox",
   "sap/m/MessageToast",
+  "sap/m/Text",
+  "sap/m/MessageStrip",
+  "sap/ui/layout/form/SimpleForm",
   "sap/f/library"
-], function (BaseController, rfqService, counterpartiesService, MessageBox, Dialog, Button, Label, Input, Select, Item, VBox, MessageToast, fioriLibrary) {
+], function (BaseController, rfqService, counterpartiesService, formatter, MessageBox, Dialog, Button, Label, Input, Select, Item, VBox, MessageToast, Text, MessageStrip, SimpleForm, fioriLibrary) {
   "use strict";
 
   var LayoutType = fioriLibrary.LayoutType;
@@ -348,11 +352,21 @@ sap.ui.define([
     /* ─── Per-counterparty Quote Actions ─── */
 
     /**
-     * Extract the quote data from the pressed button's row context.
+     * Extract the quote data from the pressed button/menu-item's row context.
+     * For MenuItems the binding context lives on the parent ColumnListItem,
+     * so we walk up the control tree until we find it.
      */
     _getQuoteFromEvent: function (oEvent) {
       var oSource = oEvent.getSource();
       var oContext = oSource.getBindingContext("rfqDet");
+      // Walk up the control tree for MenuItem inside MenuButton inside HBox → ColumnListItem
+      var oControl = oSource;
+      while (!oContext && oControl) {
+        oControl = oControl.getParent();
+        if (oControl) {
+          oContext = oControl.getBindingContext("rfqDet");
+        }
+      }
       if (!oContext) { return null; }
       return oContext.getObject();
     },
@@ -428,32 +442,32 @@ sap.ui.define([
         state: "Warning",
         content: new VBox({
           items: [
-            new sap.m.MessageStrip({
+            new MessageStrip({
               text: that.getI18nText("confirmContractWarning"),
               type: "Warning",
               showIcon: true
             }).addStyleClass("sapUiSmallMarginBottom"),
-            new sap.ui.layout.form.SimpleForm({
+            new SimpleForm({
               editable: false,
               layout: "ResponsiveGridLayout",
               labelSpanL: 5, labelSpanM: 5,
               content: [
                 new Label({ text: that.getI18nText("colCounterpartyName"), design: "Bold" }),
-                new sap.m.Text({ text: sName }),
+                new Text({ text: sName }),
                 new Label({ text: that.getI18nText("colCommodity"), design: "Bold" }),
-                new sap.m.Text({ text: oDetail.commodity }),
+                new Text({ text: oDetail.commodity }),
                 new Label({ text: that.getI18nText("colDirection"), design: "Bold" }),
-                new sap.m.Text({ text: oDetail.direction }),
+                new Text({ text: oDetail.direction }),
                 new Label({ text: that.getI18nText("colQuantityMt"), design: "Bold" }),
-                new sap.m.Text({ text: that.getFormatter().numberTwoDecimals(oDetail.quantity_mt) + " MT" }),
+                new Text({ text: formatter.numberTwoDecimals(oDetail.quantity_mt) + " MT" }),
                 new Label({ text: that.getI18nText("colFixedPriceValue"), design: "Bold" }),
-                new sap.m.Text({ text: that.getFormatter().priceFourDecimals(oQuote.fixed_price_value) + " " + oQuote.fixed_price_unit }),
+                new Text({ text: formatter.priceFourDecimals(oQuote.fixed_price_value) + " " + oQuote.fixed_price_unit }),
                 new Label({ text: that.getI18nText("colFloatConvention"), design: "Bold" }),
-                new sap.m.Text({ text: oQuote.float_pricing_convention }),
+                new Text({ text: oQuote.float_pricing_convention }),
                 new Label({ text: that.getI18nText("colDeliveryWindow"), design: "Bold" }),
-                new sap.m.Text({
-                  text: that.getFormatter().dateDisplay(oDetail.delivery_window_start) +
-                    " \u2013 " + that.getFormatter().dateDisplay(oDetail.delivery_window_end)
+                new Text({
+                  text: formatter.dateDisplay(oDetail.delivery_window_start) +
+                    " \u2013 " + formatter.dateDisplay(oDetail.delivery_window_end)
                 })
               ]
             })
