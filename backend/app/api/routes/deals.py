@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import require_any_role
 from app.core.database import get_session
 from app.core.pagination import paginate
 from app.models.deal import Deal, DealLink, DealLinkedType
@@ -37,7 +37,7 @@ router = APIRouter()
 def find_deal_by_linked_entity(
     linked_type: str = Query(..., description="e.g. sales_order, purchase_order"),
     linked_id: UUID = Query(...),
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ):
     """Find the deal that contains a given linked entity (order or contract)."""
@@ -70,7 +70,7 @@ def find_deal_by_linked_entity(
 @router.post("", response_model=DealRead, status_code=status.HTTP_201_CREATED)
 def create_deal(
     body: DealCreate,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager")),
     session: Session = Depends(get_session),
 ):
     data = body.model_dump()
@@ -89,7 +89,7 @@ def list_deals(
     status_filter: Optional[str] = Query(None, alias="status"),
     cursor: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ):
     q = DealEngineService.list_deals(session, commodity, status_filter)
@@ -106,7 +106,7 @@ def list_deals(
 @router.post("/pnl-breakdown", response_model=PnlBreakdownResponse)
 def pnl_breakdown(
     body: PnlBreakdownRequest,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ):
     """Compute P&L breakdown for one, many, or all deals."""
@@ -124,7 +124,7 @@ def pnl_breakdown(
 @router.get("/{deal_id}", response_model=DealDetailRead)
 def get_deal(
     deal_id: UUID,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ):
     return DealEngineService.get_detail(session, deal_id)
@@ -136,7 +136,7 @@ def get_deal(
 def add_link(
     deal_id: UUID,
     body: DealLinkCreate,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager")),
     session: Session = Depends(get_session),
 ):
     return DealEngineService.add_link(
@@ -148,7 +148,7 @@ def add_link(
 def remove_link(
     deal_id: UUID,
     link_id: UUID,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager")),
     session: Session = Depends(get_session),
 ):
     DealEngineService.remove_link(session, deal_id, link_id)
@@ -162,7 +162,7 @@ def remove_link(
 def trigger_pnl_snapshot(
     deal_id: UUID,
     snapshot_date: date = Query(default=None),
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager")),
     session: Session = Depends(get_session),
 ):
     if snapshot_date is None:
@@ -173,7 +173,7 @@ def trigger_pnl_snapshot(
 @router.get("/{deal_id}/pnl-history", response_model=DealPNLHistoryResponse)
 def pnl_history(
     deal_id: UUID,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ):
     snapshots = DealEngineService.get_pnl_history(session, deal_id)

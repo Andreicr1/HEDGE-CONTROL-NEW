@@ -65,7 +65,9 @@ def create_linkage(
 
 @router.get("/{linkage_id}", response_model=HedgeOrderLinkageRead)
 def get_linkage(
-    linkage_id: UUID, session: Session = Depends(get_session)
+    linkage_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
 ) -> HedgeOrderLinkageRead:
     linkage = LinkageService.get_by_id(session, linkage_id)
     return HedgeOrderLinkageRead.model_validate(linkage)

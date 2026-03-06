@@ -136,14 +136,34 @@ def _fetch_with_retry(
     return html, evidence
 
 
-_DATE_RE = re.compile(r"^(?P<d>\d{2})\.(?P<m>\d{2})\.(?P<y>\d{4})$")
+_DATE_NUMERIC_RE = re.compile(r"^(?P<d>\d{2})\.(?P<m>\d{2})\.(?P<y>\d{4})$")
+_DATE_TEXT_RE = re.compile(
+    r"^(?P<d>\d{1,2})\.\s*(?P<month>[A-Za-z]+)\s+(?P<y>\d{4})$"
+)
+_MONTH_MAP: dict[str, int] = {
+    "january": 1, "february": 2, "march": 3, "april": 4,
+    "may": 5, "june": 6, "july": 7, "august": 8,
+    "september": 9, "october": 10, "november": 11, "december": 12,
+}
 
 
-def _parse_dd_mm_yyyy(value: str) -> date | None:
-    m = _DATE_RE.match(value.strip())
-    if not m:
-        return None
-    return date(int(m.group("y")), int(m.group("m")), int(m.group("d")))
+def _parse_settlement_date(value: str) -> date | None:
+    """Parse a settlement date in either ``dd.mm.yyyy`` or ``dd. Month yyyy`` format."""
+    txt = value.strip()
+
+    # Try numeric format first: 04.03.2026
+    m = _DATE_NUMERIC_RE.match(txt)
+    if m:
+        return date(int(m.group("y")), int(m.group("m")), int(m.group("d")))
+
+    # Try text-month format: 04. March 2026
+    m = _DATE_TEXT_RE.match(txt)
+    if m:
+        month_num = _MONTH_MAP.get(m.group("month").lower())
+        if month_num:
+            return date(int(m.group("y")), month_num, int(m.group("d")))
+
+    return None
 
 
 def _parse_float(value: str) -> float | None:
@@ -174,7 +194,7 @@ def parse_westmetall_daily_rows(html: bytes) -> list[WestmetallDailyRow]:
                 cells.append(cell_text)
         if len(cells) < 2:
             continue
-        parsed_date = _parse_dd_mm_yyyy(cells[0])
+        parsed_date = _parse_settlement_date(cells[0])
         if not parsed_date:
             continue
         parsed_price = _parse_float(cells[1])

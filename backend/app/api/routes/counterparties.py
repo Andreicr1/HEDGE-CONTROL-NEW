@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import require_any_role
 from app.core.database import get_session
 from app.core.pagination import paginate
 from app.models.counterparty import Counterparty
@@ -21,7 +21,7 @@ router = APIRouter()
 @router.post("", response_model=CounterpartyRead, status_code=status.HTTP_201_CREATED)
 def create_counterparty(
     payload: CounterpartyCreate,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager")),
     session: Session = Depends(get_session),
 ) -> CounterpartyRead:
     if payload.tax_id and not CounterpartyService.check_tax_id_unique(
@@ -42,7 +42,7 @@ def list_counterparties(
     is_active: bool | None = Query(None, description="Filter by active status"),
     cursor: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> CounterpartyListResponse:
     query = CounterpartyService.list(
@@ -67,7 +67,7 @@ def list_counterparties(
 @router.get("/{counterparty_id}", response_model=CounterpartyRead)
 def get_counterparty(
     counterparty_id: UUID,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> CounterpartyRead:
     cp = CounterpartyService.get_by_id(session, counterparty_id)
@@ -82,7 +82,7 @@ def get_counterparty(
 def update_counterparty(
     counterparty_id: UUID,
     payload: CounterpartyUpdate,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager")),
     session: Session = Depends(get_session),
 ) -> CounterpartyRead:
     cp = CounterpartyService.get_by_id(session, counterparty_id)
@@ -106,7 +106,7 @@ def update_counterparty(
 @router.delete("/{counterparty_id}", response_model=CounterpartyRead)
 def delete_counterparty(
     counterparty_id: UUID,
-    _user: dict = Depends(get_current_user),
+    _: None = Depends(require_any_role("trader", "risk_manager")),
     session: Session = Depends(get_session),
 ) -> CounterpartyRead:
     cp = CounterpartyService.get_by_id(session, counterparty_id)

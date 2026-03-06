@@ -76,11 +76,13 @@
               <tnt:NavigationListItem key="cashflow" text="{i18n>navCashflow}" />
               <tnt:NavigationListItem key="pnl" text="{i18n>navPnl}" />
               <tnt:NavigationListItem key="mtm" text="{i18n>navMtm}" />
+              <tnt:NavigationListItem key="scenario" text="{i18n>navScenario}" />
             </tnt:NavigationListItem>
           </tnt:NavigationList>
         </tnt:item>
         <tnt:fixedItem>
           <tnt:NavigationList>
+            <tnt:NavigationListItem key="financePipeline" text="{i18n>navPipeline}" icon="sap-icon://pipeline-analysis" />
             <tnt:NavigationListItem key="auditTrail" text="{i18n>navAudit}" icon="sap-icon://inspect" />
             <tnt:NavigationListItem key="marketData" text="{i18n>navMarketData}" icon="sap-icon://database" />
           </tnt:NavigationList>

@@ -41,12 +41,12 @@
                   <form:fields>
                     <Select selectedKey="{dealCrt>/form/commodity}">
                       <core:Item key="" text="{i18n>selectCommodity}" />
-                      <core:Item key="aluminium" text="{i18n>commodityAluminium}" />
-                      <core:Item key="copper" text="{i18n>commodityCopper}" />
-                      <core:Item key="zinc" text="{i18n>commodityZinc}" />
-                      <core:Item key="nickel" text="{i18n>commodityNickel}" />
-                      <core:Item key="lead" text="{i18n>commodityLead}" />
-                      <core:Item key="tin" text="{i18n>commodityTin}" />
+                      <core:Item key="ALUMINUM" text="{i18n>commodityAluminium}" />
+                      <core:Item key="COPPER" text="{i18n>commodityCopper}" />
+                      <core:Item key="ZINC" text="{i18n>commodityZinc}" />
+                      <core:Item key="NICKEL" text="{i18n>commodityNickel}" />
+                      <core:Item key="LEAD" text="{i18n>commodityLead}" />
+                      <core:Item key="TIN" text="{i18n>commodityTin}" />
                     </Select>
                   </form:fields>
                 </form:FormElement>

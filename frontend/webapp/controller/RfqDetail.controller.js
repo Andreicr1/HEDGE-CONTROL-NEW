@@ -50,10 +50,15 @@ sap.ui.define([
     },
 
     _loadRfq: function (sRfqId) {
+      var that = this;
       this.loadData(function () {
         return rfqService.getById(sRfqId);
-      }, "/detail");
- },
+      }, "/detail").then(function (oDetail) {
+        if (oDetail && (oDetail.state === "QUOTED" || oDetail.state === "SENT")) {
+          that.onViewRanking();
+        }
+      });
+    },
 
     /**
      * Start polling for new quotes / state changes every 10 seconds.
@@ -246,6 +251,22 @@ sap.ui.define([
       oDialog.open();
     },
 
+    /**
+     * Normalise trade-ranking entries so they look like spread-ranking
+     * entries (counterparty_id + spread_value at the top level).
+     */
+    _normaliseTradeRanking: function (aEntries) {
+      return (aEntries || []).map(function (oEntry) {
+        if (oEntry.quote) {
+          return Object.assign({}, oEntry, {
+            counterparty_id: oEntry.quote.counterparty_id,
+            spread_value: oEntry.quote.fixed_price_value
+          });
+        }
+        return oEntry;
+      });
+    },
+
     onViewRanking: function () {
       var that = this;
       var oModel = this.getViewModel();
@@ -256,6 +277,9 @@ sap.ui.define([
 
       fnRanking().then(function (oRanking) {
         if (oRanking && oRanking.ranking) {
+          if (sIntent !== "SPREAD") {
+            oRanking.ranking = that._normaliseTradeRanking(oRanking.ranking);
+          }
           oRanking.ranking = that._resolveCounterpartyNames(oRanking.ranking);
         }
         oModel.setProperty("/ranking", oRanking || {});

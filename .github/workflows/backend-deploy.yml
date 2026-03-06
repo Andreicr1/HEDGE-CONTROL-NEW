@@ -32,12 +32,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements-dev.txt
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           DATABASE_URL: "sqlite+pysqlite:///:memory:"
         run: |
           cd backend
-          pytest -q
+          pytest -q --cov=app --cov-report=xml --cov-report=term-missing
 
   build_and_deploy:
     needs: test

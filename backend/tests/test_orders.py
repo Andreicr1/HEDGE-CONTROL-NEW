@@ -60,11 +60,13 @@ def test_create_purchase_order_fixed(client) -> None:
     assert data["quantity_mt"] == 5.0
 
 
-def test_variable_convention_without_avg_entry_price_fails(client) -> None:
-    """pricing_convention without avg_entry_price → 400."""
+def test_variable_convention_without_avg_entry_price_ok(client) -> None:
+    """pricing_convention without avg_entry_price is valid — price determined later by market."""
     resp = _so_variable(client, pricing_convention="AVG")
-    assert resp.status_code == 400
-    assert "pricing_convention" in resp.json()["detail"].lower()
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["pricing_convention"] == "AVG"
+    assert data["avg_entry_price"] is None
 
 
 def test_variable_avg_entry_price_without_convention_fails(client) -> None:

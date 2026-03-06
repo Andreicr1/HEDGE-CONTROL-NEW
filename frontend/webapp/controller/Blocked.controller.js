@@ -24,7 +24,9 @@ sap.ui.define([
     _onRouteMatched: function (event) {
       var routeName = event.getParameter("name");
       var appModel = this.getOwnerComponent().getModel("app");
-      var blockedData = appModel.getProperty("/blocked/" + routeName) || appModel.getProperty("/blocked/notFound");
+      var blockedData = (appModel.getProperty("/blocked") && appModel.getProperty("/blocked/" + routeName))
+        || (appModel.getProperty("/blocked") && appModel.getProperty("/blocked/notFound"))
+        || { title: routeName, message: "" };
       this.getView().setModel(new JSONModel(blockedData), "blocked");
     },
 

@@ -34,9 +34,12 @@ COMMODITY_SYMBOL_MAP: dict[str, str] = {
 def resolve_symbol(commodity: str) -> str:
     """Return the settlement-price symbol for *commodity*.
 
+    Performs a case-insensitive lookup: 'aluminium', 'Aluminium' and
+    'ALUMINIUM' all resolve to the same symbol.
+
     Raises 400 when there is no mapping.
     """
-    sym = COMMODITY_SYMBOL_MAP.get(commodity)
+    sym = COMMODITY_SYMBOL_MAP.get(commodity.upper())
     if sym is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

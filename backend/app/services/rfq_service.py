@@ -49,6 +49,30 @@ from app.core.utils import now_utc
 
 _logger = get_logger()
 
+# Default WhatsApp messages for per-counterparty actions
+_DEFAULT_MESSAGES = {
+    "refresh": {
+        "pt": "Atualize o preço por favor",
+        "en": "Refresh, please",
+    },
+    "reject": {
+        "pt": "Fechamos aqui, muito obrigado pela cotação",
+        "en": "Closed here, thanks for the quote",
+    },
+    "contract": {
+        "pt": "Fechado no último preço",
+        "en": "Book in the last price",
+    },
+}
+
+
+def _pick_action_message(cp: Counterparty | None, action: str) -> str:
+    """Return the correct language message for a counterparty action."""
+    msgs = _DEFAULT_MESSAGES.get(action, _DEFAULT_MESSAGES["refresh"])
+    if cp and cp.type == CounterpartyType.bank_br:
+        return msgs["pt"]
+    return msgs["en"]
+
 
 class RFQService:
     """Pure business-logic for the RFQ lifecycle."""
@@ -641,7 +665,9 @@ class RFQService:
         )
         recipients: dict[str, RFQInvitation] = {}
         for inv in existing:
-            cp_key = str(inv.counterparty_id) if inv.counterparty_id else inv.recipient_phone
+            cp_key = (
+                str(inv.counterparty_id) if inv.counterparty_id else inv.recipient_phone
+            )
             if cp_key not in recipients:
                 recipients[cp_key] = inv
 
@@ -725,6 +751,9 @@ class RFQService:
     def reject_quote(session: Session, rfq_id: UUID, quote_id: UUID) -> None:
         """Remove a specific counterparty quote without closing the RFQ.
 
+        Sends a standardised rejection message to the counterparty via
+        WhatsApp before deleting the quote.
+
         The caller must ``session.commit()`` afterwards.
         """
         rfq = RFQService.get(session, rfq_id)
@@ -739,6 +768,36 @@ class RFQService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Quote not found for this RFQ",
             )
+
+        # Send rejection message to the counterparty
+        cp = None
+        if quote.counterparty_id:
+            cp = session.get(
+                Counterparty,
+                UUID(quote.counterparty_id)
+                if isinstance(quote.counterparty_id, str)
+                else quote.counterparty_id,
+            )
+        if cp and cp.whatsapp_phone:
+            msg = _pick_action_message(cp, "reject")
+            result = WhatsAppService.send_text_message(
+                phone=cp.whatsapp_phone, text=msg
+            )
+            if result.success:
+                _logger.info(
+                    "rfq_reject_whatsapp_sent",
+                    rfq_number=rfq.rfq_number,
+                    recipient=cp.whatsapp_phone,
+                )
+            else:
+                _logger.error(
+                    "rfq_reject_whatsapp_failed",
+                    rfq_number=rfq.rfq_number,
+                    recipient=cp.whatsapp_phone,
+                    error_code=result.error_code,
+                    error_message=result.error_message,
+                )
+
         session.delete(quote)
 
         # Check if there are remaining quotes — if none, revert to SENT
@@ -808,15 +867,14 @@ class RFQService:
             if cp and cp.whatsapp_phone:
                 current_phone = cp.whatsapp_phone
 
-        # Choose the right language text for this counterparty
-        if cp and cp.type == CounterpartyType.bank_br and rfq.text_pt:
-            message_body = rfq.text_pt
-        elif rfq.text_en:
-            message_body = rfq.text_en
+        # Use the standardised refresh message for the counterparty language
+        message_body = _pick_action_message(cp, "refresh")
 
         # Actually send the WhatsApp message
         send_status = RFQInvitationStatus.queued
-        provider_message_id = f"refresh-{rfq.rfq_number}-{current_phone}-{now.isoformat()}"
+        provider_message_id = (
+            f"refresh-{rfq.rfq_number}-{current_phone}-{now.isoformat()}"
+        )
 
         if existing.channel == RFQInvitationChannel.whatsapp:
             result = WhatsAppService.send_text_message(
@@ -867,6 +925,9 @@ class RFQService:
         Unlike ``award()`` which auto-selects the top-ranked quote, this method
         creates a contract from the specific quote chosen by the trader.
 
+        Sends a standardised "contract" confirmation message to the winning
+        counterparty via WhatsApp.
+
         The caller must ``session.commit()`` afterwards.
         """
         rfq = RFQService.get(session, rfq_id)
@@ -909,6 +970,35 @@ class RFQService:
         )
         session.add(contract)
         session.flush()
+
+        # Send contract confirmation message to the winning counterparty
+        cp = None
+        if quote.counterparty_id:
+            cp = session.get(
+                Counterparty,
+                UUID(quote.counterparty_id)
+                if isinstance(quote.counterparty_id, str)
+                else quote.counterparty_id,
+            )
+        if cp and cp.whatsapp_phone:
+            msg = _pick_action_message(cp, "contract")
+            result = WhatsAppService.send_text_message(
+                phone=cp.whatsapp_phone, text=msg
+            )
+            if result.success:
+                _logger.info(
+                    "rfq_contract_whatsapp_sent",
+                    rfq_number=rfq.rfq_number,
+                    recipient=cp.whatsapp_phone,
+                )
+            else:
+                _logger.error(
+                    "rfq_contract_whatsapp_failed",
+                    rfq_number=rfq.rfq_number,
+                    recipient=cp.whatsapp_phone,
+                    error_code=result.error_code,
+                    error_message=result.error_message,
+                )
 
         if rfq.intent == RFQIntent.commercial_hedge and rfq.order_id is not None:
             LinkageService.create(session, rfq.order_id, contract.id, rfq.quantity_mt)

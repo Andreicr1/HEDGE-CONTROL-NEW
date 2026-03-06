@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import require_role
+from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
@@ -64,6 +64,7 @@ def list_ledger_entries_for_contract(
     contract_id: UUID,
     start: date | None = Query(None),
     end: date | None = Query(None),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> list[CashFlowLedgerEntryRead]:
     entries = list_entries_by_contract(
@@ -76,6 +77,7 @@ def list_ledger_entries_for_contract(
 def list_ledger_entries_by_event(
     source_event_id: UUID = Query(...),
     source_event_type: str = Query(SOURCE_EVENT_TYPE),
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> list[CashFlowLedgerEntryRead]:
     if source_event_type != SOURCE_EVENT_TYPE:

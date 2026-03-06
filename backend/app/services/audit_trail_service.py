@@ -3,11 +3,11 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import logging
 import os
 import uuid
 from datetime import datetime, timezone
 
+from app.core.logging import get_logger
 from app.core.pagination import paginate
 from app.core.utils import now_utc
 
@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.models.audit import AuditEvent
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 
 _SIGNING_KEY: bytes | None = None
 _KEY_LOADED: bool = False

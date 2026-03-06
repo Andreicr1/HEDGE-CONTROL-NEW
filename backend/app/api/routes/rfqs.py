@@ -194,7 +194,11 @@ def preview_rfq_text(
 
 
 @router.get("/{rfq_id}", response_model=RFQRead)
-def get_rfq(rfq_id: UUID, session: Session = Depends(get_session)) -> RFQRead:
+def get_rfq(
+    rfq_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> RFQRead:
     return _build_rfq_read(session, rfq_id)
 
 
@@ -267,7 +271,9 @@ def create_quote(
 
 @router.get("/{rfq_id}/trade-ranking", response_model=TradeRankingRead)
 def get_trade_ranking(
-    rfq_id: UUID, session: Session = Depends(get_session)
+    rfq_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
 ) -> TradeRankingRead:
     rfq = RFQService.get(session, rfq_id)
     if rfq.intent == RFQIntent.spread:
@@ -284,7 +290,9 @@ def get_trade_ranking(
 
 @router.get("/{rfq_id}/ranking", response_model=SpreadRankingRead)
 def get_spread_ranking(
-    rfq_id: UUID, session: Session = Depends(get_session)
+    rfq_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
 ) -> SpreadRankingRead:
     rfq = RFQService.get(session, rfq_id)
     return RFQService.compute_spread_ranking(session, rfq)

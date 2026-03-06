@@ -37,12 +37,12 @@ sap.ui.define([
 
     _loadNetExposure: function () {
       var that = this;
-      exposuresService.getNet().then(function (oData) {
+      this.loadData(function () {
+        return exposuresService.getNet();
+      }, "/rawNetResponse").then(function (oData) {
         if (oData && oData.items) {
           that.getViewModel().setProperty("/netItems", oData.items);
         }
-      }).catch(function () {
-        that.getViewModel().setProperty("/netItems", []);
       });
     },
 

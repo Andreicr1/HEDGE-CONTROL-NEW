@@ -24,9 +24,14 @@ def encode_cursor(created_at: datetime, entity_id: UUID) -> str:
 
 def decode_cursor(cursor: str) -> tuple[datetime, UUID]:
     """Decode a cursor string back into (timestamp, uuid)."""
-    decoded = base64.urlsafe_b64decode(cursor.encode("utf-8")).decode("utf-8")
-    ts_str, id_str = decoded.split("|", maxsplit=1)
-    return datetime.fromisoformat(ts_str), UUID(id_str)
+    try:
+        decoded = base64.urlsafe_b64decode(cursor.encode("utf-8")).decode("utf-8")
+        ts_str, id_str = decoded.split("|", maxsplit=1)
+        return datetime.fromisoformat(ts_str), UUID(id_str)
+    except (ValueError, base64.binascii.Error) as exc:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail="Invalid cursor") from exc
 
 
 def paginate(

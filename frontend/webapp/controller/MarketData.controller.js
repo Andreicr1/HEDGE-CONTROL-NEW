@@ -84,22 +84,20 @@ sap.ui.define([
 
     onIngest: function () {
       var oModel = this.getViewModel();
-      var sSymbol = oModel.getProperty("/symbol");
       var sStart = oModel.getProperty("/startDate");
       var sEnd = oModel.getProperty("/endDate");
 
-      // Use start date as settlement date for ingest
-      var sDate = sStart;
-      if (!sDate) {
-        sDate = this._formatDate(new Date());
-      }
+      var oPayload = {
+        start_date: sStart || null,
+        end_date: sEnd || null
+      };
 
       var that = this;
-      var oPayload = { settlement_date: sDate };
-      marketDataService.ingestWestmetallAluminumCashSettlement(oPayload)
-        .then(function () {
-          MessageToast.show(that.getI18nText("msgPriceIngested"));
-          // Auto-refresh results
+      marketDataService.ingestWestmetallBulk(oPayload)
+        .then(function (oResult) {
+          var nIng = (oResult && oResult.ingested_count) || 0;
+          var nSkip = (oResult && oResult.skipped_count) || 0;
+          MessageToast.show(nIng + " ingested, " + nSkip + " skipped");
           that.onSearch();
         })
         .catch(function (err) {

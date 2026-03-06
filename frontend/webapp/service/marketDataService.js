@@ -6,6 +6,10 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
       return apiClient.postJson("/market-data/westmetall/aluminum/cash-settlement/ingest", payload);
     },
 
+    ingestWestmetallBulk: function (payload) {
+      return apiClient.postJson("/market-data/westmetall/aluminum/cash-settlement/ingest-bulk", payload);
+    },
+
     listCashSettlementPrices: function (oParams) {
       var aQuery = [];
       if (oParams.start_date) { aQuery.push("start_date=" + oParams.start_date); }

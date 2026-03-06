@@ -65,14 +65,15 @@ def test_create_sales_order_variable_with_convention(session: Session) -> None:
     assert order.avg_entry_price == 2350.0
 
 
-def test_create_sales_order_variable_mismatched_convention_fails(
+def test_create_sales_order_variable_convention_without_price_ok(
     session: Session,
 ) -> None:
-    with pytest.raises(Exception) as exc_info:
-        OrderService.create_sales_order(
-            session, _so_payload(price_type="variable", pricing_convention="AVG")
-        )
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    """Variable order with convention but no price is valid — price determined later by market."""
+    order = OrderService.create_sales_order(
+        session, _so_payload(price_type="variable", pricing_convention="AVG")
+    )
+    assert order.pricing_convention is not None
+    assert order.avg_entry_price is None
 
 
 def test_create_sales_order_variable_mismatched_avg_fails(session: Session) -> None:

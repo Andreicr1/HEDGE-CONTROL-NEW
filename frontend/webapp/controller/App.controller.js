@@ -124,8 +124,8 @@ sap.ui.define([
         this._oUserMenu = new ActionSheet({
           showCancelButton: Device.system.phone,
           buttons: [
-            new Button({ text: this.getI18nText("shellbarUserSettings"), icon: "sap-icon://action-settings", press: function () { MessageToast.show("Settings"); } }),
-            new Button({ text: this.getI18nText("shellbarUserLogout"), icon: "sap-icon://log", press: function () { MessageToast.show("Logout"); } })
+            new Button({ text: this.getI18nText("shellbarUserSettings"), icon: "sap-icon://action-settings", press: function () { MessageToast.show(this.getI18nText("shellbarUserSettings")); }.bind(this) }),
+            new Button({ text: this.getI18nText("shellbarUserLogout"), icon: "sap-icon://log", press: function () { MessageToast.show(this.getI18nText("shellbarUserLogout")); }.bind(this) })
           ]
         });
         this.getView().addDependent(this._oUserMenu);

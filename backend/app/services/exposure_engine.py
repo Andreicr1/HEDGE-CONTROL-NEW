@@ -164,10 +164,10 @@ class ExposureEngineService:
         q = q.group_by(Exposure.commodity, Exposure.direction)
         rows = q.all()
 
-        # Aggregate commercial data by commodity
+        # Aggregate commercial data by commodity (normalised to uppercase)
         agg: dict[str, dict] = {}
         for row in rows:
-            c = row.commodity
+            c = row.commodity.upper() if row.commodity else row.commodity
             if c not in agg:
                 agg[c] = {
                     "commodity": c,
@@ -208,7 +208,7 @@ class ExposureEngineService:
         global_rows = gq.all()
 
         for grow in global_rows:
-            c = grow.commodity
+            c = grow.commodity.upper() if grow.commodity else grow.commodity
             if c not in agg:
                 agg[c] = {
                     "commodity": c,

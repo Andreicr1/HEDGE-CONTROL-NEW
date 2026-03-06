@@ -77,7 +77,9 @@ def list_hedge_contracts(
 
 @router.get("/hedge/{contract_id}", response_model=HedgeContractRead)
 def get_hedge_contract(
-    contract_id: UUID, session: Session = Depends(get_session)
+    contract_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
 ) -> HedgeContractRead:
     contract = ContractService.get_by_id(session, contract_id)
     return HedgeContractRead.model_validate(contract)

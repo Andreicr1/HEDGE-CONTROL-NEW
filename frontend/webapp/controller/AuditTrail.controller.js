@@ -3,8 +3,9 @@ sap.ui.define([
   "hedgecontrol/service/auditService",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
-  "sap/m/MessageBox"
-], function (BaseController, auditService, Filter, FilterOperator, MessageBox) {
+  "sap/m/MessageBox",
+  "sap/m/MessageToast"
+], function (BaseController, auditService, Filter, FilterOperator, MessageBox, MessageToast) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.AuditTrail", {
@@ -71,7 +72,7 @@ sap.ui.define([
       auditService.verifyEvent(sEventId).then(function (oResult) {
         that.getViewModel().setProperty("/verifyResult", oResult);
         if (oResult.valid) {
-          MessageBox.success(that.getI18nText("auditVerifyValid"));
+          MessageToast.show(that.getI18nText("auditVerifyValid"));
         } else {
           MessageBox.warning(oResult.detail || that.getI18nText("auditVerifyInvalid"));
         }

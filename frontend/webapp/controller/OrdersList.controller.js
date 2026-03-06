@@ -39,30 +39,34 @@ sap.ui.define([
 
     _loadOrders: function () {
       var that = this;
-      ordersService.list().then(function (oData) {
-        var aItems = (oData && oData.items) || [];
-        var aSO = aItems.filter(function (o) { return o.order_type === "SO"; });
-        var aPO = aItems.filter(function (o) { return o.order_type === "PO"; });
-        var oModel = that.getViewModel();
-        oModel.setProperty("/items", aItems);
-        oModel.setProperty("/salesOrders", aSO);
-        oModel.setProperty("/purchaseOrders", aPO);
-        oModel.setProperty("/soCount", String(aSO.length));
-        oModel.setProperty("/poCount", String(aPO.length));
-      }).catch(function (oError) {
-        that.getViewModel().setProperty("/errorMessage", that._formatError(oError));
+      this.loadData(function () {
+        return ordersService.list();
+      }, "/rawOrders").then(function (oData) {
+        if (oData) {
+          var aItems = (oData.items) || [];
+          var aSO = aItems.filter(function (o) { return o.order_type === "SO"; });
+          var aPO = aItems.filter(function (o) { return o.order_type === "PO"; });
+          var oModel = that.getViewModel();
+          oModel.setProperty("/items", aItems);
+          oModel.setProperty("/salesOrders", aSO);
+          oModel.setProperty("/purchaseOrders", aPO);
+          oModel.setProperty("/soCount", String(aSO.length));
+          oModel.setProperty("/poCount", String(aPO.length));
+        }
       });
     },
 
     _loadDeals: function () {
       var that = this;
-      dealsService.list().then(function (oData) {
-        var aItems = (oData && oData.items) || [];
-        var oModel = that.getViewModel();
-        oModel.setProperty("/deals", aItems);
-        oModel.setProperty("/dealsCount", String(aItems.length));
-      }).catch(function (oError) {
-        that.getViewModel().setProperty("/errorMessage", that._formatError(oError));
+      this.loadData(function () {
+        return dealsService.list();
+      }, "/rawDeals").then(function (oData) {
+        if (oData) {
+          var aItems = (oData.items) || [];
+          var oModel = that.getViewModel();
+          oModel.setProperty("/deals", aItems);
+          oModel.setProperty("/dealsCount", String(aItems.length));
+        }
       });
     },
 

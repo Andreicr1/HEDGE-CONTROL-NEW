@@ -107,7 +107,11 @@ def list_sopo_links(
 
 
 @router.get("/{order_id}", response_model=OrderRead)
-def get_order(order_id: UUID, session: Session = Depends(get_session)) -> OrderRead:
+def get_order(
+    order_id: UUID,
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> OrderRead:
     order = OrderService.get_by_id(session, order_id)
     return OrderRead.model_validate(order)
 

@@ -31,7 +31,7 @@ def _make_evidence() -> WestmetallFetchEvidence:
 
 class TestRunWestmetallIngestion:
     @patch("app.tasks.westmetall_task.SessionLocal")
-    @patch("app.tasks.westmetall_task.ingest_westmetall_cash_settlement_daily_for_date")
+    @patch("app.tasks.westmetall_task.ingest_westmetall_cash_settlement_bulk")
     def test_success_logs_and_closes_session(self, mock_ingest, mock_session_cls):
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
@@ -39,11 +39,11 @@ class TestRunWestmetallIngestion:
 
         run_westmetall_ingestion()
 
-        mock_ingest.assert_called_once_with(mock_session, date.today())
+        mock_ingest.assert_called_once_with(mock_session)
         mock_session.close.assert_called_once()
 
     @patch("app.tasks.westmetall_task.SessionLocal")
-    @patch("app.tasks.westmetall_task.ingest_westmetall_cash_settlement_daily_for_date")
+    @patch("app.tasks.westmetall_task.ingest_westmetall_cash_settlement_bulk")
     def test_layout_error_caught(self, mock_ingest, mock_session_cls):
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
@@ -55,7 +55,7 @@ class TestRunWestmetallIngestion:
         mock_session.close.assert_called_once()
 
     @patch("app.tasks.westmetall_task.SessionLocal")
-    @patch("app.tasks.westmetall_task.ingest_westmetall_cash_settlement_daily_for_date")
+    @patch("app.tasks.westmetall_task.ingest_westmetall_cash_settlement_bulk")
     def test_circuit_open_caught(self, mock_ingest, mock_session_cls):
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
