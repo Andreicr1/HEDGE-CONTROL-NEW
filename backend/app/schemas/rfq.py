@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.agent.schemas import AgentActivityRead
+
 
 class RFQIntent(str, Enum):
     commercial_hedge = "COMMERCIAL_HEDGE"
@@ -227,6 +229,7 @@ class RFQRead(BaseModel):
     created_at: datetime
     deleted_at: datetime | None = None
     invitations: list[RFQInvitationRead] = Field(default_factory=list)
+    latest_agent_activity: AgentActivityRead | None = None
 
 
 class RFQStateEventRead(BaseModel):

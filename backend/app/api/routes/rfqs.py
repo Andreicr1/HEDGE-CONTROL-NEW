@@ -1,31 +1,33 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.agent.context import build_rfq_read_model
+from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.core.pagination import paginate
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
-from app.api.dependencies.audit import audit_event, mark_audit_success
 from app.models.quotes import RFQQuote
 from app.models.rfqs import RFQ, RFQDirection, RFQIntent, RFQState, RFQStateEvent
 from app.schemas.rfq import (
-    RFQCreate,
-    RFQAwardRequest,
     RFQAwardQuoteRequest,
+    RFQAwardRequest,
+    RFQCreate,
+    RFQInvitationRead,
+    RFQLegInput,
     RFQListResponse,
     RFQQuoteCreate,
     RFQQuoteRead,
-    RFQRefreshRequest,
-    RFQRefreshCounterpartyRequest,
-    RFQRejectRequest,
-    RFQRejectQuoteRequest,
     RFQRead,
-    RFQInvitationRead,
+    RFQRefreshCounterpartyRequest,
+    RFQRefreshRequest,
+    RFQRejectQuoteRequest,
+    RFQRejectRequest,
     RFQStateEventRead,
     RFQTextPreviewRequest,
     RFQTextPreviewResponse,
@@ -40,11 +42,7 @@ router = APIRouter()
 
 def _build_rfq_read(session: Session, rfq_id: UUID) -> RFQRead:
     """Build a full RFQRead response including invitations."""
-    rfq = RFQService.get(session, rfq_id)
-    invitations = RFQService.get_invitations(session, rfq_id)
-    rfq_read = RFQRead.model_validate(rfq)
-    rfq_read.invitations = [RFQInvitationRead.model_validate(i) for i in invitations]
-    return rfq_read
+    return build_rfq_read_model(session, rfq_id)
 
 
 @router.get("", response_model=RFQListResponse)
@@ -134,9 +132,9 @@ def preview_rfq_text(
         TradeType,
         compute_trade_ppt_dates,
     )
-    from app.services.rfq_message_builder import build_rfq_message, build_pt_summary
+    from app.services.rfq_message_builder import build_pt_summary, build_rfq_message
 
-    def _to_leg(inp: "RFQLegInput") -> Leg:  # noqa: F821
+    def _to_leg(inp: RFQLegInput) -> Leg:
         order = None
         if inp.order_type is not None:
             order = OrderInstruction(
@@ -462,7 +460,7 @@ def archive_rfq(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="RFQ already archived"
         )
-    rfq.deleted_at = datetime.now(timezone.utc)
+    rfq.deleted_at = datetime.now(UTC)
     session.commit()
     session.refresh(rfq)
     mark_audit_success(request, rfq.id)

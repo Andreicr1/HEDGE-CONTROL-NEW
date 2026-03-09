@@ -83,6 +83,12 @@
                   showCloseButton="true"
                   visible="{= !!${rfqDet>/errorMessage}}"
                   class="sapUiSmallMarginBottom" />
+                <MessageStrip
+                  text="{rfqDet>/agentActivityText}"
+                  type="Information"
+                  showIcon="true"
+                  visible="{= !!${rfqDet>/agentActivityText}}"
+                  class="sapUiSmallMarginBottom" />
                 <form:Form editable="false">
                   <form:layout>
                     <form:ColumnLayout columnsM="1" columnsL="2" columnsXL="2" />

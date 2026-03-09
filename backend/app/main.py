@@ -19,6 +19,7 @@ from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.tasks.scheduler import start_scheduler, stop_scheduler
 
 from app.api.routes import (
+    agent,
     audit,
     cashflow,
     cashflow_ledger,
@@ -219,3 +220,4 @@ app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
 app.include_router(
     finance_pipeline.router, prefix="/finance/pipeline", tags=["FinancePipeline"]
 )
+app.include_router(agent.router, prefix="/agent", tags=["Agent"])
