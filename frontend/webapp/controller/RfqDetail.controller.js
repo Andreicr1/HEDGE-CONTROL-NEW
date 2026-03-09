@@ -29,6 +29,7 @@ sap.ui.define([
         quotes: [],
         ranking: {},
         stateEvents: [],
+        agentActivityText: "",
         midFullScreen: false
       });
       this._loadCounterparties();
@@ -54,10 +55,31 @@ sap.ui.define([
       this.loadData(function () {
         return rfqService.getById(sRfqId);
       }, "/detail").then(function (oDetail) {
+        that._updateAgentActivity(oDetail);
         if (oDetail && (oDetail.state === "QUOTED" || oDetail.state === "SENT")) {
           that.onViewRanking();
         }
       });
+    },
+
+    _updateAgentActivity: function (oDetail) {
+      var oModel = this.getViewModel();
+      var oActivity = oDetail && oDetail.latest_agent_activity;
+      if (!oActivity) {
+        oModel.setProperty("/agentActivityText", "");
+        return;
+      }
+
+      var sWhen = "";
+      if (oActivity.timestamp_utc) {
+        sWhen = new Date(oActivity.timestamp_utc).toLocaleString();
+      }
+
+      var sText = oActivity.summary || (oActivity.capability_name + " " + oActivity.status);
+      if (sWhen) {
+        sText += " (" + sWhen + ")";
+      }
+      oModel.setProperty("/agentActivityText", sText);
     },
 
     /**

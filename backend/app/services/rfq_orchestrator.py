@@ -18,14 +18,15 @@ It does NOT replace the RFQ Service — it delegates to it.
 
 from __future__ import annotations
 
-import re
 from uuid import UUID
 
+from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct, or_
 
+from app.agent.context import render_rfq_prompt_context
 from app.core.logging import get_logger
 from app.core.utils import now_utc
+from app.models.quotes import RFQQuote
 from app.models.rfqs import (
     RFQ,
     RFQInvitation,
@@ -33,14 +34,13 @@ from app.models.rfqs import (
     RFQInvitationStatus,
     RFQState,
 )
-from app.models.quotes import RFQQuote
 from app.schemas.llm import MessageIntent, ParsedQuote
-from app.schemas.rfq import RFQQuoteCreate, FloatPricingConvention
+from app.schemas.rfq import FloatPricingConvention, RFQQuoteCreate
 from app.schemas.whatsapp import WhatsAppInboundMessage
 from app.services.llm_agent import LLMAgent, LLMUnavailableError
 from app.services.rfq_service import RFQService
-from app.services.whatsapp_service import WhatsAppService
 from app.services.webhook_processor import dequeue_message
+from app.services.whatsapp_service import WhatsAppService
 
 logger = get_logger()
 
@@ -144,9 +144,7 @@ class RFQOrchestrator:
         if len(cleaned) < _MIN_QUOTE_LENGTH:
             return True
         normalised = cleaned.lower().rstrip(".!?")
-        if normalised in _TRIVIAL_PATTERNS:
-            return True
-        return False
+        return normalised in _TRIVIAL_PATTERNS
 
     @staticmethod
     def _price_appears_in_text(price_value: float, raw_text: str) -> bool:
@@ -167,10 +165,7 @@ class RFQOrchestrator:
         if price_value != int(price_value):
             candidates.add(f"{int(price_value)},{str(price_value).split('.')[1]}")
 
-        for c in candidates:
-            if c in raw_text:
-                return True
-        return False
+        return any(c in raw_text for c in candidates)
 
     # ------------------------------------------------------------------
     # 1. Dispatch outbound WhatsApp for all whatsapp invitations
@@ -374,13 +369,7 @@ class RFQOrchestrator:
             }
 
         # Build RFQ context for the LLM
-        rfq_context = (
-            f"RFQ: {rfq.rfq_number}\n"
-            f"Commodity: {rfq.commodity}\n"
-            f"Quantity: {rfq.quantity_mt} MT\n"
-            f"Direction: {rfq.direction.value}\n"
-            f"Delivery: {rfq.delivery_window_start} to {rfq.delivery_window_end}"
-        )
+        rfq_context = render_rfq_prompt_context(session, rfq.id)
 
         try:
             parsed = LLMAgent.parse_quote_message(
