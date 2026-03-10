@@ -94,16 +94,13 @@ sap.ui.define([
     /* ── actions ── */
     onArchive: function () {
       var that = this;
-      MessageBox.confirm(this.getI18nText("confirmArchiveContract"), {
-        onClose: function (sAction) {
-          if (sAction === MessageBox.Action.OK) {
-            that.submitData(function () {
-              return contractsService.archive(that._sContractId);
-            }, that.getI18nText("contractArchived")).then(function () {
-              that.navToList("contracts");
-            });
-          }
-        }
+      this.showConfirm(this.getI18nText("confirmArchiveContract")).then(function (bConfirmed) {
+        if (!bConfirmed) { return; }
+        that.submitData(function () {
+          return contractsService.archive(that._sContractId);
+        }, that.getI18nText("contractArchived")).then(function () {
+          that.navToList("contracts");
+        });
       });
     },
 

@@ -27,7 +27,11 @@
           visible="{= !!${deals>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
         <Table id="dealsList" items="{deals>/items}" growing="true" growingThreshold="50"
-          noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onDealSelect">
+          mode="SingleSelectMaster" itemPress=".onDealSelect">
+          <noData>
+            <IllustratedMessage illustrationType="sapIllus-EmptyList"
+                title="{i18n>emptyStateTitle}" description="{i18n>emptyStateDescription}" />
+          </noData>
           <headerToolbar>
             <OverflowToolbar>
               <Title text="{i18n>dealsTitle}" level="H3" />

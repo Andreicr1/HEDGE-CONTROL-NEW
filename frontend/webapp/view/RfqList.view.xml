@@ -30,8 +30,11 @@
           growing="true"
           growingThreshold="50"
           mode="SingleSelectMaster"
-          itemPress=".onRfqSelect"
-          noDataText="{i18n>noData}">
+          itemPress=".onRfqSelect">
+          <noData>
+            <IllustratedMessage illustrationType="sapIllus-EmptyList"
+                title="{i18n>emptyStateTitle}" description="{i18n>emptyStateDescription}" />
+          </noData>
           <headerToolbar>
             <OverflowToolbar>
               <Title text="{i18n>rfqTitle}" level="H3" />

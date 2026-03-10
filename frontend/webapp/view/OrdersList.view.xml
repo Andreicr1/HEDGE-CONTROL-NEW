@@ -30,7 +30,11 @@
             <!-- ══ TAB: Deals ══ -->
             <IconTabFilter key="deals" text="{i18n>tabDeals}" icon="sap-icon://detail-view" count="{ord>/dealsCount}">
               <Table id="dealsTabList" items="{ord>/deals}" growing="true" growingThreshold="50"
-                noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onDealSelect">
+                mode="SingleSelectMaster" itemPress=".onDealSelect">
+                <noData>
+                  <IllustratedMessage illustrationType="sapIllus-EmptyList"
+                      title="{i18n>emptyStateTitle}" description="{i18n>emptyStateDescription}" />
+                </noData>
                 <headerToolbar>
                   <OverflowToolbar>
                     <Title text="{i18n>tabDeals}" level="H3" />
@@ -67,7 +71,11 @@
             <!-- ══ TAB: Sales Orders ══ -->
             <IconTabFilter key="salesOrders" text="{i18n>tabSalesOrders}" icon="sap-icon://sales-order" count="{ord>/soCount}">
               <Table id="soList" items="{ord>/salesOrders}" growing="true" growingThreshold="50"
-                noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                <noData>
+                  <IllustratedMessage illustrationType="sapIllus-EmptyList"
+                      title="{i18n>emptyStateTitle}" description="{i18n>emptyStateDescription}" />
+                </noData>
                 <headerToolbar>
                   <OverflowToolbar>
                     <Title text="{i18n>tabSalesOrders}" level="H3" />
@@ -99,7 +107,11 @@
             <!-- ══ TAB: Purchase Orders ══ -->
             <IconTabFilter key="purchaseOrders" text="{i18n>tabPurchaseOrders}" icon="sap-icon://cart" count="{ord>/poCount}">
               <Table id="poList" items="{ord>/purchaseOrders}" growing="true" growingThreshold="50"
-                noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                <noData>
+                  <IllustratedMessage illustrationType="sapIllus-EmptyList"
+                      title="{i18n>emptyStateTitle}" description="{i18n>emptyStateDescription}" />
+                </noData>
                 <headerToolbar>
                   <OverflowToolbar>
                     <Title text="{i18n>tabPurchaseOrders}" level="H3" />

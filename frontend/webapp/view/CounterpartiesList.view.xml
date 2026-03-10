@@ -27,7 +27,11 @@
           visible="{= !!${cpty>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
         <Table id="counterpartiesList" items="{cpty>/items}" growing="true" growingThreshold="50"
-          noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onCounterpartySelect">
+          mode="SingleSelectMaster" itemPress=".onCounterpartySelect">
+          <noData>
+            <IllustratedMessage illustrationType="sapIllus-EmptyList"
+                title="{i18n>emptyStateTitle}" description="{i18n>emptyStateDescription}" />
+          </noData>
           <headerToolbar>
             <OverflowToolbar>
               <Title text="{i18n>counterpartiesTitle}" level="H3" />

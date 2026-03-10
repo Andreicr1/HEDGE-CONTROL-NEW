@@ -85,16 +85,13 @@ sap.ui.define([
 
     onDeactivate: function () {
       var that = this;
-      MessageBox.confirm(this.getI18nText("confirmDeactivateCounterparty"), {
-        onClose: function (sAction) {
-          if (sAction === MessageBox.Action.OK) {
-            that.submitData(function () {
-              return counterpartiesService.remove(that._sId);
-            }, that.getI18nText("counterpartyDeactivated")).then(function () {
-              that.navToList("counterparties");
-            });
-          }
-        }
+      this.showConfirm(this.getI18nText("confirmDeactivateCounterparty")).then(function (bConfirmed) {
+        if (!bConfirmed) { return; }
+        that.submitData(function () {
+          return counterpartiesService.remove(that._sId);
+        }, that.getI18nText("counterpartyDeactivated")).then(function () {
+          that.navToList("counterparties");
+        });
       });
     },
 

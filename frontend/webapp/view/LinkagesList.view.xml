@@ -25,8 +25,11 @@
         growing="true"
         growingThreshold="50"
         mode="SingleSelectMaster"
-        itemPress=".onLinkageSelect"
-        noDataText="{i18n>noLinkages}">
+        itemPress=".onLinkageSelect">
+        <noData>
+          <IllustratedMessage illustrationType="sapIllus-EmptyList"
+              title="{i18n>emptyStateTitle}" description="{i18n>emptyStateDescription}" />
+        </noData>
         <headerToolbar>
           <OverflowToolbar>
             <Title text="{i18n>linkagesTitle}" level="H3" />
