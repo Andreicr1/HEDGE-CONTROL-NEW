@@ -15,7 +15,8 @@ sap.ui.define([
         resultLoaded: false,
         summaryText: "",
         totals: {},
-        treeData: []
+        treeData: [],
+        chartData: []
       });
       this.getRouter().getRoute("mtm").attachPatternMatched(this._onRouteMatched, this);
     },
@@ -117,6 +118,7 @@ sap.ui.define([
         });
 
         oModel.setProperty("/resultLoaded", true);
+        oModel.setProperty("/chartData", that._buildMtmChartData(aSuccessful, aContractList));
         oModel.setProperty("/summaryText",
           aSuccessful.length + " contrato(s) | MTM Total: " + fTotalMtm.toFixed(2) + " USD"
         );
@@ -126,6 +128,19 @@ sap.ui.define([
         if (nFailed > 0) {
           MessageBox.warning(nFailed + " contrato(s) sem dados de MTM disponíveis.");
         }
+      });
+    },
+
+    /* ─── VizFrame chart dataset: MtM value per contract ─── */
+
+    _buildMtmChartData: function (aResults, aContractList) {
+      var mContracts = {};
+      (aContractList || []).forEach(function (c) { mContracts[c.id] = c; });
+      return aResults.map(function (r) {
+        var oContract = mContracts[r.id] || {};
+        var sLabel = (oContract.reference || (r.id || "").substring(0, 8)) +
+          (oContract.commodity ? " " + oContract.commodity : "");
+        return { label: sLabel, mtm: parseFloat(r.data.mtm_value) || 0 };
       });
     },
 

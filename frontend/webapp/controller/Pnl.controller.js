@@ -15,7 +15,8 @@ sap.ui.define([
         resultLoaded: false,
         summaryText: "",
         totals: {},
-        treeData: []
+        treeData: [],
+        chartData: []
       });
       this.getRouter().getRoute("pnl").attachPatternMatched(this._onRouteMatched, this);
     },
@@ -93,6 +94,7 @@ sap.ui.define([
         oModel.setProperty("/totals", oData.totals || {});
         var aTree = that._buildTreeData(oData.deals || []);
         oModel.setProperty("/treeData", aTree);
+        oModel.setProperty("/chartData", that._buildPlChartData(oData.deals || []));
         oModel.setProperty("/resultLoaded", true);
 
         var nDeals = (oData.deals || []).length;
@@ -102,6 +104,16 @@ sap.ui.define([
         );
       }).catch(function (oError) {
         MessageBox.error(that._formatError(oError));
+      });
+    },
+
+    /* ─── VizFrame chart dataset: P&L per deal ─── */
+
+    _buildPlChartData: function (aDeals) {
+      return aDeals.map(function (oDeal) {
+        var sLabel = (oDeal.deal_reference || "").substring(0, 12) +
+          (oDeal.deal_name ? " – " + oDeal.deal_name.substring(0, 16) : "");
+        return { label: sLabel, pnl: parseFloat(oDeal.total_pnl) || 0 };
       });
     },
 

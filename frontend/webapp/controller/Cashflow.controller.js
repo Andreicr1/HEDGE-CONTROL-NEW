@@ -31,7 +31,8 @@ sap.ui.define([
         projection: { items: [], summary: { total_inflows: 0, total_outflows: 0, net_cashflow: 0, instrument_count: 0 } },
         projectionTree: [],
         projectionBusy: false,
-        projectionLoaded: false
+        projectionLoaded: false,
+        chartData: []
       });
       this.getRouter().getRoute("cashflow").attachPatternMatched(this._onRouteMatched, this);
     },
@@ -54,6 +55,7 @@ sap.ui.define([
         oModel.setProperty("/projection", oData);
         var aTree = that._buildProjectionTree(oData.items || [], sDate);
         oModel.setProperty("/projectionTree", aTree);
+        oModel.setProperty("/chartData", that._buildChartData(oData.items || []));
         oModel.setProperty("/projectionLoaded", true);
       }).catch(function (oError) {
         MessageBox.error(this._formatError(oError));
@@ -70,6 +72,31 @@ sap.ui.define([
 
     onProjectionCollapseAll: function () {
       this.byId("projectionTreeTable").collapseAll();
+    },
+
+    /* ─── VizFrame chart dataset: Inflows / Outflows / Net per month ─── */
+
+    _buildChartData: function (aItems) {
+      var mMonths = {};
+      aItems.forEach(function (oItem) {
+        var d = new Date(oItem.settlement_date);
+        var sKey = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+        if (!mMonths[sKey]) { mMonths[sKey] = { inflows: 0, outflows: 0 }; }
+        var fAmt = parseFloat(oItem.amount_usd) || 0;
+        if (fAmt >= 0) {
+          mMonths[sKey].inflows += fAmt;
+        } else {
+          mMonths[sKey].outflows += fAmt;
+        }
+      });
+      return Object.keys(mMonths).sort().map(function (sKey) {
+        var oParts = sKey.split("-");
+        var MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+        var sLabel = MONTHS[parseInt(oParts[1], 10) - 1] + " " + oParts[0];
+        var fIn = mMonths[sKey].inflows;
+        var fOut = mMonths[sKey].outflows;
+        return { label: sLabel, inflows: fIn, outflows: fOut, net: fIn + fOut };
+      });
     },
 
     /* ─────────────────────────────────────────────────
