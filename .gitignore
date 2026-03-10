@@ -45,8 +45,9 @@ Desktop.ini
 # Logs
 *.log
 
-# Root markdown files
+# Root markdown files (except CLAUDE.md which is tracked intentionally)
 /*.md
+!CLAUDE.md
 
 # Third-party theme assets
 theming-base-content-master/
@@ -55,3 +56,4 @@ theming-base-content-master/
 .clinerules/
 .continue/
 .cursor/
+.worktrees
