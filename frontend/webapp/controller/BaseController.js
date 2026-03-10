@@ -158,6 +158,44 @@ sap.ui.define([
 		navToEndColumn: function (sRoute, oParams) {
 			this.setLayout(LayoutType.ThreeColumnsMidExpanded);
 			this.getRouter().navTo(sRoute, oParams, false);
+		},
+
+		/**
+		 * Run multiple async calls in parallel. Individual failures return null instead of rejecting all.
+		 * @param {Array<function>} aFnCalls - array of functions returning Promises
+		 * @returns {Promise<Array>}
+		 */
+		loadParallel: function (aFnCalls) {
+			return Promise.all(aFnCalls.map(function (fn) {
+				return fn().catch(function () { return null; });
+			}));
+		},
+
+		/**
+		 * Set busy state on a specific control by local ID (granular, not page-level).
+		 * @param {string} sControlId - local view ID
+		 * @param {boolean} bBusy
+		 */
+		setBusy: function (sControlId, bBusy) {
+			var oControl = this.byId(sControlId);
+			if (oControl) { oControl.setBusy(bBusy); }
+		},
+
+		/**
+		 * Show a confirmation dialog, wrapped in a Promise.
+		 * @param {string} sMessage
+		 * @param {string} [sTitle]
+		 * @returns {Promise<boolean>} resolves true if user confirmed
+		 */
+		showConfirm: function (sMessage, sTitle) {
+			return new Promise(function (resolve) {
+				MessageBox.confirm(sMessage, {
+					title: sTitle || "Confirmar",
+					onClose: function (sAction) {
+						resolve(sAction === MessageBox.Action.OK);
+					}
+				});
+			});
 		}
 	});
 });

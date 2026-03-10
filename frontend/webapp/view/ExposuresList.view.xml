@@ -69,7 +69,7 @@
         </Panel>
 
         <!-- Exposure Items List -->
-        <List id="exposureList"
+        <Table id="exposureList"
           items="{exp>/engineItems}"
           growing="true"
           growingThreshold="50"
@@ -83,26 +83,35 @@
               <SearchField width="15rem" search=".onSearch" />
             </OverflowToolbar>
           </headerToolbar>
+          <columns>
+            <Column><Text text="{i18n>colCommodity}" /></Column>
+            <Column><Text text="{i18n>colSourceType}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colOpenTons}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colSettlementMonth}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colPriceType}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colOriginalTons}" /></Column>
+            <Column minScreenWidth="Desktop" demandPopin="true"><Text text="{i18n>colHedgedTons}" /></Column>
+            <Column><Text text="{i18n>colStatus}" /></Column>
+          </columns>
           <items>
-            <ObjectListItem
-              title="{path: 'exp>commodity', formatter: 'formatter.capitalize'} — {path: 'exp>source_type', formatter: 'formatter.exposureTypeLabel'}"
-              number="{path: 'exp>open_tons', formatter: 'formatter.numberTwoDecimals'}"
-              numberUnit="MT"
-              numberState="{= ${exp>open_tons} > 0 ? 'Warning' : 'Success'}"
-              type="Navigation">
-              <attributes>
-                <ObjectAttribute title="{i18n>colSettlementMonth}" text="{parts: [{path: 'exp>pricing_convention'}, {path: 'exp>reference_month'}, {path: 'exp>observation_date_start'}, {path: 'exp>observation_date_end'}, {path: 'exp>fixing_date'}, {path: 'exp>settlement_month'}], formatter: 'formatter.exposureSettlementValue'}" />
-                <ObjectAttribute text="{i18n>colPriceType}: {path: 'exp>price_type', formatter: 'formatter.priceTypeLabel'}" />
-                <ObjectAttribute text="{i18n>colOriginalTons}: {path: 'exp>original_tons', formatter: 'formatter.numberTwoDecimals'} MT" />
-                <ObjectAttribute text="{i18n>colHedgedTons}: {path: 'exp>hedged_tons', formatter: 'formatter.numberTwoDecimals'} MT" />
-              </attributes>
-              <firstStatus>
+            <ColumnListItem type="Navigation">
+              <cells>
+                <Text text="{path: 'exp>commodity', formatter: 'formatter.capitalize'}" />
+                <Text text="{path: 'exp>source_type', formatter: 'formatter.exposureTypeLabel'}" />
+                <ObjectNumber
+                  number="{path: 'exp>open_tons', formatter: 'formatter.numberTwoDecimals'}"
+                  unit="MT"
+                  state="{= ${exp>open_tons} > 0 ? 'Warning' : 'Success'}" />
+                <Text text="{parts: [{path: 'exp>pricing_convention'}, {path: 'exp>reference_month'}, {path: 'exp>observation_date_start'}, {path: 'exp>observation_date_end'}, {path: 'exp>fixing_date'}, {path: 'exp>settlement_month'}], formatter: 'formatter.exposureSettlementValue'}" />
+                <Text text="{path: 'exp>price_type', formatter: 'formatter.priceTypeLabel'}" />
+                <ObjectNumber number="{path: 'exp>original_tons', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                <ObjectNumber number="{path: 'exp>hedged_tons', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
                 <ObjectStatus text="{path: 'exp>status', formatter: 'formatter.capitalize'}"
                   state="{path: 'exp>status', formatter: 'formatter.statusState'}" />
-              </firstStatus>
-            </ObjectListItem>
+              </cells>
+            </ColumnListItem>
           </items>
-        </List>
+        </Table>
       </VBox>
     </f:content>
   </f:DynamicPage>

@@ -6,7 +6,7 @@
   xmlns:f="sap.f"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
 
-  <f:DynamicPage id="contractsListPage" headerExpanded="true" showFooter="false" busy="{ctr>/busy}">
+  <f:DynamicPage id="contractsListPage" showFooter="false" busy="{ctr>/busy}">
 
     <f:title>
       <f:DynamicPageTitle>
@@ -19,43 +19,47 @@
       </f:DynamicPageTitle>
     </f:title>
 
-    <f:header>
-      <f:DynamicPageHeader>
-        <HBox alignItems="Center">
-          <SearchField width="20rem" liveChange=".onSearch" placeholder="{i18n>searchContracts}" />
-        </HBox>
-      </f:DynamicPageHeader>
-    </f:header>
-
     <f:content>
-      <List id="contractsList"
+      <Table id="contractsList"
         items="{ path: 'ctr>/items', sorter: { path: 'trade_date', descending: true } }"
         growing="true"
         growingThreshold="50"
         mode="SingleSelectMaster"
         itemPress=".onContractSelect"
         noDataText="{i18n>noContracts}">
+        <headerToolbar>
+          <OverflowToolbar>
+            <Title text="{i18n>contractsTitle}" level="H3" />
+            <ToolbarSpacer />
+            <SearchField width="15rem" liveChange=".onSearch" placeholder="{i18n>searchContracts}" />
+          </OverflowToolbar>
+        </headerToolbar>
+        <columns>
+          <Column><Text text="{i18n>colReference}" /></Column>
+          <Column><Text text="{i18n>colCommodity}" /></Column>
+          <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colClassification}" /></Column>
+          <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colQuantityMt}" /></Column>
+          <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colFixedPriceValue}" /></Column>
+          <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colCounterpartyId}" /></Column>
+          <Column minScreenWidth="Desktop" demandPopin="true"><Text text="{i18n>colTradeDate}" /></Column>
+          <Column><Text text="{i18n>colStatus}" /></Column>
+        </columns>
         <items>
-          <ObjectListItem
-            title="{ctr>commodity} — {path: 'ctr>classification', formatter: 'formatter.classificationText'}"
-            intro="{ctr>reference}"
-            type="Navigation"
-            number="{path: 'ctr>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
-            numberUnit="MT"
-            icon="sap-icon://document-text">
-            <attributes>
-              <ObjectAttribute text="{i18n>fixedPrice}: {path: 'ctr>fixed_price_value', formatter: 'formatter.priceFourDecimals'} {ctr>fixed_price_unit}" />
-              <ObjectAttribute text="{i18n>counterparty}: {ctr>_counterparty_name}" />
-              <ObjectAttribute text="{i18n>tradeDate}: {path: 'ctr>trade_date', formatter: 'formatter.dateDisplay'}" />
-            </attributes>
-            <firstStatus>
+          <ColumnListItem type="Navigation">
+            <cells>
+              <Text text="{ctr>reference}" />
+              <Text text="{path: 'ctr>commodity', formatter: 'formatter.capitalize'}" />
+              <Text text="{path: 'ctr>classification', formatter: 'formatter.classificationText'}" />
+              <ObjectNumber number="{path: 'ctr>quantity_mt', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+              <ObjectNumber number="{path: 'ctr>fixed_price_value', formatter: 'formatter.priceFourDecimals'}" unit="{ctr>fixed_price_unit}" />
+              <Text text="{ctr>_counterparty_name}" />
+              <Text text="{path: 'ctr>trade_date', formatter: 'formatter.dateDisplay'}" />
               <ObjectStatus text="{path: 'ctr>status', formatter: 'formatter.capitalize'}"
                 state="{path: 'ctr>status', formatter: 'formatter.statusState'}" />
-            </firstStatus>
-          </ObjectListItem>
+            </cells>
+          </ColumnListItem>
         </items>
-      </List>
+      </Table>
     </f:content>
-
   </f:DynamicPage>
 </mvc:View>

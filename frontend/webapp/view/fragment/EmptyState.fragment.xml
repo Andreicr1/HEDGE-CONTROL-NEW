@@ -1,0 +1,23 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:layout="sap.ui.layout">
+    <!--
+        EmptyState — reusable Illustrated Message placeholder shown when a list/table has no data.
+        Bind properties: title, description, illustrationName (IllustrationType enum value).
+        Default illustrationName: "NoData"
+    -->
+    <VBox
+        class="sapUiContentPadding"
+        alignItems="Center"
+        justifyContent="Center"
+        height="100%">
+        <items>
+            <IllustratedMessage
+                enableVerticalResponsiveness="true"
+                illustrationType="{= ${illustrationType} || 'sapIllus-NoData'}"
+                title="{= ${title} || 'Sem dados'}"
+                description="{= ${description} || 'Não há registros para exibir.'}" />
+        </items>
+    </VBox>
+</core:FragmentDefinition>

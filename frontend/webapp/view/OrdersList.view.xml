@@ -26,102 +26,107 @@
           visible="{= !!${ord>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
         <IconTabBar id="comercialTabs" select=".onTabSelect" selectedKey="{ord>/selectedTab}" class="sapUiNoContentPadding">
-          <!-- ══ TAB: Deals ══ -->
           <items>
+            <!-- ══ TAB: Deals ══ -->
             <IconTabFilter key="deals" text="{i18n>tabDeals}" icon="sap-icon://detail-view" count="{ord>/dealsCount}">
-              <VBox class="sapUiSmallMargin">
-                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
-                  <SearchField width="20rem" search=".onSearchDeals" placeholder="{i18n>search}" />
-                  <HBox>
+              <Table id="dealsTabList" items="{ord>/deals}" growing="true" growingThreshold="50"
+                noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onDealSelect">
+                <headerToolbar>
+                  <OverflowToolbar>
+                    <Title text="{i18n>tabDeals}" level="H3" />
+                    <ToolbarSpacer />
+                    <SearchField width="15rem" search=".onSearchDeals" placeholder="{i18n>search}" />
                     <Button text="{i18n>newDeal}" icon="sap-icon://add" press=".onCreateDeal" type="Emphasized" />
-                  </HBox>
-                </HBox>
-                <List id="dealsTabList" items="{ord>/deals}" growing="true" growingThreshold="50"
-                  noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onDealSelect">
-                  <items>
-                    <ObjectListItem
-                      title="{ord>name}"
-                      intro="{ord>reference}"
-                      type="Navigation"
-                      number="{= Math.round(${ord>hedge_ratio} * 100) + '%'}"
-                      numberUnit="Hedge"
-                      numberState="{= ${ord>hedge_ratio} >= 1 ? 'Success' : (${ord>hedge_ratio} >= 0.5 ? 'Warning' : 'Error')}"
-                      icon="sap-icon://detail-view">
-                      <attributes>
-                        <ObjectAttribute text="{path: 'ord>commodity', formatter: 'formatter.capitalize'}" />
-                        <ObjectAttribute text="{i18n>colPhysicalTons}: {path: 'ord>total_physical_tons', formatter: 'formatter.numberTwoDecimals'} MT" />
-                        <ObjectAttribute text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-                      </attributes>
-                      <firstStatus>
-                        <ObjectStatus text="{path: 'ord>status', formatter: 'formatter.capitalize'}"
-                          state="{path: 'ord>status', formatter: 'formatter.statusState'}" />
-                      </firstStatus>
-                    </ObjectListItem>
-                  </items>
-                </List>
-              </VBox>
+                  </OverflowToolbar>
+                </headerToolbar>
+                <columns>
+                  <Column><Text text="{i18n>colDealName}" /></Column>
+                  <Column><Text text="{i18n>colReference}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colCommodity}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colPhysicalTons}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colHedgeRatio}" /></Column>
+                  <Column><Text text="{i18n>colStatus}" /></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Navigation">
+                    <cells>
+                      <Text text="{ord>name}" />
+                      <Text text="{ord>reference}" />
+                      <Text text="{path: 'ord>commodity', formatter: 'formatter.capitalize'}" />
+                      <ObjectNumber number="{path: 'ord>total_physical_tons', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                      <ObjectStatus
+                        text="{= Math.round(${ord>hedge_ratio} * 100) + '%'}"
+                        state="{= ${ord>hedge_ratio} >= 1 ? 'Success' : (${ord>hedge_ratio} >= 0.5 ? 'Warning' : 'Error')}" />
+                      <ObjectStatus text="{path: 'ord>status', formatter: 'formatter.capitalize'}"
+                        state="{path: 'ord>status', formatter: 'formatter.statusState'}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
             </IconTabFilter>
             <!-- ══ TAB: Sales Orders ══ -->
             <IconTabFilter key="salesOrders" text="{i18n>tabSalesOrders}" icon="sap-icon://sales-order" count="{ord>/soCount}">
-              <VBox class="sapUiSmallMargin">
-                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
-                  <SearchField width="20rem" search=".onSearchSO" placeholder="{i18n>search}" />
-                  <HBox>
+              <Table id="soList" items="{ord>/salesOrders}" growing="true" growingThreshold="50"
+                noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                <headerToolbar>
+                  <OverflowToolbar>
+                    <Title text="{i18n>tabSalesOrders}" level="H3" />
+                    <ToolbarSpacer />
+                    <SearchField width="15rem" search=".onSearchSO" placeholder="{i18n>search}" />
                     <Button text="{i18n>newSalesOrder}" icon="sap-icon://add" press=".onCreateSales" type="Emphasized" />
-                  </HBox>
-                </HBox>
-                <List id="soList" items="{ord>/salesOrders}" growing="true" growingThreshold="50"
-                  noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
-                  <items>
-                    <ObjectListItem
-                      title="SO \u2014 {path: 'ord>id', formatter: 'formatter.shortUuid'}"
-                      type="Navigation"
-                      number="{path: 'ord>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
-                      numberUnit="MT"
-                      icon="sap-icon://sales-order">
-                      <attributes>
-                        <ObjectAttribute text="{i18n>colPriceType}: {path: 'ord>price_type', formatter: 'formatter.capitalize'}" />
-                        <ObjectAttribute text="{i18n>colAvgEntryPrice}: {path: 'ord>avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
-                        <ObjectAttribute text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-                      </attributes>
-                      <firstStatus>
-                        <ObjectStatus text="SO" state="Information" />
-                      </firstStatus>
-                    </ObjectListItem>
-                  </items>
-                </List>
-              </VBox>
+                  </OverflowToolbar>
+                </headerToolbar>
+                <columns>
+                  <Column><Text text="{i18n>colId}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colQuantityMt}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colPriceType}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colAvgEntryPrice}" /></Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true"><Text text="{i18n>colCreatedAt}" /></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Navigation">
+                    <cells>
+                      <Text text="{path: 'ord>id', formatter: 'formatter.shortUuid'}" />
+                      <ObjectNumber number="{path: 'ord>quantity_mt', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                      <Text text="{path: 'ord>price_type', formatter: 'formatter.capitalize'}" />
+                      <ObjectNumber number="{path: 'ord>avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
+                      <Text text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
             </IconTabFilter>
             <!-- ══ TAB: Purchase Orders ══ -->
             <IconTabFilter key="purchaseOrders" text="{i18n>tabPurchaseOrders}" icon="sap-icon://cart" count="{ord>/poCount}">
-              <VBox class="sapUiSmallMargin">
-                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
-                  <SearchField width="20rem" search=".onSearchPO" placeholder="{i18n>search}" />
-                  <HBox>
+              <Table id="poList" items="{ord>/purchaseOrders}" growing="true" growingThreshold="50"
+                noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
+                <headerToolbar>
+                  <OverflowToolbar>
+                    <Title text="{i18n>tabPurchaseOrders}" level="H3" />
+                    <ToolbarSpacer />
+                    <SearchField width="15rem" search=".onSearchPO" placeholder="{i18n>search}" />
                     <Button text="{i18n>newPurchaseOrder}" icon="sap-icon://add" press=".onCreatePurchase" type="Emphasized" />
-                  </HBox>
-                </HBox>
-                <List id="poList" items="{ord>/purchaseOrders}" growing="true" growingThreshold="50"
-                  noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onOrderSelect">
-                  <items>
-                    <ObjectListItem
-                      title="PO \u2014 {path: 'ord>id', formatter: 'formatter.shortUuid'}"
-                      type="Navigation"
-                      number="{path: 'ord>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
-                      numberUnit="MT"
-                      icon="sap-icon://cart">
-                      <attributes>
-                        <ObjectAttribute text="{i18n>colPriceType}: {path: 'ord>price_type', formatter: 'formatter.capitalize'}" />
-                        <ObjectAttribute text="{i18n>colAvgEntryPrice}: {path: 'ord>avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
-                        <ObjectAttribute text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-                      </attributes>
-                      <firstStatus>
-                        <ObjectStatus text="PO" state="Warning" />
-                      </firstStatus>
-                    </ObjectListItem>
-                  </items>
-                </List>
-              </VBox>
+                  </OverflowToolbar>
+                </headerToolbar>
+                <columns>
+                  <Column><Text text="{i18n>colId}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colQuantityMt}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colPriceType}" /></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colAvgEntryPrice}" /></Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true"><Text text="{i18n>colCreatedAt}" /></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Navigation">
+                    <cells>
+                      <Text text="{path: 'ord>id', formatter: 'formatter.shortUuid'}" />
+                      <ObjectNumber number="{path: 'ord>quantity_mt', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                      <Text text="{path: 'ord>price_type', formatter: 'formatter.capitalize'}" />
+                      <ObjectNumber number="{path: 'ord>avg_entry_price', formatter: 'formatter.priceFourDecimals'}" />
+                      <Text text="{path: 'ord>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
             </IconTabFilter>
           </items>
         </IconTabBar>

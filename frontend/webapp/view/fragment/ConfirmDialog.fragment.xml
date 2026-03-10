@@ -1,0 +1,35 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        ConfirmDialog — reusable confirmation Dialog fragment.
+        Usage in controller:
+          if (!this._oConfirmDialog) {
+              this._oConfirmDialog = this.loadFragment({ name: "hedgecontrol.view.fragment.ConfirmDialog" });
+          }
+          this._oConfirmDialog.then(function(oDialog) { oDialog.open(); });
+
+        Bind /confirmMessage and /confirmTitle on the view model before opening.
+        Press handlers: onConfirmDialogConfirm / onConfirmDialogCancel on the controller.
+    -->
+    <Dialog
+        id="confirmDialog"
+        title="{viewModel>/confirmTitle}"
+        type="Message"
+        state="Warning">
+        <content>
+            <Text text="{viewModel>/confirmMessage}" />
+        </content>
+        <beginButton>
+            <Button
+                type="Emphasized"
+                text="{i18n>btnConfirm}"
+                press=".onConfirmDialogConfirm" />
+        </beginButton>
+        <endButton>
+            <Button
+                text="{i18n>btnCancel}"
+                press=".onConfirmDialogCancel" />
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

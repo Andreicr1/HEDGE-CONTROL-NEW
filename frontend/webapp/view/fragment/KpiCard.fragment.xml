@@ -1,0 +1,33 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        KpiCard — reusable GenericTile for KPI tiles on the Home dashboard.
+        Usage: pass header, subheader, value and unit via binding or direct props.
+        Example:
+          <core:Fragment fragmentName="hedgecontrol.view.fragment.KpiCard" type="XML"/>
+        (typically instantiated programmatically with bindingContext set)
+    -->
+    <GenericTile
+        class="sapUiTinyMargin sapFGridContainerItemDisplayBlock"
+        header="{header}"
+        subheader="{subheader}"
+        press="{press}"
+        state="{state}"
+        frameType="TwoByOne">
+        <tileContent>
+            <TileContent
+                unit="{unit}"
+                footer="{footer}">
+                <content>
+                    <NumericContent
+                        value="{value}"
+                        scale="{scale}"
+                        indicator="{indicator}"
+                        valueColor="{valueColor}"
+                        withMargin="false"/>
+                </content>
+            </TileContent>
+        </tileContent>
+    </GenericTile>
+</core:FragmentDefinition>

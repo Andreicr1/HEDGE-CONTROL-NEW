@@ -17,13 +17,6 @@
         </f:actions>
       </f:DynamicPageTitle>
     </f:title>
-    <f:header>
-      <f:DynamicPageHeader>
-        <HBox alignItems="Center">
-          <SearchField width="20rem" search=".onSearch" placeholder="{i18n>search}" />
-        </HBox>
-      </f:DynamicPageHeader>
-    </f:header>
     <f:content>
       <VBox>
         <MessageStrip
@@ -33,32 +26,41 @@
           showCloseButton="true"
           visible="{= !!${cpty>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
-        <List id="counterpartiesList" items="{cpty>/items}" growing="true" growingThreshold="50"
-          noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onCounterpartySelect"
-          class="counterpartiesList">
+        <Table id="counterpartiesList" items="{cpty>/items}" growing="true" growingThreshold="50"
+          noDataText="{i18n>noData}" mode="SingleSelectMaster" itemPress=".onCounterpartySelect">
+          <headerToolbar>
+            <OverflowToolbar>
+              <Title text="{i18n>counterpartiesTitle}" level="H3" />
+              <ToolbarSpacer />
+              <SearchField width="15rem" search=".onSearch" placeholder="{i18n>search}" />
+            </OverflowToolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="{i18n>colName}" /></Column>
+            <Column><Text text="{i18n>colType}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colRiskRating}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colCountry}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colKycStatus}" /></Column>
+            <Column><Text text="{i18n>colActive}" /></Column>
+          </columns>
           <items>
-            <ObjectListItem
-              title="{cpty>name}"
-              intro="{path: 'cpty>type', formatter: 'formatter.counterpartyType'}"
-              type="Navigation"
-              number="{path: 'cpty>risk_rating', formatter: 'formatter.capitalize'}"
-              numberUnit="Risk"
-              numberState="{= ${cpty>risk_rating} === 'low' ? 'Success' : (${cpty>risk_rating} === 'high' ? 'Error' : 'Warning')}"
-              class="sapUiSmallMarginTopBottom">
-              <attributes>
-                <ObjectAttribute text="{cpty>country}" />
-              </attributes>
-              <firstStatus>
+            <ColumnListItem type="Navigation">
+              <cells>
+                <Text text="{cpty>name}" />
+                <Text text="{path: 'cpty>type', formatter: 'formatter.counterpartyType'}" />
+                <ObjectStatus
+                  text="{path: 'cpty>risk_rating', formatter: 'formatter.capitalize'}"
+                  state="{= ${cpty>risk_rating} === 'low' ? 'Success' : (${cpty>risk_rating} === 'high' ? 'Error' : 'Warning')}" />
+                <Text text="{cpty>country}" />
                 <ObjectStatus text="{path: 'cpty>kyc_status', formatter: 'formatter.capitalize'}"
                   state="{path: 'cpty>kyc_status', formatter: 'formatter.statusState'}" />
-              </firstStatus>
-              <secondStatus>
-                <ObjectStatus text="{= ${cpty>is_active} ? 'Ativa' : 'Inativa'}"
+                <ObjectStatus
+                  text="{= ${cpty>is_active} ? 'Ativa' : 'Inativa'}"
                   state="{= ${cpty>is_active} ? 'Success' : 'Error'}" />
-              </secondStatus>
-            </ObjectListItem>
+              </cells>
+            </ColumnListItem>
           </items>
-        </List>
+        </Table>
       </VBox>
     </f:content>
   </f:DynamicPage>

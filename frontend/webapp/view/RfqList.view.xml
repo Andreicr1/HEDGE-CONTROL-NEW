@@ -16,13 +16,6 @@
         </f:actions>
       </f:DynamicPageTitle>
     </f:title>
-    <f:header>
-      <f:DynamicPageHeader>
-        <HBox alignItems="Center">
-          <SearchField width="100%" search=".onSearch" liveChange=".onSearch" placeholder="{i18n>search}" />
-        </HBox>
-      </f:DynamicPageHeader>
-    </f:header>
     <f:content>
       <VBox>
         <MessageStrip
@@ -32,32 +25,44 @@
           showCloseButton="true"
           visible="{= !!${rfq>/errorMessage}}"
           class="sapUiSmallMarginBottom" />
-        <List id="rfqTable"
+        <Table id="rfqTable"
           items="{ path: 'rfq>/items', sorter: { path: 'created_at', descending: true } }"
           growing="true"
           growingThreshold="50"
           mode="SingleSelectMaster"
           itemPress=".onRfqSelect"
           noDataText="{i18n>noData}">
+          <headerToolbar>
+            <OverflowToolbar>
+              <Title text="{i18n>rfqTitle}" level="H3" />
+              <ToolbarSpacer />
+              <SearchField width="15rem" search=".onSearch" liveChange=".onSearch" placeholder="{i18n>search}" />
+            </OverflowToolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="{i18n>colRfqNumber}" /></Column>
+            <Column><Text text="{i18n>colCommodity}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colDirection}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colQuantityMt}" /></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true"><Text text="{i18n>colIntent}" /></Column>
+            <Column><Text text="{i18n>colState}" /></Column>
+            <Column minScreenWidth="Desktop" demandPopin="true"><Text text="{i18n>colCreatedAt}" /></Column>
+          </columns>
           <items>
-            <ObjectListItem
-              title="{rfq>commodity} — {rfq>direction}"
-              intro="{rfq>rfq_number}"
-              type="Navigation"
-              number="{path: 'rfq>quantity_mt', formatter: 'formatter.numberTwoDecimals'}"
-              numberUnit="MT"
-              icon="sap-icon://request">
-              <attributes>
-                <ObjectAttribute text="{i18n>colIntent}: {rfq>intent}" />
-                <ObjectAttribute text="{path: 'rfq>created_at', formatter: 'formatter.dateTimeDisplay'}" />
-              </attributes>
-              <firstStatus>
+            <ColumnListItem type="Navigation">
+              <cells>
+                <Text text="{rfq>rfq_number}" />
+                <Text text="{path: 'rfq>commodity', formatter: 'formatter.capitalize'}" />
+                <Text text="{rfq>direction}" />
+                <ObjectNumber number="{path: 'rfq>quantity_mt', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                <Text text="{rfq>intent}" />
                 <ObjectStatus text="{rfq>state}"
                   state="{path: 'rfq>state', formatter: 'formatter.statusState'}" />
-              </firstStatus>
-            </ObjectListItem>
+                <Text text="{path: 'rfq>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+              </cells>
+            </ColumnListItem>
           </items>
-        </List>
+        </Table>
       </VBox>
     </f:content>
   </f:DynamicPage>

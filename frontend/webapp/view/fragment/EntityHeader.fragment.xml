@@ -1,0 +1,23 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        EntityHeader — reusable ObjectHeader-style header block for detail views.
+        Intended for use inside ObjectPage headerContent or a Panel when a quick
+        summary of an entity (deal, contract, order) is needed in a non-ObjectPage context.
+        Bind: title, statusText, statusState, intro, number, numberUnit
+    -->
+    <ObjectHeader
+        title="{title}"
+        intro="{intro}"
+        number="{number}"
+        numberUnit="{numberUnit}"
+        responsive="true"
+        fullScreenOptimized="true">
+        <statuses>
+            <ObjectStatus
+                text="{statusText}"
+                state="{statusState}" />
+        </statuses>
+    </ObjectHeader>
+</core:FragmentDefinition>
