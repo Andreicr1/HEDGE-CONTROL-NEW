@@ -38,6 +38,8 @@ sap.ui.define([
 
     onExit: function () {
       this._stopPolling();
+      this.getRouter().getRoute("rfqDetail").detachPatternMatched(this._onRouteMatched, this);
+      this.getRouter().getRoute("rfqDocument").detachPatternMatched(this._onRouteMatched, this);
     },
 
     _onRouteMatched: function (oEvent) {

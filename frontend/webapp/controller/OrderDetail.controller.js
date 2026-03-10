@@ -19,6 +19,7 @@ sap.ui.define([
 
     _onRouteMatched: function (oEvent) {
       var sOrderId = oEvent.getParameter("arguments").orderId;
+      if (!this._isValidId(sOrderId)) { this.getRouter().navTo("notFound"); return; }
       this._sOrderId = sOrderId;
       this._loadOrder(sOrderId);
     },
@@ -88,6 +89,10 @@ sap.ui.define([
           }
         }
       });
+    },
+
+    onExit: function () {
+      this.getRouter().getRoute("orderDetail").detachPatternMatched(this._onRouteMatched, this);
     },
 
     onClose: function () {

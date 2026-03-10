@@ -15,6 +15,7 @@ sap.ui.define([
 
     _onRouteMatched: function (oEvent) {
       this._sLinkageId = oEvent.getParameter("arguments").linkageId;
+      if (!this._isValidId(this._sLinkageId)) { this.getRouter().navTo("notFound"); return; }
       this._loadLinkage();
     },
 
@@ -37,6 +38,10 @@ sap.ui.define([
         oModel.setProperty("/busy", false);
         oModel.setProperty("/errorMessage", this._formatError(oError));
       }.bind(this));
+    },
+
+    onExit: function () {
+      this.getRouter().getRoute("linkageDetail").detachPatternMatched(this._onRouteMatched, this);
     },
 
     onClose: function () {

@@ -161,14 +161,27 @@ sap.ui.define([
 		},
 
 		/**
-		 * Run multiple async calls in parallel. Individual failures return null instead of rejecting all.
+		 * Run multiple async calls in parallel. Propagates the first rejection so callers
+		 * can handle HTTP errors (401 session expiry, 403 access denied, network failures).
 		 * @param {Array<function>} aFnCalls - array of functions returning Promises
 		 * @returns {Promise<Array>}
 		 */
 		loadParallel: function (aFnCalls) {
-			return Promise.all(aFnCalls.map(function (fn) {
-				return fn().catch(function () { return null; });
-			}));
+			return Promise.all(aFnCalls.map(function (fn) { return fn(); }))
+				.catch(function (oErr) {
+					var iStatus = oErr && oErr.status;
+					if (iStatus === 401) {
+						console.warn("[SECURITY] SESSION_EXPIRED", { url: oErr.url, ts: Date.now() });
+						window.location.href = "/";
+					} else if (iStatus === 403) {
+						console.warn("[SECURITY] ACCESS_DENIED", { url: oErr.url, ts: Date.now() });
+					} else if (iStatus === 429) {
+						console.warn("[SECURITY] RATE_LIMITED", { url: oErr.url, ts: Date.now() });
+					} else {
+						console.error("[APP] LOAD_FAILURE", oErr);
+					}
+					return Promise.reject(oErr);
+				});
 		},
 
 		/**
@@ -179,6 +192,19 @@ sap.ui.define([
 		setBusy: function (sControlId, bBusy) {
 			var oControl = this.byId(sControlId);
 			if (oControl) { oControl.setBusy(bBusy); }
+		},
+
+		/**
+		 * Validate a route ID parameter — accepts UUID v4 or plain numeric strings.
+		 * Prevents requests being fired with garbage values (e.g. "undefined", ":id").
+		 * @param {*} sId
+		 * @returns {boolean}
+		 */
+		_isValidId: function (sId) {
+			if (!sId || typeof sId !== "string") { return false; }
+			var rUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+			var rNumeric = /^\d+$/;
+			return rUuid.test(sId) || rNumeric.test(sId);
 		},
 
 		/**

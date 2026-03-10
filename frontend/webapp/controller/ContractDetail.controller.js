@@ -23,6 +23,7 @@ sap.ui.define([
 
     _onRouteMatched: function (oEvent) {
       this._sContractId = oEvent.getParameter("arguments").contractId;
+      if (!this._isValidId(this._sContractId)) { this.getRouter().navTo("notFound"); return; }
       this._loadContract();
     },
 
@@ -147,6 +148,10 @@ sap.ui.define([
         afterClose: function () { oDialog.destroy(); }
       });
       oDialog.open();
+    },
+
+    onExit: function () {
+      this.getRouter().getRoute("contractDetail").detachPatternMatched(this._onRouteMatched, this);
     },
 
     onClose: function () {

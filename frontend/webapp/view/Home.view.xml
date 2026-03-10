@@ -119,6 +119,7 @@
             header="{i18n>homeCardPnl}"
             subheader="{i18n>homeCardPnlSub}"
             press=".onNavToPnl"
+            visible="{home>/kpiPnlReady}"
             frameType="OneByOne">
             <tileContent>
               <TileContent>
@@ -138,6 +139,7 @@
             header="{i18n>homeCardCashflow}"
             subheader="{i18n>homeCardCashflowSub}"
             press=".onNavToCashflow"
+            visible="{home>/kpiCashflowReady}"
             frameType="OneByOne">
             <tileContent>
               <TileContent>

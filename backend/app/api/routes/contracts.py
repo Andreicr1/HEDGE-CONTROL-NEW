@@ -17,11 +17,21 @@ from app.schemas.contracts import (
     LinkedDealSummary,
     LinkedOrderSummary,
 )
+from app.models.contracts import HedgeContract
 from app.models.deal import Deal, DealLink, DealLinkedType
 from app.models.orders import Order
 from app.services.contract_service import ContractService
 
 router = APIRouter()
+
+
+@router.get("/hedge/count")
+def get_contracts_count(
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> dict:
+    count = session.query(HedgeContract).filter(HedgeContract.deleted_at.is_(None)).count()
+    return {"count": count}
 
 
 @router.post(

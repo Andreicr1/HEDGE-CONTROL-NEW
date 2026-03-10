@@ -14,6 +14,7 @@ sap.ui.define([
 
     _onRouteMatched: function (oEvent) {
       this._sId = oEvent.getParameter("arguments").counterpartyId;
+      if (!this._isValidId(this._sId)) { this.getRouter().navTo("notFound"); return; }
       this.getViewModel().setProperty("/editMode", false);
       this._loadData();
       this._loadContracts();
@@ -93,6 +94,10 @@ sap.ui.define([
           that.navToList("counterparties");
         });
       });
+    },
+
+    onExit: function () {
+      this.getRouter().getRoute("counterpartyDetail").detachPatternMatched(this._onRouteMatched, this);
     },
 
     onClose: function () {

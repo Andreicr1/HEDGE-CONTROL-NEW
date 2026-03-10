@@ -12,7 +12,7 @@
         class="sapUiTinyMargin sapFGridContainerItemDisplayBlock"
         header="{header}"
         subheader="{subheader}"
-        press="{press}"
+        press=".onKpiTilePress"
         state="{state}"
         frameType="TwoByOne">
         <tileContent>

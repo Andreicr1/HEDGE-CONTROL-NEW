@@ -40,16 +40,6 @@
   word-break: break-all;
 }
 
-/* ── KPI Tiles: semantic value colors ── */
-.hcKpiPositive .sapMNCSValue {
-  color: var(--sapPositiveColor);
-}
-.hcKpiNegative .sapMNCSValue {
-  color: var(--sapNegativeColor);
-}
-.hcKpiCritical .sapMNCSValue {
-  color: var(--sapCriticalColor);
-}
 
 /* ── VizFrame: fill available space ── */
 .hcVizFrame {

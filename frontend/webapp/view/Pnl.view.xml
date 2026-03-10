@@ -101,8 +101,7 @@
           width="100%"
           height="300px"
           class="hcVizFrame sapUiSmallMarginBottom"
-          visible="{pl>/resultLoaded}"
-          uiConfig="{applicationSet: 'fiori', scale: {theme: 'sap_horizon'}}">
+          visible="{pl>/resultLoaded}">
           <viz:dataset>
             <vizData:FlattenedDataset data="{path: 'pl>/chartData'}">
               <vizData:dimensions>

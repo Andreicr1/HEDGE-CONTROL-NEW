@@ -7,6 +7,7 @@ from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.core.rate_limit import RATE_LIMIT_MUTATION, limiter
 from app.api.dependencies.audit import audit_event, mark_audit_success
+from app.models.orders import Order
 from app.schemas.orders import (
     OrderListResponse,
     OrderRead,
@@ -19,6 +20,15 @@ from app.schemas.orders import (
 from app.services.order_service import OrderService
 
 router = APIRouter()
+
+
+@router.get("/count")
+def get_orders_count(
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> dict:
+    count = session.query(Order).filter(Order.deleted_at.is_(None)).count()
+    return {"count": count}
 
 
 @router.post("/sales", response_model=OrderRead, status_code=status.HTTP_201_CREATED)

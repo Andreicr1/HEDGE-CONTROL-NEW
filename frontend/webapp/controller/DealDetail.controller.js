@@ -24,6 +24,7 @@ sap.ui.define([
 
     _onRouteMatched: function (oEvent) {
       this._sDealId = oEvent.getParameter("arguments").dealId;
+      if (!this._isValidId(this._sDealId)) { this.getRouter().navTo("notFound"); return; }
       this._loadDetail();
       this._loadPnlHistory();
     },
@@ -131,6 +132,10 @@ sap.ui.define([
           that._loadPnlHistory();
         }
       });
+    },
+
+    onExit: function () {
+      this.getRouter().getRoute("dealDetail").detachPatternMatched(this._onRouteMatched, this);
     },
 
     onClose: function () {

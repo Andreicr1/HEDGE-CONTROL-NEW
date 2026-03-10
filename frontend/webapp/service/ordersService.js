@@ -22,6 +22,9 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     },
     listLinks: function () {
       return apiClient.getJson("/orders/links");
+    },
+    getCount: function () {
+      return apiClient.getJson("/orders/count");
     }
   };
 });

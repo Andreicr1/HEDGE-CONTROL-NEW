@@ -38,6 +38,15 @@ from app.services.rfq_service import RFQService
 router = APIRouter()
 
 
+@router.get("/count")
+def get_rfqs_count(
+    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
+    session: Session = Depends(get_session),
+) -> dict:
+    count = session.query(RFQ).filter(RFQ.deleted_at.is_(None)).count()
+    return {"count": count}
+
+
 def _build_rfq_read(session: Session, rfq_id: UUID) -> RFQRead:
     """Build a full RFQRead response including invitations."""
     rfq = RFQService.get(session, rfq_id)

@@ -49,6 +49,9 @@ sap.ui.define(["hedgecontrol/service/apiClient"], function (apiClient) {
     },
     previewText: function (oPayload) {
       return apiClient.postJson("/rfqs/preview-text", oPayload);
+    },
+    getCount: function () {
+      return apiClient.getJson("/rfqs/count");
     }
   };
 });

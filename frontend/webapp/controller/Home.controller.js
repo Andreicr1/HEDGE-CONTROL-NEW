@@ -9,6 +9,8 @@ sap.ui.define([
 
   return BaseController.extend("hedgecontrol.controller.Home", {
 
+    _bLoadingKpis: false,
+
     onInit: function () {
       this.initViewModel("home", {
         kpiExposureValue: "–",
@@ -19,7 +21,9 @@ sap.ui.define([
         kpiRfqsCount: "–",
         kpiPnlValue: "–",
         kpiPnlColor: "Neutral",
+        kpiPnlReady: false,
         kpiCashflowValue: "–",
+        kpiCashflowReady: false,
         kpiState: "Loading",
         lastRefresh: "",
         errorMessage: ""
@@ -34,15 +38,17 @@ sap.ui.define([
     },
 
     _loadKpis: function () {
+      if (this._bLoadingKpis) { return; }
+      this._bLoadingKpis = true;
       var oModel = this.getViewModel();
       oModel.setProperty("/kpiState", "Loading");
       oModel.setProperty("/errorMessage", "");
 
       this.loadParallel([
         function () { return exposuresService.getNet(); },
-        function () { return ordersService.list(); },
-        function () { return contractsService.list(); },
-        function () { return rfqService.list(); }
+        function () { return ordersService.getCount(); },
+        function () { return contractsService.getCount(); },
+        function () { return rfqService.getCount(); }
       ]).then(function (aResults) {
         var oExposure   = aResults[0];
         var oOrders     = aResults[1];
@@ -58,19 +64,13 @@ sap.ui.define([
         }
 
         // Orders count
-        var iOrders = Array.isArray(oOrders) ? oOrders.length
-          : (oOrders && Array.isArray(oOrders.items) ? oOrders.items.length : 0);
-        oModel.setProperty("/kpiOrdersCount", String(iOrders));
+        oModel.setProperty("/kpiOrdersCount", typeof (oOrders && oOrders.count) === "number" ? String(oOrders.count) : "–");
 
         // Contracts count
-        var iContracts = Array.isArray(oContracts) ? oContracts.length
-          : (oContracts && Array.isArray(oContracts.items) ? oContracts.items.length : 0);
-        oModel.setProperty("/kpiContractsCount", String(iContracts));
+        oModel.setProperty("/kpiContractsCount", typeof (oContracts && oContracts.count) === "number" ? String(oContracts.count) : "–");
 
         // RFQs count
-        var iRfqs = Array.isArray(oRfqs) ? oRfqs.length
-          : (oRfqs && Array.isArray(oRfqs.items) ? oRfqs.items.length : 0);
-        oModel.setProperty("/kpiRfqsCount", String(iRfqs));
+        oModel.setProperty("/kpiRfqsCount", typeof (oRfqs && oRfqs.count) === "number" ? String(oRfqs.count) : "–");
 
         oModel.setProperty("/kpiState", "Loaded");
 
@@ -79,6 +79,8 @@ sap.ui.define([
       }.bind(this)).catch(function () {
         oModel.setProperty("/kpiState", "Failed");
         oModel.setProperty("/errorMessage", this.getI18nText("errorRequestFailed"));
+      }.bind(this)).finally(function () {
+        this._bLoadingKpis = false;
       }.bind(this));
     },
 

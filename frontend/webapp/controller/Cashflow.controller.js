@@ -24,6 +24,8 @@ sap.ui.define([
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
+  var MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
   return BaseController.extend("hedgecontrol.controller.Cashflow", {
 
     onInit: function () {
@@ -91,7 +93,6 @@ sap.ui.define([
       });
       return Object.keys(mMonths).sort().map(function (sKey) {
         var oParts = sKey.split("-");
-        var MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
         var sLabel = MONTHS[parseInt(oParts[1], 10) - 1] + " " + oParts[0];
         var fIn = mMonths[sKey].inflows;
         var fOut = mMonths[sKey].outflows;
