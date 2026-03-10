@@ -1,13 +1,14 @@
 sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/counterpartiesService",
+  "hedgecontrol/service/contractsService",
   "sap/m/MessageBox"
-], function (BaseController, counterpartiesService, MessageBox) {
+], function (BaseController, counterpartiesService, contractsService, MessageBox) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.CounterpartyDetail", {
     onInit: function () {
-      this.initViewModel("cptyDet", { detail: {}, editMode: false });
+      this.initViewModel("cptyDet", { detail: {}, editMode: false, contracts: [] });
       this.getRouter().getRoute("counterpartyDetail").attachPatternMatched(this._onRouteMatched, this);
     },
 
@@ -15,12 +16,35 @@ sap.ui.define([
       this._sId = oEvent.getParameter("arguments").counterpartyId;
       this.getViewModel().setProperty("/editMode", false);
       this._loadData();
+      this._loadContracts();
     },
 
     _loadData: function () {
       this.loadData(function () {
         return counterpartiesService.getById(this._sId);
       }.bind(this), "/detail");
+    },
+
+    _loadContracts: function () {
+      var that = this;
+      contractsService.list().then(function (aAll) {
+        var aFiltered = (aAll || []).filter(function (c) {
+          return c.counterparty_id === that._sId;
+        });
+        that.getViewModel().setProperty("/contracts", aFiltered);
+      }).catch(function () {
+        that.getViewModel().setProperty("/contracts", []);
+      });
+    },
+
+    onNavigateToContract: function (oEvent) {
+      var oCtx = oEvent.getSource().getBindingContext("cptyDet");
+      if (oCtx) {
+        var sContractId = oCtx.getProperty("id");
+        if (sContractId) {
+          this.navToDetail("contractDetail", { contractId: sContractId });
+        }
+      }
     },
 
     onToggleEdit: function () {

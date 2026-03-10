@@ -2,15 +2,17 @@ sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/ordersService",
   "hedgecontrol/service/dealsService",
+  "hedgecontrol/service/linkagesService",
   "sap/m/MessageBox"
-], function (BaseController, ordersService, dealsService, MessageBox) {
+], function (BaseController, ordersService, dealsService, linkagesService, MessageBox) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.OrderDetail", {
     onInit: function () {
       this.initViewModel("ordDet", {
         detail: {},
-        deal: null
+        deal: null,
+        linkages: []
       });
       this.getRouter().getRoute("orderDetail").attachPatternMatched(this._onRouteMatched, this);
     },
@@ -27,6 +29,7 @@ sap.ui.define([
         return ordersService.getById(sOrderId);
       }, "/detail").then(function () {
         that._loadDeal();
+        that._loadLinkages();
       });
     },
 
@@ -42,10 +45,33 @@ sap.ui.define([
       });
     },
 
+    _loadLinkages: function () {
+      var that = this;
+      var sOrderId = this._sOrderId;
+      linkagesService.list().then(function (aAll) {
+        var aFiltered = (aAll || []).filter(function (l) {
+          return l.order_id === sOrderId;
+        });
+        that.getViewModel().setProperty("/linkages", aFiltered);
+      }).catch(function () {
+        that.getViewModel().setProperty("/linkages", []);
+      });
+    },
+
     onNavigateToDeal: function () {
       var oDeal = this.getViewModel().getProperty("/deal");
       if (oDeal && oDeal.id) {
         this.navToDetail("dealDetail", { dealId: oDeal.id });
+      }
+    },
+
+    onNavigateToContract: function (oEvent) {
+      var oCtx = oEvent.getSource().getBindingContext("ordDet");
+      if (oCtx) {
+        var sContractId = oCtx.getProperty("contract_id");
+        if (sContractId) {
+          this.navToDetail("contractDetail", { contractId: sContractId });
+        }
       }
     },
 

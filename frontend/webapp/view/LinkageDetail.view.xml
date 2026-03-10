@@ -8,7 +8,7 @@
   xmlns:form="sap.ui.layout.form"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
 
-  <uxap:ObjectPageLayout id="linkageDetailPage" busy="{lnkDet>/busy}" showTitleInHeaderContent="true">
+  <uxap:ObjectPageLayout id="linkageDetailPage" busy="{lnkDet>/busy}" showTitleInHeaderContent="true" preserveHeaderStateOnScroll="true">
 
     <uxap:headerTitle>
       <uxap:ObjectPageDynamicHeaderTitle>
@@ -71,6 +71,88 @@
                   </form:FormContainer>
                 </form:formContainers>
               </form:Form>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <uxap:ObjectPageSection title="{i18n>sectionOrderOrigin}" titleUppercase="false">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <VBox>
+                <MessageStrip text="{i18n>noOrderData}" type="Warning" showIcon="true"
+                  visible="{= !${lnkDet>/order} }" class="sapUiSmallMarginBottom" />
+                <form:Form editable="false" visible="{= !!${lnkDet>/order} }">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="1" columnsL="2" columnsXL="2" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>colOrderType}">
+                          <form:fields><Text text="{lnkDet>/order/order_type}" /></form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>colQuantityMt}">
+                          <form:fields>
+                            <ObjectNumber number="{path: 'lnkDet>/order/quantity_mt', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                          </form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>colPriceType}">
+                          <form:fields><Text text="{path: 'lnkDet>/order/price_type', formatter: 'formatter.capitalize'}" /></form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>colCreatedAt}">
+                          <form:fields><Text text="{path: 'lnkDet>/order/created_at', formatter: 'formatter.dateTimeDisplay'}" /></form:fields>
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <uxap:ObjectPageSection title="{i18n>sectionContractDest}" titleUppercase="false">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <VBox>
+                <MessageStrip text="{i18n>noContractData}" type="Warning" showIcon="true"
+                  visible="{= !${lnkDet>/contract} }" class="sapUiSmallMarginBottom" />
+                <form:Form editable="false" visible="{= !!${lnkDet>/contract} }">
+                  <form:layout>
+                    <form:ColumnLayout columnsM="1" columnsL="2" columnsXL="2" />
+                  </form:layout>
+                  <form:formContainers>
+                    <form:FormContainer>
+                      <form:formElements>
+                        <form:FormElement label="{i18n>colReference}">
+                          <form:fields><Text text="{lnkDet>/contract/reference}" /></form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>colCommodity}">
+                          <form:fields><Text text="{path: 'lnkDet>/contract/commodity', formatter: 'formatter.capitalize'}" /></form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>colClassification}">
+                          <form:fields><Text text="{path: 'lnkDet>/contract/classification', formatter: 'formatter.capitalize'}" /></form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>colQuantityMt}">
+                          <form:fields>
+                            <ObjectNumber number="{path: 'lnkDet>/contract/quantity_mt', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                          </form:fields>
+                        </form:FormElement>
+                        <form:FormElement label="{i18n>colStatus}">
+                          <form:fields>
+                            <ObjectStatus text="{path: 'lnkDet>/contract/status', formatter: 'formatter.capitalize'}"
+                              state="{path: 'lnkDet>/contract/status', formatter: 'formatter.statusState'}" />
+                          </form:fields>
+                        </form:FormElement>
+                      </form:formElements>
+                    </form:FormContainer>
+                  </form:formContainers>
+                </form:Form>
+              </VBox>
             </uxap:blocks>
           </uxap:ObjectPageSubSection>
         </uxap:subSections>

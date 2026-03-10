@@ -8,7 +8,7 @@
   xmlns:form="sap.ui.layout.form"
   xmlns:core="sap.ui.core"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
-  <uxap:ObjectPageLayout id="orderDetailPage" showTitleInHeaderContent="true" busy="{ordDet>/busy}">
+  <uxap:ObjectPageLayout id="orderDetailPage" showTitleInHeaderContent="true" preserveHeaderStateOnScroll="true" busy="{ordDet>/busy}">
     <uxap:headerTitle>
       <uxap:ObjectPageDynamicHeaderTitle>
         <uxap:heading>
@@ -165,6 +165,30 @@
                   <Text text=" — {ordDet>/deal/commodity}" class="sapUiSmallMarginBegin" />
                 </HBox>
               </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+      <uxap:ObjectPageSection title="{i18n>sectionLinkedContracts}" titleUppercase="false">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection>
+            <uxap:blocks>
+              <Table items="{ordDet>/linkages}" noDataText="{i18n>noLinkedContracts}">
+                <columns>
+                  <Column><header><Text text="{i18n>colContractId}" /></header></Column>
+                  <Column hAlign="End"><header><Text text="{i18n>colQuantityMt}" /></header></Column>
+                  <Column><header><Text text="{i18n>createdAt}" /></header></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Navigation" press=".onNavigateToContract">
+                    <cells>
+                      <Text text="{path: 'ordDet>contract_id', formatter: 'formatter.shortUuid'}" />
+                      <ObjectNumber number="{path: 'ordDet>quantity_mt', formatter: 'formatter.numberTwoDecimals'}" unit="MT" />
+                      <Text text="{path: 'ordDet>created_at', formatter: 'formatter.dateTimeDisplay'}" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
             </uxap:blocks>
           </uxap:ObjectPageSubSection>
         </uxap:subSections>

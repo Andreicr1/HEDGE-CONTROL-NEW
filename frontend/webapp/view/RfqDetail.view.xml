@@ -8,7 +8,7 @@
   xmlns:core="sap.ui.core"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
   <uxap:ObjectPageLayout id="rfqDetailPage" showTitleInHeaderContent="false"
-    alwaysShowContentHeader="false" showFooter="true" busy="{rfqDet>/busy}"
+    alwaysShowContentHeader="false" showFooter="true" preserveHeaderStateOnScroll="true" busy="{rfqDet>/busy}"
     class="sapUiResponsivePadding--header sapUiResponsivePadding--content">
 
     <!-- ═══ Header Title ═══ -->
