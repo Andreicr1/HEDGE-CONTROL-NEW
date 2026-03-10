@@ -2,11 +2,21 @@ sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/contractsService",
   "hedgecontrol/service/mtmService",
-  "sap/m/MessageBox"
-], function (BaseController, contractsService, mtmService, MessageBox) {
+  "sap/m/MessageBox",
+  "sap/viz/ui5/controls/feeds/FeedItem"
+], function (BaseController, contractsService, mtmService, MessageBox, FeedItem) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.Mtm", {
+
+    onAfterRendering: function () {
+      if (!this._mtmFeedsInit) {
+        this._mtmFeedsInit = true;
+        var oChart = this.byId("mtmChart");
+        oChart.addFeed(new FeedItem({ uid: "valueAxis", values: ["MtM"] }));
+        oChart.addFeed(new FeedItem({ uid: "categoryAxis", values: ["Contrato"] }));
+      }
+    },
 
     onInit: function () {
       this.initViewModel("mtm", {

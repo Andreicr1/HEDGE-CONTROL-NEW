@@ -48,7 +48,7 @@
                 "sap.ui.layout": {},
                 "sap.ui.table": {},
                 "sap.uxap": {},
-                "sap.viz": { "lazy": true }
+                "sap.viz": {}
             }
         },
         "models": {

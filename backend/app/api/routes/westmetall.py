@@ -7,7 +7,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
 from app.core.rate_limit import RATE_LIMIT_SCRAPING, limiter
 from app.api.dependencies.audit import audit_event
@@ -86,13 +85,10 @@ def _compute_monthly_averages(
     status_code=status.HTTP_200_OK,
 )
 def list_cash_settlement_prices(
-    start_date: Optional[date] = Query(
-        None, description="Start of date range (inclusive)"
-    ),
+    start_date: Optional[date] = Query(None, description="Start of date range (inclusive)"),
     end_date: Optional[date] = Query(None, description="End of date range (inclusive)"),
     symbol: Optional[str] = Query(None, description="Symbol filter"),
     limit: int = Query(500, ge=1, le=5000),
-    _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> list[CashSettlementPriceRead]:
     # Monthly average: compute dynamically from daily prices
@@ -126,20 +122,15 @@ def ingest_cash_settlement_daily(
             event_type="ingested",
         )
     ),
-    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> CashSettlementIngestResponse:
     del request
     try:
-        ingested_count, skipped_count, evidence = (
-            ingest_westmetall_cash_settlement_daily_for_date(
-                session, payload.settlement_date
-            )
+        ingested_count, skipped_count, evidence = ingest_westmetall_cash_settlement_daily_for_date(
+            session, payload.settlement_date
         )
     except WestmetallLayoutError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except CircuitOpenError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
@@ -172,22 +163,17 @@ def ingest_cash_settlement_bulk(
             event_type="bulk_ingested",
         )
     ),
-    __: None = Depends(require_role("trader")),
     session: Session = Depends(get_session),
 ) -> CashSettlementBulkIngestResponse:
     del request
     try:
-        ingested_count, skipped_count, evidence = (
-            ingest_westmetall_cash_settlement_bulk(
-                session,
-                start_date=payload.start_date,
-                end_date=payload.end_date,
-            )
+        ingested_count, skipped_count, evidence = ingest_westmetall_cash_settlement_bulk(
+            session,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
         )
     except WestmetallLayoutError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except CircuitOpenError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)

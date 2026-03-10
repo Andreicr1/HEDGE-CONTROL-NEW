@@ -2,11 +2,21 @@ sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/dealsService",
   "sap/m/MessageBox",
-  "sap/m/MessageToast"
-], function (BaseController, dealsService, MessageBox, MessageToast) {
+  "sap/m/MessageToast",
+  "sap/viz/ui5/controls/feeds/FeedItem"
+], function (BaseController, dealsService, MessageBox, MessageToast, FeedItem) {
   "use strict";
 
   return BaseController.extend("hedgecontrol.controller.Pnl", {
+
+    onAfterRendering: function () {
+      if (!this._plFeedsInit) {
+        this._plFeedsInit = true;
+        var oChart = this.byId("pnlChart");
+        oChart.addFeed(new FeedItem({ uid: "valueAxis", values: ["P&L"] }));
+        oChart.addFeed(new FeedItem({ uid: "categoryAxis", values: ["Deal"] }));
+      }
+    },
 
     onInit: function () {
       this.initViewModel("pl", {

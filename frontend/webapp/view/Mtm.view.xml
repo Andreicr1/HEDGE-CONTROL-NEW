@@ -5,6 +5,7 @@
   xmlns:core="sap.ui.core"
   xmlns:f="sap.f"
   xmlns:t="sap.ui.table"
+  xmlns:rowmodes="sap.ui.table.rowmodes"
   xmlns:viz="sap.viz.ui5.controls"
   xmlns:vizData="sap.viz.ui5.data"
   core:require="{ formatter: 'hedgecontrol/util/formatter' }">
@@ -100,28 +101,25 @@
               </vizData:measures>
             </vizData:FlattenedDataset>
           </viz:dataset>
-          <viz:feeds>
-            <viz:FeedItem id="mtmValueAxis" uid="valueAxis" values="['MtM']" />
-            <viz:FeedItem id="mtmCategoryAxis" uid="categoryAxis" values="['Contrato']" />
-          </viz:feeds>
         </viz:VizFrame>
 
         <!-- TreeTable Breakdown -->
-          rows="{path: 'mtm>/treeData', parameters: { arrayNames: ['children'] }}"
+        <t:TreeTable id="mtmTreeTable"
+          rows="{path: 'mtm>/treeData', parameters: { arrayNames: ['children'], numberOfExpandedLevels: 1 }}"
           selectionMode="None"
-          visibleRowCountMode="Auto"
-          minAutoRowCount="10"
           enableColumnReordering="false"
-          expandFirstLevel="true"
           visible="{mtm>/resultLoaded}">
-          <t:toolbar>
+          <t:rowMode>
+            <rowmodes:Auto minRowCount="10" />
+          </t:rowMode>
+          <t:extension>
             <Toolbar>
               <Title text="{i18n>mtmBreakdown}" level="H4" />
               <ToolbarSpacer />
               <Button icon="sap-icon://expand-all" tooltip="{i18n>mtmExpandAll}" press=".onExpandAll" />
               <Button icon="sap-icon://collapse-all" tooltip="{i18n>mtmCollapseAll}" press=".onCollapseAll" />
             </Toolbar>
-          </t:toolbar>
+          </t:extension>
           <t:columns>
             <t:Column width="22rem">
               <Label text="{i18n>mtmColDescription}" />

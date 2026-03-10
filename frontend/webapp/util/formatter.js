@@ -132,7 +132,7 @@ sap.ui.define([], function () {
 		 * @returns {string}
 		 */
 		booleanText: function (bValue) {
-			return bValue ? "Sim" : "Não";
+			return bValue ? "Yes" : "No";
 		},
 
 		/**

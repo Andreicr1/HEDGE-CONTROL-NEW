@@ -1,8 +1,9 @@
 sap.ui.define([
   "hedgecontrol/controller/BaseController",
   "hedgecontrol/service/cashflowProjectionService",
-  "sap/m/MessageBox"
-], function (BaseController, projectionService, MessageBox) {
+  "sap/m/MessageBox",
+  "sap/viz/ui5/controls/feeds/FeedItem"
+], function (BaseController, projectionService, MessageBox, FeedItem) {
   "use strict";
 
   var INSTRUMENT_LABELS = {
@@ -27,6 +28,15 @@ sap.ui.define([
   var MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
   return BaseController.extend("hedgecontrol.controller.Cashflow", {
+
+    onAfterRendering: function () {
+      if (!this._cfFeedsInit) {
+        this._cfFeedsInit = true;
+        var oChart = this.byId("cashflowChart");
+        oChart.addFeed(new FeedItem({ uid: "valueAxis", values: ["Inflows", "Outflows", "Net"] }));
+        oChart.addFeed(new FeedItem({ uid: "categoryAxis", values: ["Per\u00edodo"] }));
+      }
+    },
 
     onInit: function () {
       this.initViewModel("cf", {

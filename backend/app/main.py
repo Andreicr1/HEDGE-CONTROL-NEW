@@ -1,5 +1,6 @@
 import time
 import uuid
+import os
 from contextlib import asynccontextmanager
 
 import httpx
@@ -11,7 +12,6 @@ from slowapi.errors import RateLimitExceeded
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.auth import get_auth_settings
-from app.core.config import get_settings
 from app.core.database import engine
 from app.core.logging import configure_logging, get_logger
 from app.core.metrics import request_latency_seconds
@@ -48,11 +48,9 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
-_cfg = get_settings()
-
 app = FastAPI(
     title="Hedge Control Platform",
-    version=_cfg.app_version,
+    version=os.getenv("APP_VERSION", "1.0.0"),
     lifespan=lifespan,
 )
 app.state.limiter = limiter
@@ -133,7 +131,19 @@ app.add_middleware(_StripTrailingSlashMiddleware)
 app.add_middleware(_StripApiPrefixMiddleware)
 app.add_middleware(_CatchAllMiddleware)
 
-cors_allow_origins = _cfg.cors_origins_list
+cors_allow_origins_raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+if cors_allow_origins_raw:
+    cors_allow_origins = [
+        origin.strip() for origin in cors_allow_origins_raw.split(",") if origin.strip()
+    ]
+else:
+    cors_allow_origins = [
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "http://localhost:8081",
+        "http://localhost:8082",
+        "https://happy-sand-0b5701c0f.1.azurestaticapps.net",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -185,7 +195,7 @@ def readiness() -> dict[str, str]:
         logger.error("readiness_db_failed", error=str(exc))
         raise HTTPException(status_code=503, detail="db_unavailable") from exc
 
-    if _cfg.auth_enabled:
+    if os.getenv("JWT_ISSUER"):
         try:
             settings = get_auth_settings()
             response = httpx.get(settings.jwks_url, timeout=5.0)
@@ -197,9 +207,7 @@ def readiness() -> dict[str, str]:
     return {"status": "ready"}
 
 
-app.include_router(
-    counterparties.router, prefix="/counterparties", tags=["Counterparties"]
-)
+app.include_router(counterparties.router, prefix="/counterparties", tags=["Counterparties"])
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
 app.include_router(exposures.router, prefix="/exposures", tags=["Exposures"])
 app.include_router(deals.router, prefix="/deals", tags=["Deals"])
@@ -211,11 +219,7 @@ app.include_router(cashflow_ledger.router, prefix="/cashflow", tags=["CashFlowLe
 app.include_router(pl.router, prefix="/pl", tags=["P&L"])
 app.include_router(scenario.router, prefix="/scenario", tags=["Scenario"])
 app.include_router(audit.router, prefix="/audit", tags=["Audit"])
-app.include_router(
-    westmetall.router, prefix="/market-data/westmetall", tags=["MarketData"]
-)
+app.include_router(westmetall.router, prefix="/market-data/westmetall", tags=["MarketData"])
 app.include_router(mtm.router, prefix="/mtm", tags=["MTM"])
 app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
-app.include_router(
-    finance_pipeline.router, prefix="/finance/pipeline", tags=["FinancePipeline"]
-)
+app.include_router(finance_pipeline.router, prefix="/finance/pipeline", tags=["FinancePipeline"])
