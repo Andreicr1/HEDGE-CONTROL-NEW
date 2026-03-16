@@ -296,7 +296,7 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
     ```
   - Update `docker-compose.yml`: add `frontend-svelte` service on port 5173
-- [ ] ECharts bundle size spike: import the 5 required chart types (line, bar, scatter, heatmap, custom) with tree-shaking. Verify gzipped size < 200KB. If exceeds, apply mitigations from Performance section.
+- [x] ECharts bundle size spike: import the 5 required chart types (line, bar, scatter, heatmap, custom) with tree-shaking. Verify gzipped size < 200KB. If exceeds, apply mitigations from Performance section.
 - [x] Verify: app loads, authenticates, makes a typed API call (e.g., list counterparties), renders data
 
 **Deliverable:** Deployed SvelteKit shell with auth, typed API client, security headers, and one working list view.
@@ -642,7 +642,7 @@ Define a formal state matrix for the board component:
   - `onDestroy` → `chart.dispose()` — ECharts does NOT garbage-collect without explicit disposal
   - **ResizeObserver debounced** to every 2nd frame via `requestAnimationFrame`
 
-- [ ] `src/lib/components/chart/LinkedChartGroup.svelte.ts` — coordination store for linked charts
+- [x] `src/lib/components/chart/LinkedChartGroup.svelte.ts` — coordination store for linked charts
 
   ```typescript
   class LinkedChartGroup {
@@ -668,7 +668,7 @@ Define a formal state matrix for the board component:
   } satisfies Partial<ChartThemeColors>;
   ```
 
-- [ ] **Sanitize all user-generated strings** (counterparty names, messages) before passing to ECharts options. ECharts tooltips render HTML by default — XSS risk with untrusted data. Use plain text mode or escape `<>&"'`.
+- [x] **Sanitize all user-generated strings** (counterparty names, messages) before passing to ECharts options. ECharts tooltips render HTML by default — XSS risk with untrusted data. Use plain text mode or escape `<>&"'`.
 
 ### Research Insights: ECharts Bundle Size
 
@@ -739,7 +739,7 @@ Budget: < 200KB gzipped. **Achievable** with SVGRenderer and deferred Brush/Tool
 
 - [x] `src/routes/(protected)/contracts/+page.svelte` — List with filters (status, classification, commodity)
 - [x] `src/routes/(protected)/contracts/[id]/+page.svelte` — Detail: legs, settlement dates, linked orders/deals, MTM
-- [ ] Status transitions (activate, settle, cancel) — trader role
+- [x] Status transitions (activate, settle, cancel) — trader role
 
 ##### 4C: Counterparties
 
@@ -762,7 +762,7 @@ Budget: < 200KB gzipped. **Achievable** with SVGRenderer and deferred Brush/Tool
 - [x] Unit tests: Vitest for stores, services, utilities
 - [x] Component tests: Vitest + `@testing-library/svelte`
 - [x] WebSocket tests: Mock WS server for store behavior (connect, auth, subscribe, reconnect, event dispatch)
-- [ ] E2E: Playwright for critical flows (RFQ creation → award → contract, login → dashboard)
+- [x] E2E: Playwright for critical flows (RFQ creation → award → contract, login → dashboard)
 - [x] API contract tests: CI runs `openapi-typescript`, diffs against committed `schema.d.ts`. Fail if changed.
 
 ##### 5B: CI/CD

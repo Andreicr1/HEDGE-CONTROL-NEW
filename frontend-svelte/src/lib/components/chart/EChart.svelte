@@ -1,6 +1,27 @@
+<script lang="ts" module>
+	import type { ComposeOption } from 'echarts/core';
+	import type { LineSeriesOption, BarSeriesOption, ScatterSeriesOption } from 'echarts/charts';
+	import type {
+		GridComponentOption,
+		TooltipComponentOption,
+		LegendComponentOption,
+		DataZoomComponentOption,
+	} from 'echarts/components';
+
+	export type TradingChartOption = ComposeOption<
+		| LineSeriesOption
+		| BarSeriesOption
+		| ScatterSeriesOption
+		| GridComponentOption
+		| TooltipComponentOption
+		| LegendComponentOption
+		| DataZoomComponentOption
+	>;
+</script>
+
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { init, use, type ComposeOption } from 'echarts/core';
+	import { init, use } from 'echarts/core';
 	import { SVGRenderer } from 'echarts/renderers';
 	import { LineChart, BarChart, ScatterChart } from 'echarts/charts';
 	import {
@@ -9,13 +30,8 @@
 		LegendComponent,
 		DataZoomComponent,
 	} from 'echarts/components';
-	import type { LineSeriesOption, BarSeriesOption, ScatterSeriesOption } from 'echarts/charts';
-	import type {
-		GridComponentOption,
-		TooltipComponentOption,
-		LegendComponentOption,
-		DataZoomComponentOption,
-	} from 'echarts/components';
+	import { sanitizeChartStrings } from '$lib/utils/sanitize';
+	import type { LinkedChartGroup } from './LinkedChartGroup.svelte';
 
 	use([
 		SVGRenderer,
@@ -28,34 +44,45 @@
 		DataZoomComponent,
 	]);
 
-	type TradingChartOption = ComposeOption<
-		| LineSeriesOption
-		| BarSeriesOption
-		| ScatterSeriesOption
-		| GridComponentOption
-		| TooltipComponentOption
-		| LegendComponentOption
-		| DataZoomComponentOption
-	>;
-
 	type Props = {
 		options: TradingChartOption;
 		style?: string;
 		theme?: string;
+		/** Optional chart group for crosshair sync between linked charts */
+		group?: LinkedChartGroup;
+		/** Unique ID within the group (required if group is provided) */
+		groupId?: string;
+		/** Sanitize user-generated strings in options to prevent XSS (default: true) */
+		sanitize?: boolean;
 	};
 
-	let { options, style = 'width:100%;height:400px', theme = 'dark' }: Props = $props();
+	let {
+		options,
+		style = 'width:100%;height:400px',
+		theme = 'dark',
+		group,
+		groupId,
+		sanitize = true,
+	}: Props = $props();
 
 	let container: HTMLDivElement;
 	let chart: ReturnType<typeof init> | null = null;
 	let resizeObserver: ResizeObserver | null = null;
 	let rafId: number | null = null;
 
+	function safeOptions(opts: TradingChartOption): TradingChartOption {
+		return sanitize ? sanitizeChartStrings(opts) : opts;
+	}
+
 	onMount(() => {
 		chart = init(container, theme === 'dark' ? tradingDarkTheme : undefined, {
 			renderer: 'svg',
 		});
-		chart.setOption(options);
+		chart.setOption(safeOptions(options));
+
+		if (group && groupId) {
+			group.register(groupId, chart);
+		}
 
 		// Debounced resize via RAF
 		resizeObserver = new ResizeObserver(() => {
@@ -69,13 +96,16 @@
 
 	$effect(() => {
 		if (chart) {
-			chart.setOption(options, { notMerge: false });
+			chart.setOption(safeOptions(options), { notMerge: false });
 		}
 	});
 
 	onDestroy(() => {
 		if (rafId) cancelAnimationFrame(rafId);
 		resizeObserver?.disconnect();
+		if (group && groupId) {
+			group.unregister(groupId);
+		}
 		chart?.dispose();
 		chart = null;
 	});
