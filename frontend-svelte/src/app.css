@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+@theme {
+	/* Surface */
+	--color-surface-50: #f8fafc;
+	--color-surface-100: #f1f5f9;
+	--color-surface-200: #e2e8f0;
+	--color-surface-300: #cbd5e1;
+	--color-surface-400: #94a3b8;
+	--color-surface-500: #64748b;
+	--color-surface-600: #475569;
+	--color-surface-700: #334155;
+	--color-surface-800: #1e293b;
+	--color-surface-900: #0f172a;
+	--color-surface-950: #020617;
+
+	/* Trading semantic colors */
+	--color-accent: #3b82f6;
+	--color-accent-hover: #2563eb;
+	--color-success: #00c087;
+	--color-success-hover: #00a070;
+	--color-danger: #ef4444;
+	--color-danger-hover: #dc2626;
+	--color-warning: #f59e0b;
+	--color-warning-hover: #d97706;
+
+	/* Typography */
+	--font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+	--font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Dark mode defaults */
+:root {
+	color-scheme: dark;
+}
+
+body {
+	@apply bg-surface-950 text-surface-200 font-sans antialiased;
+}
+
+/* Trading density — tighter defaults */
+* {
+	@apply leading-tight;
+}
