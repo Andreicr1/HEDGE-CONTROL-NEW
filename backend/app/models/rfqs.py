@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
@@ -82,6 +82,10 @@ class RFQ(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
 
+    invitations: Mapped[list["RFQInvitation"]] = relationship(
+        back_populates="rfq", lazy="select", order_by="RFQInvitation.created_at"
+    )
+
 
 class RFQInvitationChannel(enum.Enum):
     whatsapp = "whatsapp"
@@ -125,6 +129,8 @@ class RFQInvitation(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    rfq: Mapped["RFQ"] = relationship(back_populates="invitations")
 
 
 class RFQStateEvent(Base):

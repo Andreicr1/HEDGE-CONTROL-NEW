@@ -198,6 +198,12 @@ class RFQRejectQuoteRequest(RFQUserActionBase):
     pass
 
 
+class RFQCancelRequest(RFQUserActionBase):
+    """Cancel an RFQ in CREATED or SENT state."""
+
+    pass
+
+
 class RFQRefreshCounterpartyRequest(RFQUserActionBase):
     """Re-send invitation to a specific counterparty."""
 

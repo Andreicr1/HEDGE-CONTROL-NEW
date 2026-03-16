@@ -72,7 +72,7 @@ class _StripApiPrefixMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
+        if scope["type"] in ("http", "websocket"):
             path: str = scope.get("path", "/")
             if path == "/api" or path == "/api/":
                 scope = dict(scope, path="/")
@@ -221,3 +221,8 @@ app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
 app.include_router(
     finance_pipeline.router, prefix="/finance/pipeline", tags=["FinancePipeline"]
 )
+
+# WebSocket endpoint (no prefix — registered directly)
+from app.api.routes.ws import websocket_endpoint
+
+app.add_api_websocket_route("/ws", websocket_endpoint)
