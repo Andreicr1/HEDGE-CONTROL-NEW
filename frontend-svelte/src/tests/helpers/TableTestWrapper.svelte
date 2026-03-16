@@ -4,7 +4,7 @@
 
 	let { options, onTable }: { options: () => TableOptions<any>; onTable: (t: any) => void } = $props();
 
-	const table = createSvelteTable(options);
+	const table = createSvelteTable(() => options());
 
 	// Expose table to test via callback
 	$effect(() => {

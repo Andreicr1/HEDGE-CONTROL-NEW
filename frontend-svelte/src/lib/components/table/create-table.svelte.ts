@@ -21,16 +21,14 @@ export function createSvelteTable<TData extends RowData>(
 
 	let tableState = $state<TableState>({} as TableState);
 
+	function handleStateChange(updater: ((prev: TableState) => TableState) | TableState) {
+		tableState = typeof updater === 'function' ? updater(tableState) : updater;
+	}
+
 	const table = createTable({
-		...resolvedOptions,
-		state: {
-			...tableState,
-			...resolvedOptions.state,
-		},
-		onStateChange: (updater) => {
-			const newState = typeof updater === 'function' ? updater(tableState) : updater;
-			tableState = newState;
-		},
+		...optionsFn(),
+		state: { ...(tableState as TableState), ...optionsFn().state },
+		onStateChange: handleStateChange,
 		renderFallbackValue: null,
 	} as TableOptionsResolved<TData>);
 
@@ -38,14 +36,8 @@ export function createSvelteTable<TData extends RowData>(
 		table.setOptions((prev) => ({
 			...prev,
 			...resolvedOptions,
-			state: {
-				...tableState,
-				...resolvedOptions.state,
-			},
-			onStateChange: (updater) => {
-				const newState = typeof updater === 'function' ? updater(tableState) : updater;
-				tableState = newState;
-			},
+			state: { ...(tableState as TableState), ...resolvedOptions.state },
+			onStateChange: handleStateChange,
 		}));
 	});
 

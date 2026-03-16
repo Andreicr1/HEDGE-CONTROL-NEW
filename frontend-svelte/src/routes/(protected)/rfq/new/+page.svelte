@@ -245,10 +245,11 @@
 
 		<!-- Counterparty selection -->
 		<div>
-			<label class="block text-sm font-medium text-surface-400">
+			<label for="counterparty-search" class="block text-sm font-medium text-surface-400">
 				Contrapartes ({selectedCounterpartyIds.length} selecionadas)
 			</label>
 			<input
+				id="counterparty-search"
 				type="text"
 				bind:value={counterpartySearch}
 				placeholder="Buscar contraparte..."
