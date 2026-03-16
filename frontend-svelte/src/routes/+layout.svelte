@@ -1,10 +1,30 @@
 <script lang="ts">
 	import '../app.css';
 	import { authStore } from '$lib/stores/auth.svelte';
+	import { wsStore } from '$lib/stores/ws.svelte';
 	import { notifications, type Notification } from '$lib/stores/notifications.svelte';
 	import { page } from '$app/state';
 
 	let { children } = $props();
+
+	// WS lifecycle: connect when authenticated, disconnect on logout
+	$effect(() => {
+		if (authStore.isAuthenticated) {
+			wsStore.connect();
+		} else {
+			wsStore.disconnect();
+		}
+	});
+
+	function wsStatusDot(status: string): string {
+		switch (status) {
+			case 'authenticated': return 'bg-success';
+			case 'open':
+			case 'connecting': return 'bg-warning animate-pulse';
+			case 'error': return 'bg-danger';
+			default: return 'bg-surface-600';
+		}
+	}
 
 	const navItems = [
 		{ href: '/', label: 'Dashboard', icon: '◉' },
@@ -70,12 +90,21 @@
 			</div>
 
 			<div class="border-t border-surface-800 px-3 py-2">
+				<!-- WS connection status -->
+				<div class="flex items-center gap-2 mb-1">
+					<span class="h-2 w-2 rounded-full {wsStatusDot(wsStore.status)}"></span>
+					{#if !sidebarCollapsed}
+						<span class="text-xs text-surface-600">
+							{wsStore.status === 'authenticated' ? 'Conectado' : wsStore.status === 'connecting' ? 'Conectando...' : wsStore.status === 'error' ? 'Erro WS' : 'Desconectado'}
+						</span>
+					{/if}
+				</div>
 				{#if !sidebarCollapsed}
 					<div class="text-xs text-surface-500 truncate">{authStore.userName}</div>
 					<div class="text-xs text-surface-600">{authStore.userRoles.join(', ')}</div>
 				{/if}
 				<button
-					onclick={() => authStore.logout()}
+					onclick={() => { wsStore.disconnect(); authStore.logout(); }}
 					class="mt-1 w-full rounded px-2 py-1 text-xs text-surface-400 hover:bg-surface-800 hover:text-surface-200"
 				>
 					{sidebarCollapsed ? '⏻' : 'Sair'}
