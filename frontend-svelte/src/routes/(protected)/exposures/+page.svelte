@@ -1,28 +1,30 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatNumber } from '$lib/utils/format';
 	import { apiFetch } from '$lib/api/fetch';
 	import { type ColumnDef } from '@tanstack/table-core';
 	import DataTable from '$lib/components/table/DataTable.svelte';
+	import type { Exposure, NetExposure, HedgeTask } from '$lib/api/types/entities';
 
 	// ─── State ──────────────────────────────────────────────────────────
-	let exposures = $state<any[]>([]);
-	let netExposure = $state<any>(null);
-	let hedgeTasks = $state<any[]>([]);
+	let exposures = $state<Exposure[]>([]);
+	let netExposure = $state<NetExposure | null>(null);
+	let hedgeTasks = $state<HedgeTask[]>([]);
 	let isLoading = $state(true);
 	let activeTab = $state<'exposures' | 'tasks'>('exposures');
 
 	// Grouping
 	let groupBy = $state<string[]>([]);
+	let abortController: AbortController;
 
-	async function loadData() {
+	async function loadData(signal?: AbortSignal) {
 		isLoading = true;
 		try {
 			const [expRes, netRes, tasksRes] = await Promise.all([
-				apiFetch('/exposures/list?limit=200'),
-				apiFetch('/exposures/net'),
-				apiFetch('/exposures/tasks'),
+				apiFetch('/exposures/list?limit=200', { signal }),
+				apiFetch('/exposures/net', { signal }),
+				apiFetch('/exposures/tasks', { signal }),
 			]);
 
 			if (expRes.ok) {
@@ -34,14 +36,20 @@
 				const data = await tasksRes.json();
 				hedgeTasks = data.items ?? data;
 			}
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar exposições');
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	onMount(() => loadData());
+	onMount(() => {
+		abortController = new AbortController();
+		loadData(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 
 	// ─── Column Defs ────────────────────────────────────────────────────
 	const columns: ColumnDef<any, any>[] = [

@@ -15,6 +15,7 @@
 		directionColor,
 	} from '$lib/utils/format';
 	import type { QuoteReceivedEvent, StatusChangedEvent, InvitationDeliveredEvent, InvitationFailedEvent } from '$lib/api/types/ws-events';
+	import type { Rfq, RfqQuote, RfqInvitation, RfqRanking, RfqStateEvent } from '$lib/api/types/entities';
 
 	const rfqId = $derived(page.params.id ?? '');
 	const isTrader = $derived(authStore.hasRole('trader'));
@@ -22,11 +23,11 @@
 	// ─── Board State ────────────────────────────────────────────────────
 	type BoardMode = 'IDLE' | 'AWARDING' | 'REJECTING' | 'RANKING_STALE' | 'DISCONNECTED';
 
-	let rfq = $state<any>(null);
-	let quotes = $state<any[]>([]);
-	let invitations = $state<any[]>([]);
-	let ranking = $state<any>(null);
-	let stateEvents = $state<any[]>([]);
+	let rfq = $state<Rfq | null>(null);
+	let quotes = $state<RfqQuote[]>([]);
+	let invitations = $state<RfqInvitation[]>([]);
+	let ranking = $state<RfqRanking | null>(null);
+	let stateEvents = $state<RfqStateEvent[]>([]);
 	let boardMode = $state<BoardMode>('IDLE');
 	let isLoading = $state(true);
 	let operationInFlight = $state(false);
@@ -63,12 +64,12 @@
 			}
 
 			rfq = await rfqRes.json();
-			invitations = rfq.invitations ?? [];
+			invitations = rfq?.invitations ?? [];
 			quotes = quotesRes.ok ? ((await quotesRes.json()).items ?? await quotesRes.json()) : [];
 			stateEvents = eventsRes.ok ? ((await eventsRes.json()).items ?? await eventsRes.json()) : [];
 
 			// Load ranking if in quotable state
-			if (rfq.state === 'QUOTED') {
+			if (rfq?.state === 'QUOTED') {
 				await fetchRanking();
 			}
 		} catch (e) {
@@ -251,7 +252,7 @@
 		const unsubStatus = wsStore.on('status_changed', (event: StatusChangedEvent) => {
 			if (operationInFlight) return; // HTTP response is authority
 			if (event.rfq_id !== id) return;
-			rfq = { ...rfq, state: event.data.to_state };
+			if (rfq) rfq = { ...rfq, state: event.data.to_state };
 			if (['AWARDED', 'CLOSED'].includes(event.data.to_state)) {
 				boardMode = 'IDLE';
 				notifications.info('RFQ atualizada por outro usuário');
@@ -420,7 +421,7 @@
 				{/if}
 
 				<!-- Ranking -->
-				{#if ranking && ranking.ranking?.length > 0}
+				{#if ranking?.ranking && ranking.ranking.length > 0}
 					<h3 class="mt-6 text-xs font-semibold uppercase tracking-wide text-surface-500">
 						Ranking
 					</h3>

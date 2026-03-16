@@ -6,9 +6,10 @@
 	import { wsStore } from '$lib/stores/ws.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatDate, stateLabel, stateColor, intentLabel, directionLabel, directionColor } from '$lib/utils/format';
+	import type { Rfq } from '$lib/api/types/entities';
 
 	// ─── State ──────────────────────────────────────────────────────────
-	let rfqs = $state<any[]>([]);
+	let rfqs = $state<Rfq[]>([]);
 	let isLoading = $state(false);
 	let nextCursor = $state<string | null>(null);
 
@@ -81,7 +82,7 @@
 		unsubWs?.();
 	});
 
-	function getQuoteCount(rfq: any): number {
+	function getQuoteCount(rfq: Rfq): number {
 		const base = rfq.quotes?.length ?? 0;
 		return base + (quoteBadges[rfq.id] ?? 0);
 	}

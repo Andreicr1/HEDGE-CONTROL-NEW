@@ -10,7 +10,6 @@ export default defineConfig({
 				manualChunks(id) {
 					if (id.includes('echarts')) return 'echarts';
 					if (id.includes('@tanstack/table-core')) return 'tanstack-table';
-					if (id.includes('@tanstack/virtual-core')) return 'tanstack-virtual';
 				}
 			}
 		}

@@ -1,29 +1,37 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { apiFetch } from '$lib/api/fetch';
+	import type { Counterparty } from '$lib/api/types/entities';
 
-	let counterparties = $state<any[]>([]);
+	let counterparties = $state<Counterparty[]>([]);
 	let isLoading = $state(true);
 	let search = $state('');
+	let abortController: AbortController;
 
-	async function loadCounterparties() {
+	async function loadCounterparties(signal?: AbortSignal) {
 		isLoading = true;
 		try {
-			const res = await apiFetch('/counterparties?limit=200');
+			const res = await apiFetch('/counterparties?limit=200', { signal });
 			if (res.ok) {
 				const data = await res.json();
 				counterparties = data.items ?? data;
 			}
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar contrapartes');
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	onMount(() => loadCounterparties());
+	onMount(() => {
+		abortController = new AbortController();
+		loadCounterparties(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 
 	let filtered = $derived(
 		counterparties.filter((cp) => {

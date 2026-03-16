@@ -31,6 +31,7 @@ class WsStore {
 	#degradationTimer: ReturnType<typeof setTimeout> | null = null;
 	#pollingTimers = new Map<string, ReturnType<typeof setInterval>>();
 	#pollingCallbacks = new Map<string, () => void>();
+	#pollingNotificationId: string | null = null;
 	#intentionalClose = false;
 
 	connect() {
@@ -169,8 +170,9 @@ class WsStore {
 			return;
 		}
 
-		// Domain events
+		// Domain events — only dispatch after auth handshake is complete
 		if (isWsEvent(parsed)) {
+			if (this.status !== 'authenticated') return;
 			const handlers = this.#handlers.get(parsed.event as WsEventType);
 			if (handlers) {
 				for (const handler of handlers) {
@@ -230,6 +232,10 @@ class WsStore {
 	#onReconnect() {
 		this.#clearDegradation();
 		this.#stopPollingFallback();
+		if (this.#pollingNotificationId) {
+			notifications.remove(this.#pollingNotificationId);
+			this.#pollingNotificationId = null;
+		}
 	}
 
 	#clearDegradation() {
@@ -242,7 +248,7 @@ class WsStore {
 	#startPollingFallback() {
 		if (this.isPollingFallback) return;
 		this.isPollingFallback = true;
-		notifications.warning('Real-time indisponível — atualizando via polling.', 0);
+		this.#pollingNotificationId = notifications.warning('Real-time indisponível — atualizando via polling.', 0);
 
 		for (const [key, { topic, id }] of this.#subscriptions) {
 			const callback = this.#pollingCallbacks.get(key);

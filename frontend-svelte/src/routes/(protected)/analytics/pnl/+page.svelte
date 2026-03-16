@@ -1,26 +1,34 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatNumber } from '$lib/utils/format';
 	import { apiFetch } from '$lib/api/fetch';
 	import EChart from '$lib/components/chart/EChart.svelte';
+	import type { PnlSnapshot } from '$lib/api/types/entities';
 
-	let pnlData = $state<any>(null);
+	let pnlData = $state<PnlSnapshot | null>(null);
 	let isLoading = $state(true);
+	let abortController: AbortController;
 
-	async function loadData() {
+	async function loadData(signal?: AbortSignal) {
 		isLoading = true;
 		try {
-			const res = await apiFetch('/pl/snapshot/latest');
+			const res = await apiFetch('/pl/snapshot/latest', { signal });
 			if (res.ok) pnlData = await res.json();
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar P&L');
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	onMount(() => loadData());
+	onMount(() => {
+		abortController = new AbortController();
+		loadData(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 
 	let chartOptions = $derived.by(() => {
 		if (!pnlData?.items && !pnlData?.entries) return {};

@@ -1,16 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatDate, formatNumber } from '$lib/utils/format';
 	import { apiFetch } from '$lib/api/fetch';
+	import type { Contract } from '$lib/api/types/entities';
 	const contractId = $derived(page.params.id ?? '');
-	let contract = $state<any>(null);
+	let contract = $state<Contract | null>(null);
 	let isLoading = $state(true);
 	let isTransitioning = $state(false);
 	let confirmAction = $state<string | null>(null);
+	let abortController: AbortController;
 
 	const VALID_TRANSITIONS: Record<string, string[]> = {
 		active: ['partially_settled', 'settled', 'cancelled'],
@@ -43,17 +45,18 @@
 	};
 
 	const allowedTransitions = $derived<string[]>(
-		contract ? VALID_TRANSITIONS[contract.status] ?? [] : [],
+		contract?.status ? VALID_TRANSITIONS[contract.status] ?? [] : [],
 	);
 	const isTrader = $derived(authStore.hasRole('trader'));
 
-	async function loadContract() {
+	async function loadContract(signal?: AbortSignal) {
 		isLoading = true;
 		try {
-			const res = await apiFetch(`/contracts/${contractId}`);
+			const res = await apiFetch(`/contracts/${contractId}`, { signal });
 			if (res.ok) contract = await res.json();
 			else if (res.status === 404) goto('/contracts');
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar contrato');
 		} finally {
 			isLoading = false;
@@ -100,7 +103,12 @@
 		}
 	}
 
-	onMount(() => loadContract());
+	onMount(() => {
+		abortController = new AbortController();
+		loadContract(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 </script>
 
 <div class="p-6">
@@ -111,8 +119,8 @@
 	{:else if contract}
 		<div class="mt-4 flex items-center gap-3">
 			<h1 class="text-lg font-semibold text-surface-200">{contract.reference}</h1>
-			<span class="rounded px-1.5 py-0.5 text-xs {statusBadgeClass(contract.status)}">
-				{STATUS_LABELS[contract.status] ?? contract.status}
+			<span class="rounded px-1.5 py-0.5 text-xs {statusBadgeClass(contract.status ?? '')}">
+				{STATUS_LABELS[contract.status ?? ''] ?? contract.status}
 			</span>
 		</div>
 

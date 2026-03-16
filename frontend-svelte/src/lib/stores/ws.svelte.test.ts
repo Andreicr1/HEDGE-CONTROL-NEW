@@ -68,8 +68,9 @@ vi.mock('./auth.svelte', () => ({
 
 vi.mock('./notifications.svelte', () => ({
 	notifications: {
-		warning: vi.fn(),
-		error: vi.fn(),
+		warning: vi.fn(() => 'notif-id'),
+		error: vi.fn(() => 'notif-id'),
+		remove: vi.fn(),
 	},
 }));
 
@@ -226,6 +227,36 @@ describe('WsStore', () => {
 			expect(handler).not.toHaveBeenCalled();
 		});
 
+		it('drops domain events before auth_ack', () => {
+			wsStore.connect();
+			vi.advanceTimersByTime(1); // open but not authenticated
+
+			const handler = vi.fn();
+			wsStore.on('quote_received', handler);
+
+			mockWsInstance!.simulateMessage({
+				event: 'quote_received',
+				rfq_id: 'rfq-1',
+				data: { quote_id: 'q1', counterparty_id: 'cp1', fixed_price_value: 100, fixed_price_unit: 'USD/MT', float_pricing_convention: 'LME', received_at: '2026-01-01' },
+				timestamp: '2026-01-01T00:00:00Z',
+				seq: 1,
+			});
+
+			expect(handler).not.toHaveBeenCalled();
+
+			// After auth, events should dispatch normally
+			mockWsInstance!.simulateMessage({ type: 'auth_ack', user: 'test-user' });
+			mockWsInstance!.simulateMessage({
+				event: 'quote_received',
+				rfq_id: 'rfq-1',
+				data: { quote_id: 'q1', counterparty_id: 'cp1', fixed_price_value: 100, fixed_price_unit: 'USD/MT', float_pricing_convention: 'LME', received_at: '2026-01-01' },
+				timestamp: '2026-01-01T00:00:00Z',
+				seq: 2,
+			});
+
+			expect(handler).toHaveBeenCalledTimes(1);
+		});
+
 		it('ignores malformed JSON messages', () => {
 			connectAndAuth();
 			mockWsInstance!.onmessage?.(new MessageEvent('message', { data: '{not json}' }));
@@ -282,6 +313,41 @@ describe('WsStore', () => {
 
 			expect(wsStore.isPollingFallback).toBe(true);
 			expect(pollCb).toHaveBeenCalled();
+		});
+
+		it('dismisses polling notification on reconnect', async () => {
+			const notifMod = await import('./notifications.svelte');
+			const notifMock = notifMod.notifications as unknown as {
+				warning: ReturnType<typeof vi.fn>;
+				remove: ReturnType<typeof vi.fn>;
+			};
+			notifMock.warning.mockReturnValue('poll-notif-123');
+
+			connectAndAuth();
+
+			const pollCb = vi.fn();
+			wsStore.registerPollingCallback('rfq', 'uuid-1', pollCb);
+			wsStore.subscribe('rfq', 'uuid-1');
+
+			// Disconnect and enter polling fallback
+			mockWsInstance!.simulateClose(1006);
+			vi.advanceTimersByTime(1001); // reconnect fires
+			mockWsInstance!.simulateError(); // reconnect fails
+			vi.advanceTimersByTime(5000); // degradation timer
+
+			expect(wsStore.isPollingFallback).toBe(true);
+			expect(notifMock.warning).toHaveBeenCalledWith(
+				'Real-time indisponível — atualizando via polling.',
+				0
+			);
+
+			// Now reconnect succeeds
+			vi.advanceTimersByTime(2001); // next reconnect attempt
+			vi.advanceTimersByTime(1); // onopen setTimeout
+			mockWsInstance!.simulateMessage({ type: 'auth_ack', user: 'test-user' });
+
+			expect(wsStore.isPollingFallback).toBe(false);
+			expect(notifMock.remove).toHaveBeenCalledWith('poll-notif-123');
 		});
 
 		it('stops polling on intentional disconnect', () => {

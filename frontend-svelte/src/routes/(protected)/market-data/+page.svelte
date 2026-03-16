@@ -1,25 +1,28 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatNumber, formatDate } from '$lib/utils/format';
 	import { apiFetch } from '$lib/api/fetch';
 	import EChart from '$lib/components/chart/EChart.svelte';
+	import type { MarketPrice } from '$lib/api/types/entities';
 
-	let prices = $state<any[]>([]);
+	let prices = $state<MarketPrice[]>([]);
 	let isLoading = $state(true);
 	let isIngesting = $state(false);
 	let isRiskManager = $derived(authStore.hasRole('risk_manager'));
+	let abortController: AbortController;
 
-	async function loadPrices() {
+	async function loadPrices(signal?: AbortSignal) {
 		isLoading = true;
 		try {
-			const res = await apiFetch('/market-data/westmetall/aluminum/cash-settlement/prices?limit=90');
+			const res = await apiFetch('/market-data/westmetall/aluminum/cash-settlement/prices?limit=90', { signal });
 			if (res.ok) {
 				const data = await res.json();
 				prices = data.items ?? data;
 			}
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar market data');
 		} finally {
 			isLoading = false;
@@ -45,19 +48,24 @@
 		}
 	}
 
-	onMount(() => loadPrices());
+	onMount(() => {
+		abortController = new AbortController();
+		loadPrices(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 
 	let chartOptions = $derived(() => {
 		if (prices.length === 0) return {};
-		const sorted = [...prices].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+		const sorted = [...prices].sort((a, b) => new Date(a.date ?? '').getTime() - new Date(b.date ?? '').getTime());
 		return {
 			tooltip: { trigger: 'axis' as const },
-			xAxis: { type: 'category' as const, data: sorted.map((p) => p.date) },
+			xAxis: { type: 'category' as const, data: sorted.map((p) => p.date ?? '') },
 			yAxis: { type: 'value' as const, name: 'USD/MT' },
 			series: [{
 				name: 'LME Aluminium',
 				type: 'line' as const,
-				data: sorted.map((p) => p.price ?? p.value),
+				data: sorted.map((p) => p.price ?? p.value ?? 0),
 				smooth: true,
 				itemStyle: { color: '#3b82f6' },
 				areaStyle: { opacity: 0.05 },

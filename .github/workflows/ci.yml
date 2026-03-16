@@ -119,6 +119,12 @@ jobs:
             sleep 2
           done
 
+      - name: Check schema drift
+        working-directory: frontend-svelte
+        run: bash scripts/check-schema-drift.sh
+        env:
+          API_BASE_URL: http://localhost:8000
+
       - name: Build and serve frontend
         working-directory: frontend-svelte
         run: |
@@ -146,28 +152,3 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  schema-drift:
-    # This job requires the backend to be running to fetch /openapi.json.
-    # In a full setup, use docker-compose to start the backend first, or
-    # run this as a separate workflow with service containers.
-    # For now it is best-effort — failures do not block the pipeline.
-    name: "Schema Drift Check"
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    defaults:
-      run:
-        working-directory: frontend-svelte
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend-svelte/package-lock.json
-
-      - run: npm ci
-      - name: Check schema drift
-        run: bash scripts/check-schema-drift.sh
-        env:
-          API_BASE_URL: http://localhost:8000

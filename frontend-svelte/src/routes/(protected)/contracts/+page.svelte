@@ -1,32 +1,40 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatDate, formatNumber } from '$lib/utils/format';
 	import { apiFetch } from '$lib/api/fetch';
+	import type { Contract } from '$lib/api/types/entities';
 
-	let contracts = $state<any[]>([]);
+	let contracts = $state<Contract[]>([]);
 	let isLoading = $state(true);
 	let filterStatus = $state('');
+	let abortController: AbortController;
 
-	async function loadContracts() {
+	async function loadContracts(signal?: AbortSignal) {
 		isLoading = true;
 		try {
 			const params = new URLSearchParams({ limit: '100' });
 			if (filterStatus) params.set('status', filterStatus);
-			const res = await apiFetch(`/contracts?${params}`);
+			const res = await apiFetch(`/contracts?${params}`, { signal });
 			if (res.ok) {
 				const data = await res.json();
 				contracts = data.items ?? data;
 			}
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar contratos');
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	onMount(() => loadContracts());
+	onMount(() => {
+		abortController = new AbortController();
+		loadContracts(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 </script>
 
 <div class="p-6">

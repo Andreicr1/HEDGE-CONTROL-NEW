@@ -34,6 +34,7 @@ from app.schemas.rfq import (
     TradeRankingFailureCode,
     TradeRankingRead,
 )
+from app.api.routes.ws import manager as ws_manager
 from app.services.rfq_service import RFQService
 
 router = APIRouter()
@@ -324,7 +325,7 @@ def reject_rfq(
 
 @router.post("/{rfq_id}/actions/cancel", response_model=RFQRead)
 @limiter.limit(RATE_LIMIT_MUTATION)
-def cancel_rfq(
+async def cancel_rfq(
     rfq_id: UUID,
     payload: RFQCancelRequest,
     request: Request,
@@ -342,6 +343,12 @@ def cancel_rfq(
     session.commit()
     mark_audit_success(request, rfq_id)
     request.state.audit_commit()
+    await ws_manager.broadcast(
+        "rfq",
+        str(rfq_id),
+        "status_changed",
+        {"status": "CLOSED", "reason": "cancelled"},
+    )
     return _build_rfq_read(session, rfq_id)
 
 

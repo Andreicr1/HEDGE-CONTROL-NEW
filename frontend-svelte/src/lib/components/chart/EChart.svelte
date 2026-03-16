@@ -30,7 +30,6 @@
 		LegendComponent,
 		DataZoomComponent,
 	} from 'echarts/components';
-	import { sanitizeChartStrings } from '$lib/utils/sanitize';
 	import type { LinkedChartGroup } from './LinkedChartGroup.svelte';
 
 	use([
@@ -52,8 +51,6 @@
 		group?: LinkedChartGroup;
 		/** Unique ID within the group (required if group is provided) */
 		groupId?: string;
-		/** Sanitize user-generated strings in options to prevent XSS (default: true) */
-		sanitize?: boolean;
 	};
 
 	let {
@@ -62,7 +59,6 @@
 		theme = 'dark',
 		group,
 		groupId,
-		sanitize = true,
 	}: Props = $props();
 
 	let container: HTMLDivElement;
@@ -70,15 +66,11 @@
 	let resizeObserver: ResizeObserver | null = null;
 	let rafId: number | null = null;
 
-	function safeOptions(opts: TradingChartOption): TradingChartOption {
-		return sanitize ? sanitizeChartStrings(opts) : opts;
-	}
-
 	onMount(() => {
 		chart = init(container, theme === 'dark' ? tradingDarkTheme : undefined, {
 			renderer: 'svg',
 		});
-		chart.setOption(safeOptions(options));
+		chart.setOption(options);
 
 		if (group && groupId) {
 			group.register(groupId, chart);
@@ -96,7 +88,7 @@
 
 	$effect(() => {
 		if (chart) {
-			chart.setOption(safeOptions(options), { notMerge: false });
+			chart.setOption(options, { notMerge: false });
 		}
 	});
 

@@ -40,11 +40,13 @@ const STATE_COLORS: Record<string, string> = {
 	CLOSED: 'bg-surface-700 text-surface-400',
 };
 
-export function stateLabel(state: string): string {
+export function stateLabel(state: string | undefined): string {
+	if (!state) return '—';
 	return STATE_LABELS[state] ?? state;
 }
 
-export function stateColor(state: string): string {
+export function stateColor(state: string | undefined): string {
+	if (!state) return 'bg-surface-700 text-surface-400';
 	return STATE_COLORS[state] ?? 'bg-surface-700 text-surface-400';
 }
 
@@ -54,14 +56,17 @@ const INTENT_LABELS: Record<string, string> = {
 	SPREAD: 'Spread',
 };
 
-export function intentLabel(intent: string): string {
+export function intentLabel(intent: string | undefined): string {
+	if (!intent) return '—';
 	return INTENT_LABELS[intent] ?? intent;
 }
 
-export function directionLabel(direction: string): string {
+export function directionLabel(direction: string | undefined): string {
+	if (!direction) return '—';
 	return direction === 'BUY' ? 'Compra' : 'Venda';
 }
 
-export function directionColor(direction: string): string {
+export function directionColor(direction: string | undefined): string {
+	if (!direction) return 'text-surface-400';
 	return direction === 'BUY' ? 'text-success' : 'text-danger';
 }

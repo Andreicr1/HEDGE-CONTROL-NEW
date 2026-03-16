@@ -4,6 +4,7 @@
 	import { formatNumber } from '$lib/utils/format';
 	import { apiFetch } from '$lib/api/fetch';
 	import EChart from '$lib/components/chart/EChart.svelte';
+	import type { WhatIfResult } from '$lib/api/types/entities';
 
 	// Only risk_manager and auditor
 	let allowed = $derived(authStore.hasAnyRole('risk_manager', 'auditor'));
@@ -12,7 +13,7 @@
 	let priceShock = $state(0);
 	let volumeChange = $state(0);
 	let commodity = $state('ALUMINIUM');
-	let result = $state<any>(null);
+	let result = $state<WhatIfResult | null>(null);
 	let isRunning = $state(false);
 
 	async function runScenario() {
@@ -40,9 +41,10 @@
 	}
 
 	let chartOptions = $derived.by(() => {
-		if (!result) return {};
-		const base = result.base ?? {};
-		const scenario = result.scenario ?? {};
+		const r = result;
+		if (!r) return {};
+		const base = r.base ?? {};
+		const scenario = r.scenario ?? {};
 		const categories = Object.keys(base).length > 0 ? Object.keys(base) : ['P&L'];
 
 		return {
@@ -54,13 +56,13 @@
 				{
 					name: 'Base',
 					type: 'bar' as const,
-					data: categories.map((k) => base[k] ?? result.base_pnl ?? 0),
+					data: categories.map((k) => base[k] ?? r.base_pnl ?? 0),
 					itemStyle: { color: '#64748b' },
 				},
 				{
 					name: 'Cenário',
 					type: 'bar' as const,
-					data: categories.map((k) => scenario[k] ?? result.scenario_pnl ?? 0),
+					data: categories.map((k) => scenario[k] ?? r.scenario_pnl ?? 0),
 					itemStyle: { color: '#f59e0b' },
 				},
 			],

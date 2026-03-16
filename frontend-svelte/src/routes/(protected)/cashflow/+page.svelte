@@ -1,25 +1,27 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatNumber, formatDate } from '$lib/utils/format';
 	import { apiFetch } from '$lib/api/fetch';
 	import { type ColumnDef } from '@tanstack/table-core';
 	import DataTable from '$lib/components/table/DataTable.svelte';
+	import type { CashflowAnalyticsEntry, CashflowProjection, CashflowLedgerEntry, CashflowSummary } from '$lib/api/types/entities';
 
 	let activeTab = $state<'analytics' | 'projections' | 'ledger'>('analytics');
 	let isLoading = $state(true);
 
 	// Data
-	let analytics = $state<any[]>([]);
-	let projections = $state<any[]>([]);
-	let ledger = $state<any[]>([]);
-	let summary = $state<any>(null);
+	let analytics = $state<CashflowAnalyticsEntry[]>([]);
+	let projections = $state<CashflowProjection[]>([]);
+	let ledger = $state<CashflowLedgerEntry[]>([]);
+	let summary = $state<CashflowSummary | null>(null);
 
 	// Date filter
 	let dateFrom = $state('');
 	let dateTo = $state('');
+	let abortController: AbortController;
 
-	async function loadData() {
+	async function loadData(signal?: AbortSignal) {
 		isLoading = true;
 		try {
 			const params = new URLSearchParams();
@@ -28,9 +30,9 @@
 			const qs = params.toString() ? `?${params}` : '';
 
 			const [analyticsRes, projectionsRes, ledgerRes] = await Promise.all([
-				apiFetch(`/cashflow/analytics${qs}`),
-				apiFetch(`/cashflow/projections${qs}`),
-				apiFetch(`/cashflow/ledger${qs}`),
+				apiFetch(`/cashflow/analytics${qs}`, { signal }),
+				apiFetch(`/cashflow/projections${qs}`, { signal }),
+				apiFetch(`/cashflow/ledger${qs}`, { signal }),
 			]);
 
 			if (analyticsRes.ok) {
@@ -46,14 +48,20 @@
 				const data = await ledgerRes.json();
 				ledger = data.items ?? data;
 			}
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar cashflow');
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	onMount(() => loadData());
+	onMount(() => {
+		abortController = new AbortController();
+		loadData(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 
 	// ─── Ledger Columns ─────────────────────────────────────────────────
 	const ledgerColumns: ColumnDef<any, any>[] = [
@@ -136,7 +144,7 @@
 			<label class="block text-xs text-surface-500" for="cf-to">Até</label>
 			<input id="cf-to" type="date" bind:value={dateTo} class="rounded border border-surface-700 bg-surface-800 px-2 py-1 text-sm text-surface-200" />
 		</div>
-		<button onclick={loadData} class="rounded border border-surface-700 px-3 py-1 text-sm text-surface-400 hover:bg-surface-800">
+		<button onclick={() => loadData()} class="rounded border border-surface-700 px-3 py-1 text-sm text-surface-400 hover:bg-surface-800">
 			Filtrar
 		</button>
 	</div>

@@ -1,28 +1,36 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { apiFetch } from '$lib/api/fetch';
+	import type { Counterparty } from '$lib/api/types/entities';
 
 	const cpId = $derived(page.params.id ?? '');
-	let cp = $state<any>(null);
+	let cp = $state<Counterparty | null>(null);
 	let isLoading = $state(true);
+	let abortController: AbortController;
 
-	async function loadCounterparty() {
+	async function loadCounterparty(signal?: AbortSignal) {
 		isLoading = true;
 		try {
-			const res = await apiFetch(`/counterparties/${cpId}`);
+			const res = await apiFetch(`/counterparties/${cpId}`, { signal });
 			if (res.ok) cp = await res.json();
 			else if (res.status === 404) goto('/counterparties');
-		} catch {
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			notifications.error('Erro ao carregar contraparte');
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	onMount(() => loadCounterparty());
+	onMount(() => {
+		abortController = new AbortController();
+		loadCounterparty(abortController.signal);
+	});
+
+	onDestroy(() => { abortController?.abort(); });
 </script>
 
 <div class="p-6">
