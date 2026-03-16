@@ -341,7 +341,7 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
   - Include `created_contract_ids: list[str]` in award response body
 - [x] Fix N+1 query in RFQ list endpoint (lines 84-92): add `joinedload(RFQ.invitations)` to eliminate 50 extra queries per page load
 - [x] Register WS route in `main.py`
-- [ ] Tests for WS endpoint (connection, first-message auth, subscribe/ack, event broadcast)
+- [x] Tests for WS endpoint (connection, first-message auth, subscribe/ack, event broadcast)
 
 ##### 1B: Frontend — WebSocket Infrastructure
 
@@ -759,22 +759,22 @@ Budget: < 200KB gzipped. **Achievable** with SVGRenderer and deferred Brush/Tool
 
 ##### 5A: Testing
 
-- [ ] Unit tests: Vitest for stores, services, utilities
-- [ ] Component tests: Vitest + `@testing-library/svelte`
-- [ ] WebSocket tests: Mock WS server for store behavior (connect, auth, subscribe, reconnect, event dispatch)
+- [x] Unit tests: Vitest for stores, services, utilities
+- [x] Component tests: Vitest + `@testing-library/svelte`
+- [x] WebSocket tests: Mock WS server for store behavior (connect, auth, subscribe, reconnect, event dispatch)
 - [ ] E2E: Playwright for critical flows (RFQ creation → award → contract, login → dashboard)
-- [ ] API contract tests: CI runs `openapi-typescript`, diffs against committed `schema.d.ts`. Fail if changed.
+- [x] API contract tests: CI runs `openapi-typescript`, diffs against committed `schema.d.ts`. Fail if changed.
 
 ##### 5B: CI/CD
 
-- [ ] GitHub Actions:
+- [x] GitHub Actions:
   - `npm run check` (svelte-check + TypeScript)
   - `npm run test`
   - `npm run build`
   - Schema drift detection (diff committed types)
   - Playwright E2E against docker-compose
-- [ ] Docker image build + push to ACR
-- [ ] Azure Container Apps deployment config
+- [x] Docker image build + push to ACR
+- [x] Azure Container Apps deployment config
 
 ##### 5C: Performance Budget (revised)
 
