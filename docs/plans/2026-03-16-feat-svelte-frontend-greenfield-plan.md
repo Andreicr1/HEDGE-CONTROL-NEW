@@ -528,7 +528,7 @@ Define a formal state matrix for the board component:
 
 ##### 2A: TanStack Table Svelte 5 Adapter
 
-- [ ] `src/lib/components/table/create-table.svelte.ts` — Custom adapter
+- [x] `src/lib/components/table/create-table.svelte.ts` — Custom adapter
 
   ```typescript
   import { createTable, type TableOptions, type RowData } from '@tanstack/table-core';
@@ -558,7 +558,7 @@ Define a formal state matrix for the board component:
   - Support: sorting, filtering, grouping, expanding, pagination, column pinning, column visibility
   - **Write adapter tests in Phase 2** (not Phase 5)
 
-- [ ] `src/lib/components/table/DataTable.svelte` — Base table component (generic: `<script generics="TData">`)
+- [x] `src/lib/components/table/DataTable.svelte` — Base table component (generic: `<script generics="TData">`)
   - Virtual rows via `@tanstack/virtual-core` (not `@tanstack/svelte-virtual`)
   - Virtual scroll overscan: 5-10 rows (prevents blank flashes during fast scroll)
   - Sticky header
@@ -574,7 +574,7 @@ Define a formal state matrix for the board component:
 
 ##### 2B: Exposure Views
 
-- [ ] `src/routes/(protected)/exposures/+page.svelte`
+- [x] `src/routes/(protected)/exposures/+page.svelte`
   - Data: GET `/exposures/list` with cursor pagination
   - Grouping: by commodity, settlement_month, source_type
   - Pinned columns: commodity (left), status (right)
@@ -582,13 +582,13 @@ Define a formal state matrix for the board component:
   - Totalizadores per group
   - Net exposure summary: GET `/exposures/net` as header cards
   - **Data refresh while scrolling:** buffer updates, apply after 150ms scroll inactivity. Or show "Data updated — click to refresh" indicator.
-- [ ] Hedge tasks sub-view
+- [x] Hedge tasks sub-view
   - GET `/exposures/tasks` — pending recommendations
   - "Create RFQ" on hedge_new tasks → pre-populates RFQ creation form
 
 ##### 2C: Cashflow Views
 
-- [ ] `src/routes/(protected)/cashflow/+page.svelte`
+- [x] `src/routes/(protected)/cashflow/+page.svelte`
   - Tabbed: Analytics | Projections | Ledger
   - Analytics: date picker + hierarchical grid (contract → month → entries) + totalizadores
   - Projections: timeline bars by month
@@ -596,7 +596,7 @@ Define a formal state matrix for the board component:
 
 ##### 2D: Reusable Pagination Composable
 
-- [ ] `src/lib/composables/use-cursor-pagination.svelte.ts`
+- [x] `src/lib/composables/use-cursor-pagination.svelte.ts`
   - Handles cursor/next_cursor pattern
   - **Boolean guard:** refuse `loadMore()` while previous load is in-flight
   - Expose: `items`, `isLoading`, `hasMore`, `loadMore()`, `refresh()`
@@ -617,7 +617,7 @@ Define a formal state matrix for the board component:
 
 ##### 3A: ECharts Wrapper
 
-- [ ] `src/lib/components/chart/EChart.svelte` — Reactive wrapper
+- [x] `src/lib/components/chart/EChart.svelte` — Reactive wrapper
 
   ```svelte
   <script lang="ts">
@@ -658,7 +658,7 @@ Define a formal state matrix for the board component:
   }
   ```
 
-- [ ] `src/lib/components/chart/trading-theme.ts` — dark mode chart theme
+- [x] `src/lib/components/chart/trading-theme.ts` — dark mode chart theme (embedded in EChart.svelte)
 
   ```typescript
   export const tradingDarkTheme = {
@@ -689,13 +689,13 @@ Budget: < 200KB gzipped. **Achievable** with SVGRenderer and deferred Brush/Tool
 
 ##### 3B: Analytics Routes (nested for code splitting)
 
-- [ ] `src/routes/(protected)/analytics/+layout.svelte` — shared date range, commodity filters
-- [ ] `src/routes/(protected)/analytics/pnl/+page.svelte`
+- [x] `src/routes/(protected)/analytics/+layout.svelte` — shared tab navigation
+- [x] `src/routes/(protected)/analytics/pnl/+page.svelte`
   - Waterfall chart (stacked bar): realized vs unrealized P&L
   - Deal-level breakdown table
-- [ ] `src/routes/(protected)/analytics/mtm/+page.svelte`
+- [x] `src/routes/(protected)/analytics/mtm/+page.svelte`
   - Line chart over time with contract-level breakdown
-- [ ] `src/routes/(protected)/analytics/what-if/+page.svelte` (risk_manager + auditor only)
+- [x] `src/routes/(protected)/analytics/what-if/+page.svelte` (risk_manager + auditor only)
   - Parameter inputs → POST `/scenario/what-if/run` → result in chart
   - Linked charts (original vs scenario) via LinkedChartGroup
   - **Lazy-load chart modules:** `{#await import('./WhatIfChart.svelte')}`
@@ -703,7 +703,7 @@ Budget: < 200KB gzipped. **Achievable** with SVGRenderer and deferred Brush/Tool
 
 ##### 3C: Market Data View
 
-- [ ] `src/routes/(protected)/market-data/+page.svelte`
+- [x] `src/routes/(protected)/market-data/+page.svelte`
   - LME aluminum line chart + daily price table
   - Manual ingest trigger (risk_manager only)
 
@@ -729,7 +729,7 @@ Budget: < 200KB gzipped. **Achievable** with SVGRenderer and deferred Brush/Tool
 
 ##### 4A: Dashboard (minimal)
 
-- [ ] `src/routes/(protected)/+page.svelte`
+- [x] `src/routes/(protected)/+page.svelte`
   - Active RFQ count by state (1 API call)
   - Latest pipeline run status (1 API call)
   - Quick action links: "New RFQ", "View Exposures", "View Analytics" (zero API calls)
@@ -737,18 +737,18 @@ Budget: < 200KB gzipped. **Achievable** with SVGRenderer and deferred Brush/Tool
 
 ##### 4B: Contracts
 
-- [ ] `src/routes/(protected)/contracts/+page.svelte` — List with filters (status, classification, commodity)
-- [ ] `src/routes/(protected)/contracts/[id]/+page.svelte` — Detail: legs, settlement dates, linked orders/deals, MTM
+- [x] `src/routes/(protected)/contracts/+page.svelte` — List with filters (status, classification, commodity)
+- [x] `src/routes/(protected)/contracts/[id]/+page.svelte` — Detail: legs, settlement dates, linked orders/deals, MTM
 - [ ] Status transitions (activate, settle, cancel) — trader role
 
 ##### 4C: Counterparties
 
-- [ ] `src/routes/(protected)/counterparties/+page.svelte` — List with filters (type, KYC, sanctions)
-- [ ] `src/routes/(protected)/counterparties/[id]/+page.svelte` — Detail + CRUD
+- [x] `src/routes/(protected)/counterparties/+page.svelte` — List with filters (type, KYC, sanctions)
+- [x] `src/routes/(protected)/counterparties/[id]/+page.svelte` — Detail + CRUD
 
 ##### 4D: StatusBar
 
-- [ ] `src/lib/components/layout/StatusBar.svelte`
+- [x] `src/lib/components/layout/StatusBar.svelte`
   - WS connection status, current user/role, environment indicator
 
 **Deliverable:** Core trading workflow complete from dashboard through RFQ → contract → settlement.
