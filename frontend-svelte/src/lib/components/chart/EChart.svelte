@@ -103,9 +103,9 @@
 	});
 
 	const tradingDarkTheme = {
-		color: ['#00c087', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6'],
+		color: ['#3fb950', '#f85149', '#c9a84c', '#58a6ff', '#26a88f'],
 		backgroundColor: 'transparent',
-		textStyle: { color: '#94a3b8' },
+		textStyle: { color: '#8b949e' },
 	};
 </script>
 

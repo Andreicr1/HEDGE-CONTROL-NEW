@@ -1,32 +1,38 @@
 @import 'tailwindcss';
 
 @theme {
-	/* Surface */
-	--color-surface-50: #f8fafc;
-	--color-surface-100: #f1f5f9;
-	--color-surface-200: #e2e8f0;
-	--color-surface-300: #cbd5e1;
-	--color-surface-400: #94a3b8;
-	--color-surface-500: #64748b;
-	--color-surface-600: #475569;
-	--color-surface-700: #334155;
-	--color-surface-800: #1e293b;
-	--color-surface-900: #0f172a;
-	--color-surface-950: #020617;
+	/* Base surfaces — trading dark (GitHub Dark-inspired) */
+	--color-surface-50: #e6edf3;
+	--color-surface-100: #c9d1d9;
+	--color-surface-200: #b1bac4;
+	--color-surface-300: #8b949e;
+	--color-surface-400: #6e7681;
+	--color-surface-500: #484f58;
+	--color-surface-600: #30363d;
+	--color-surface-700: #21262d;
+	--color-surface-800: #161b22;
+	--color-surface-900: #0d1117;
+	--color-surface-950: #090c10;
+
+	/* Brand accents */
+	--color-accent: #c9a84c;
+	--color-accent-hover: #b8953f;
+	--color-gold: #c9a84c;
+	--color-teal: #1a7f6e;
+	--color-teal-bright: #26a88f;
 
 	/* Trading semantic colors */
-	--color-accent: #3b82f6;
-	--color-accent-hover: #2563eb;
-	--color-success: #00c087;
-	--color-success-hover: #00a070;
-	--color-danger: #ef4444;
-	--color-danger-hover: #dc2626;
-	--color-warning: #f59e0b;
-	--color-warning-hover: #d97706;
+	--color-success: #3fb950;
+	--color-success-hover: #2ea043;
+	--color-danger: #f85149;
+	--color-danger-hover: #da3633;
+	--color-warning: #e3b341;
+	--color-warning-hover: #d29922;
+	--color-blue: #58a6ff;
 
-	/* Typography */
-	--font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-	--font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+	/* Typography — IBM Plex (no Inter slop) */
+	--font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+	--font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
 }
 
 /* Dark mode defaults */
