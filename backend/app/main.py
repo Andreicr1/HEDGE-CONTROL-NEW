@@ -10,7 +10,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from app.core.auth import get_auth_settings
+from app.core.auth import get_auth_settings, validate_auth_config
 from app.core.config import get_settings
 from app.core.database import engine
 from app.core.logging import configure_logging, get_logger
@@ -39,6 +39,8 @@ from app.api.routes import (
 
 configure_logging()
 logger = get_logger()
+
+validate_auth_config()
 
 
 @asynccontextmanager
@@ -139,8 +141,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_allow_origins,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Trace-Id"],
 )
 
 instrumentator = Instrumentator()

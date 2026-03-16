@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -13,6 +14,8 @@ from jose import JWTError, jwt
 
 JWKS_CACHE_TTL_SECONDS = 300
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class AuthSettings:
@@ -23,6 +26,20 @@ class AuthSettings:
 
 def _auth_enabled() -> bool:
     return bool(os.getenv("JWT_ISSUER"))
+
+
+def validate_auth_config() -> None:
+    """Call at startup. Fails if auth is disabled in production without explicit opt-out."""
+    if _auth_enabled():
+        return
+    if os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes"):
+        logger.warning("Authentication is explicitly disabled via AUTH_DISABLED")
+        return
+    env = os.getenv("ENVIRONMENT", "").lower()
+    if env in ("production", "prod"):
+        raise RuntimeError(
+            "JWT_ISSUER is empty in production. Set JWT_ISSUER or explicitly set AUTH_DISABLED=true."
+        )
 
 
 def get_auth_settings() -> AuthSettings | None:
@@ -126,7 +143,7 @@ def get_current_user(
         payload = jwt.decode(
             token,
             jwk,
-            algorithms=[header.get("alg", "RS256")],
+            algorithms=["RS256"],
             audience=settings.audience,
             issuer=settings.issuer,
         )
