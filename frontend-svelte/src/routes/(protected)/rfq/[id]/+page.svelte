@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -37,7 +36,15 @@
 	let rankingController: AbortController | null = null;
 	let isRankingStale = $state(false);
 
+	// ─── Helpers ────────────────────────────────────────────────────────
+	function parseContractIds(raw: string | null | undefined): string[] {
+		if (!raw) return [];
+		try { return JSON.parse(raw); } catch { return []; }
+	}
+
 	// ─── Data Fetching ──────────────────────────────────────────────────
+	let loadGeneration = 0;
+
 	async function apiFetch(path: string, init?: RequestInit) {
 		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 		const authHeader = authStore.getAuthHeader();
@@ -46,6 +53,7 @@
 	}
 
 	async function loadAll() {
+		const gen = ++loadGeneration;
 		isLoading = true;
 		try {
 			const [rfqRes, quotesRes, eventsRes] = await Promise.all([
@@ -53,6 +61,8 @@
 				apiFetch(`/rfqs/${rfqId}/quotes`),
 				apiFetch(`/rfqs/${rfqId}/state-events`),
 			]);
+
+			if (gen !== loadGeneration) return; // Superseded by newer call
 
 			if (!rfqRes.ok) {
 				if (rfqRes.status === 404) { goto('/rfq'); return; }
@@ -69,9 +79,10 @@
 				await fetchRanking();
 			}
 		} catch (e) {
+			if (gen !== loadGeneration) return;
 			notifications.error('Erro ao carregar dados da RFQ');
 		} finally {
-			isLoading = false;
+			if (gen === loadGeneration) isLoading = false;
 		}
 	}
 
@@ -101,73 +112,6 @@
 	}
 
 	// ─── WebSocket Handlers ─────────────────────────────────────────────
-	let unsubWs: (() => void) | null = null;
-	let unsubQuote: (() => void) | null = null;
-	let unsubStatus: (() => void) | null = null;
-	let unsubInvDelivered: (() => void) | null = null;
-	let unsubInvFailed: (() => void) | null = null;
-
-	function setupWsHandlers() {
-		unsubWs = wsStore.subscribe('rfq', rfqId);
-
-		unsubQuote = wsStore.on('quote_received', (event: QuoteReceivedEvent) => {
-			if (event.rfq_id !== rfqId) return;
-			// Add new quote to list
-			quotes = [...quotes, {
-				id: event.data.quote_id,
-				counterparty_id: event.data.counterparty_id,
-				fixed_price_value: event.data.fixed_price_value,
-				fixed_price_unit: event.data.fixed_price_unit,
-				float_pricing_convention: event.data.float_pricing_convention,
-				received_at: event.data.received_at,
-				_isNew: true,
-			}];
-			debouncedRankingFetch();
-		});
-
-		unsubStatus = wsStore.on('status_changed', (event: StatusChangedEvent) => {
-			if (event.rfq_id !== rfqId) return;
-			if (operationInFlight) return; // HTTP response is authority
-			rfq = { ...rfq, state: event.data.to_state };
-			if (['AWARDED', 'CLOSED'].includes(event.data.to_state)) {
-				boardMode = 'IDLE';
-				notifications.info('RFQ atualizada por outro usuário');
-				loadAll(); // Full refresh
-			}
-		});
-
-		unsubInvDelivered = wsStore.on('invitation_delivered', (event: InvitationDeliveredEvent) => {
-			if (event.rfq_id !== rfqId) return;
-			invitations = invitations.map((inv) =>
-				inv.id === event.data.invitation_id
-					? { ...inv, send_status: 'sent' }
-					: inv
-			);
-		});
-
-		unsubInvFailed = wsStore.on('invitation_failed', (event: InvitationFailedEvent) => {
-			if (event.rfq_id !== rfqId) return;
-			invitations = invitations.map((inv) =>
-				inv.id === event.data.invitation_id
-					? { ...inv, send_status: 'failed' }
-					: inv
-			);
-		});
-
-		// Register polling fallback
-		wsStore.registerPollingCallback('rfq', rfqId, () => loadAll());
-	}
-
-	function cleanupWs() {
-		unsubWs?.();
-		unsubQuote?.();
-		unsubStatus?.();
-		unsubInvDelivered?.();
-		unsubInvFailed?.();
-		wsStore.unregisterPollingCallback('rfq', rfqId);
-		if (rankingDebounce) clearTimeout(rankingDebounce);
-		rankingController?.abort();
-	}
 
 	// ─── Actions ────────────────────────────────────────────────────────
 	async function awardRfq() {
@@ -287,13 +231,72 @@
 	);
 
 	// ─── Lifecycle ──────────────────────────────────────────────────────
-	onMount(() => {
-		loadAll();
-		setupWsHandlers();
-	});
+	$effect(() => {
+		const id = rfqId; // track dependency
+		if (!id) return;
 
-	onDestroy(() => {
-		cleanupWs();
+		loadAll();
+
+		const unsubWs = wsStore.subscribe('rfq', id);
+
+		const unsubQuote = wsStore.on('quote_received', (event: QuoteReceivedEvent) => {
+			if (operationInFlight) return;
+			if (event.rfq_id !== id) return;
+			// Add new quote to list
+			quotes = [...quotes, {
+				id: event.data.quote_id,
+				counterparty_id: event.data.counterparty_id,
+				fixed_price_value: event.data.fixed_price_value,
+				fixed_price_unit: event.data.fixed_price_unit,
+				float_pricing_convention: event.data.float_pricing_convention,
+				received_at: event.data.received_at,
+				_isNew: true,
+			}];
+			debouncedRankingFetch();
+		});
+
+		const unsubStatus = wsStore.on('status_changed', (event: StatusChangedEvent) => {
+			if (operationInFlight) return; // HTTP response is authority
+			if (event.rfq_id !== id) return;
+			rfq = { ...rfq, state: event.data.to_state };
+			if (['AWARDED', 'CLOSED'].includes(event.data.to_state)) {
+				boardMode = 'IDLE';
+				notifications.info('RFQ atualizada por outro usuário');
+				loadAll(); // Full refresh
+			}
+		});
+
+		const unsubInvDelivered = wsStore.on('invitation_delivered', (event: InvitationDeliveredEvent) => {
+			if (event.rfq_id !== id) return;
+			invitations = invitations.map((inv) =>
+				inv.id === event.data.invitation_id
+					? { ...inv, send_status: 'sent' }
+					: inv
+			);
+		});
+
+		const unsubInvFailed = wsStore.on('invitation_failed', (event: InvitationFailedEvent) => {
+			if (event.rfq_id !== id) return;
+			invitations = invitations.map((inv) =>
+				inv.id === event.data.invitation_id
+					? { ...inv, send_status: 'failed' }
+					: inv
+			);
+		});
+
+		// Register polling fallback
+		wsStore.registerPollingCallback('rfq', id, () => loadAll());
+
+		return () => {
+			unsubWs();
+			unsubQuote();
+			unsubStatus();
+			unsubInvDelivered();
+			unsubInvFailed();
+			wsStore.unregisterPollingCallback('rfq', id);
+			if (rankingDebounce) clearTimeout(rankingDebounce);
+			rankingController?.abort();
+		};
 	});
 </script>
 
@@ -491,7 +494,7 @@
 						{#each stateEvents as evt}
 							{#if evt.created_contract_ids}
 								<div class="mt-2">
-									{#each JSON.parse(evt.created_contract_ids) as contractId}
+									{#each parseContractIds(evt.created_contract_ids) as contractId}
 										<a
 											href="/contracts/{contractId}"
 											class="text-sm text-accent hover:underline"

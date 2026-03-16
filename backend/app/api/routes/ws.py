@@ -176,6 +176,42 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     """Main WebSocket handler with first-message authentication."""
     await manager.connect(ws)
     try:
+        # First message must arrive within 10 seconds to prevent
+        # unauthenticated clients from holding connections open.
+        try:
+            raw = await asyncio.wait_for(ws.receive_text(), timeout=10.0)
+        except asyncio.TimeoutError:
+            await ws.close(code=1008, reason="Authentication timeout")
+            await manager.disconnect(ws)
+            return
+
+        # Process the first message — must be a valid authenticate action
+        try:
+            msg = json.loads(raw)
+        except json.JSONDecodeError:
+            await ws.send_text(json.dumps({"type": "error", "reason": "invalid_json"}))
+            await ws.close(code=1008, reason="Authentication required")
+            await manager.disconnect(ws)
+            return
+
+        action = msg.get("action")
+        if action != "authenticate":
+            await ws.close(code=1008, reason="Authentication required")
+            await manager.disconnect(ws)
+            return
+
+        token = msg.get("token", "")
+        if await manager.authenticate(ws, token):
+            user = manager.get_user(ws)
+            await ws.send_text(
+                json.dumps({"type": "auth_ack", "user": user.get("sub", "") if user else ""})
+            )
+        else:
+            await ws.close(code=1008, reason="Invalid token")
+            await manager.disconnect(ws)
+            return
+
+        # Authenticated — enter the main message loop
         while True:
             raw = await ws.receive_text()
             try:
@@ -185,22 +221,6 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 continue
 
             action = msg.get("action")
-
-            if not manager.is_authenticated(ws):
-                # First message must be authenticate
-                if action != "authenticate":
-                    await ws.close(code=1008, reason="Authentication required")
-                    return
-                token = msg.get("token", "")
-                if await manager.authenticate(ws, token):
-                    user = manager.get_user(ws)
-                    await ws.send_text(
-                        json.dumps({"type": "auth_ack", "user": user.get("sub", "") if user else ""})
-                    )
-                else:
-                    await ws.close(code=1008, reason="Invalid token")
-                    return
-                continue
 
             # Authenticated — handle actions
             if action == "subscribe":

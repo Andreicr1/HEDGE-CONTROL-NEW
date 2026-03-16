@@ -73,6 +73,23 @@ describe('isControlMessage', () => {
 		expect(isControlMessage({ event: 'quote_received' })).toBe(false);
 	});
 
+	it('validates error message', () => {
+		expect(isControlMessage({ type: 'error', reason: 'fail' })).toBe(true);
+	});
+
+	it('accepts all known control types', () => {
+		const types = ['auth_ack', 'subscription_ack', 'subscription_error', 'error'];
+		for (const type of types) {
+			expect(isControlMessage({ type })).toBe(true);
+		}
+	});
+
+	it('rejects unknown type values', () => {
+		expect(isControlMessage({ type: 'quote_received' })).toBe(false);
+		expect(isControlMessage({ type: 'unknown_type' })).toBe(false);
+		expect(isControlMessage({ type: 'status_changed' })).toBe(false);
+	});
+
 	it('rejects non-objects', () => {
 		expect(isControlMessage(null)).toBe(false);
 		expect(isControlMessage('string')).toBe(false);

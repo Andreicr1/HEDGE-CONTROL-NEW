@@ -27,7 +27,7 @@
 
 	onMount(() => loadData());
 
-	let chartOptions = $derived(() => {
+	let chartOptions = $derived.by(() => {
 		if (!pnlData?.items && !pnlData?.entries) return {};
 		const entries = pnlData.items ?? pnlData.entries ?? [];
 		return {
@@ -82,7 +82,7 @@
 		</div>
 	</div>
 
-	<EChart options={chartOptions()} style="width:100%;height:400px" />
+	<EChart options={chartOptions} style="width:100%;height:400px" />
 {:else}
 	<div class="text-surface-500">Nenhum dado de P&L disponível</div>
 {/if}

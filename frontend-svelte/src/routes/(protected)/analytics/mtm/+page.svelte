@@ -25,7 +25,7 @@
 
 	onMount(() => loadData());
 
-	let chartOptions = $derived(() => {
+	let chartOptions = $derived.by(() => {
 		if (!mtmData?.items && !mtmData?.entries) return {};
 		const entries = mtmData.items ?? mtmData.entries ?? [];
 		return {
@@ -53,7 +53,7 @@
 {#if isLoading}
 	<div class="text-surface-500">Carregando MTM...</div>
 {:else if mtmData}
-	<EChart options={chartOptions()} style="width:100%;height:450px" />
+	<EChart options={chartOptions} style="width:100%;height:450px" />
 {:else}
 	<div class="text-surface-500">Nenhum dado de MTM disponível</div>
 {/if}

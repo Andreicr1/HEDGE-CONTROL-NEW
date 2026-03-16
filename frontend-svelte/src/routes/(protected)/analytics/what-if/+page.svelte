@@ -45,7 +45,7 @@
 		}
 	}
 
-	let chartOptions = $derived(() => {
+	let chartOptions = $derived.by(() => {
 		if (!result) return {};
 		const base = result.base ?? {};
 		const scenario = result.scenario ?? {};
@@ -123,7 +123,7 @@
 		<!-- Chart -->
 		<div>
 			{#if result}
-				<EChart options={chartOptions()} style="width:100%;height:450px" />
+				<EChart options={chartOptions} style="width:100%;height:450px" />
 			{:else}
 				<div class="flex h-[450px] items-center justify-center text-surface-500">
 					Configure os parâmetros e execute o cenário

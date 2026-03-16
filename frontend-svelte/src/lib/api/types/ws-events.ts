@@ -153,8 +153,10 @@ export type WsControlMessage =
 	| SubscriptionErrorMessage
 	| WsErrorMessage;
 
+const CONTROL_TYPES = new Set(['auth_ack', 'subscription_ack', 'subscription_error', 'error']);
+
 export function isControlMessage(value: unknown): value is WsControlMessage {
 	if (typeof value !== 'object' || value === null) return false;
 	const obj = value as Record<string, unknown>;
-	return typeof obj.type === 'string';
+	return typeof obj.type === 'string' && CONTROL_TYPES.has(obj.type);
 }

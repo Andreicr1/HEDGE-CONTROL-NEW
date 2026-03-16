@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -148,13 +149,17 @@ def test_unknown_action(client):
 # ─── 9. Invalid JSON → error ──────────────────────────────────────
 
 def test_invalid_json_before_auth(client):
-    """Invalid JSON sent as the very first message (pre-auth)."""
+    """Invalid JSON sent as the very first message (pre-auth) closes connection."""
     with _patch_validate_token(VALID_CLAIMS):
-        with client.websocket_connect("/ws") as ws:
-            ws.send_text("not json at all{{{")
-            resp = ws.receive_json()
-            assert resp["type"] == "error"
-            assert resp["reason"] == "invalid_json"
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect("/ws") as ws:
+                ws.send_text("not json at all{{{")
+                resp = ws.receive_json()
+                assert resp["type"] == "error"
+                assert resp["reason"] == "invalid_json"
+                # Connection is closed after error response
+                ws.receive_json()  # triggers disconnect
+        assert exc_info.value.code == 1008
 
 
 def test_invalid_json_after_auth(client):
@@ -252,3 +257,23 @@ def test_sequence_numbers_monotonic(client):
             # First seq should be 1 (counter was reset in fixture)
             assert seqs[0] == 1
             assert seqs[-1] == 5
+
+
+# ─── 13. Auth timeout → close 1008 ──────────────────────────────
+
+def test_auth_timeout_closes_1008(client):
+    """Connection closed with 1008 if first message not sent within timeout."""
+    original_wait_for = asyncio.wait_for
+
+    async def _mock_wait_for(coro, *, timeout=None):
+        """Simulate timeout on the first receive_text call."""
+        # Cancel the coroutine to avoid warnings
+        coro.close()
+        raise asyncio.TimeoutError()
+
+    with _patch_validate_token(VALID_CLAIMS):
+        with patch("asyncio.wait_for", side_effect=_mock_wait_for):
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()  # triggers disconnect
+            assert exc_info.value.code == 1008

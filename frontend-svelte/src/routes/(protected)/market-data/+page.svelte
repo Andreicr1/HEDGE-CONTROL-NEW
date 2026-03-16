@@ -21,7 +21,7 @@
 	async function loadPrices() {
 		isLoading = true;
 		try {
-			const res = await apiFetch('/market-data/westmetall/prices?limit=90');
+			const res = await apiFetch('/market-data/westmetall/aluminum/cash-settlement/prices?limit=90');
 			if (res.ok) {
 				const data = await res.json();
 				prices = data.items ?? data;
@@ -36,7 +36,11 @@
 	async function triggerIngest() {
 		isIngesting = true;
 		try {
-			const res = await apiFetch('/market-data/westmetall/ingest', { method: 'POST' });
+			const res = await apiFetch('/market-data/westmetall/aluminum/cash-settlement/ingest', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ settlement_date: new Date().toISOString().split('T')[0] }),
+			});
 			if (res.ok) {
 				notifications.success('Ingestão iniciada');
 				await loadPrices();
