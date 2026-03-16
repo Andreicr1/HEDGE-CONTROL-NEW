@@ -2,10 +2,9 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
+	import { apiFetch } from '$lib/api/fetch';
 
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 	const cpId = $derived(page.params.id ?? '');
 	let cp = $state<any>(null);
 	let isLoading = $state(true);
@@ -13,10 +12,7 @@
 	async function loadCounterparty() {
 		isLoading = true;
 		try {
-			const headers: Record<string, string> = {};
-			const auth = authStore.getAuthHeader();
-			if (auth) headers['Authorization'] = auth;
-			const res = await fetch(`${API_BASE}/counterparties/${cpId}`, { headers });
+			const res = await apiFetch(`/counterparties/${cpId}`);
 			if (res.ok) cp = await res.json();
 			else if (res.status === 404) goto('/counterparties');
 		} catch {

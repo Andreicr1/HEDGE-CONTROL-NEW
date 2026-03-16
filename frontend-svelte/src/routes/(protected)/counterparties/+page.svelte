@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
+	import { apiFetch } from '$lib/api/fetch';
 
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 	let counterparties = $state<any[]>([]);
 	let isLoading = $state(true);
 	let search = $state('');
@@ -12,10 +11,7 @@
 	async function loadCounterparties() {
 		isLoading = true;
 		try {
-			const headers: Record<string, string> = {};
-			const auth = authStore.getAuthHeader();
-			if (auth) headers['Authorization'] = auth;
-			const res = await fetch(`${API_BASE}/counterparties?limit=200`, { headers });
+			const res = await apiFetch('/counterparties?limit=200');
 			if (res.ok) {
 				const data = await res.json();
 				counterparties = data.items ?? data;

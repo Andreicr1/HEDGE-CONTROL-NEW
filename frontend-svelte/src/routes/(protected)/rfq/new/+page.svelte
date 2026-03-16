@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
-
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+	import { apiFetch } from '$lib/api/fetch';
 
 	// ─── Form State ─────────────────────────────────────────────────────
 	let commodity = $state('ALUMINIUM');
@@ -33,9 +33,7 @@
 	async function fetchCounterparties() {
 		loadingCounterparties = true;
 		try {
-			const response = await fetch(`${API_BASE}/counterparties?limit=200`, {
-				headers: authStore.getAuthHeader() ? { Authorization: authStore.getAuthHeader()! } : {},
-			});
+			const response = await apiFetch('/counterparties?limit=200');
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const data = await response.json();
 			counterparties = data.items ?? data;
@@ -46,7 +44,7 @@
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		fetchCounterparties();
 	});
 
@@ -72,12 +70,8 @@
 	// ─── Preview ────────────────────────────────────────────────────────
 	async function loadPreview() {
 		try {
-			const response = await fetch(`${API_BASE}/rfqs/preview-text`, {
+			const response = await apiFetch('/rfqs/preview-text', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...(authStore.getAuthHeader() ? { Authorization: authStore.getAuthHeader()! } : {}),
-				},
 				body: JSON.stringify({
 					commodity,
 					quantity_mt: quantityMt,
@@ -121,12 +115,8 @@
 				if (sellTradeId) body.sell_trade_id = sellTradeId;
 			}
 
-			const response = await fetch(`${API_BASE}/rfqs`, {
+			const response = await apiFetch('/rfqs', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...(authStore.getAuthHeader() ? { Authorization: authStore.getAuthHeader()! } : {}),
-				},
 				body: JSON.stringify(body),
 			});
 			if (!response.ok) {

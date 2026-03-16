@@ -1,12 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatNumber, formatDate } from '$lib/utils/format';
+	import { apiFetch } from '$lib/api/fetch';
 	import { type ColumnDef } from '@tanstack/table-core';
 	import DataTable from '$lib/components/table/DataTable.svelte';
-
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
 	let activeTab = $state<'analytics' | 'projections' | 'ledger'>('analytics');
 	let isLoading = $state(true);
@@ -20,13 +18,6 @@
 	// Date filter
 	let dateFrom = $state('');
 	let dateTo = $state('');
-
-	async function apiFetch(path: string) {
-		const headers: Record<string, string> = {};
-		const auth = authStore.getAuthHeader();
-		if (auth) headers['Authorization'] = auth;
-		return fetch(`${API_BASE}${path}`, { headers });
-	}
 
 	async function loadData() {
 		isLoading = true;

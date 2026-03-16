@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatDate, formatNumber } from '$lib/utils/format';
+	import { apiFetch } from '$lib/api/fetch';
 
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 	let contracts = $state<any[]>([]);
 	let isLoading = $state(true);
 	let filterStatus = $state('');
@@ -15,10 +14,7 @@
 		try {
 			const params = new URLSearchParams({ limit: '100' });
 			if (filterStatus) params.set('status', filterStatus);
-			const headers: Record<string, string> = {};
-			const auth = authStore.getAuthHeader();
-			if (auth) headers['Authorization'] = auth;
-			const res = await fetch(`${API_BASE}/contracts?${params}`, { headers });
+			const res = await apiFetch(`/contracts?${params}`);
 			if (res.ok) {
 				const data = await res.json();
 				contracts = data.items ?? data;

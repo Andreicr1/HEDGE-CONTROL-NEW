@@ -5,8 +5,7 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatDate, formatNumber } from '$lib/utils/format';
-
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+	import { apiFetch } from '$lib/api/fetch';
 	const contractId = $derived(page.params.id ?? '');
 	let contract = $state<any>(null);
 	let isLoading = $state(true);
@@ -48,20 +47,10 @@
 	);
 	const isTrader = $derived(authStore.hasRole('trader'));
 
-	function getHeaders(): Record<string, string> {
-		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-		const auth = authStore.getAuthHeader();
-		if (auth) headers['Authorization'] = auth;
-		return headers;
-	}
-
 	async function loadContract() {
 		isLoading = true;
 		try {
-			const headers: Record<string, string> = {};
-			const auth = authStore.getAuthHeader();
-			if (auth) headers['Authorization'] = auth;
-			const res = await fetch(`${API_BASE}/contracts/${contractId}`, { headers });
+			const res = await apiFetch(`/contracts/${contractId}`);
 			if (res.ok) contract = await res.json();
 			else if (res.status === 404) goto('/contracts');
 		} catch {
@@ -75,9 +64,8 @@
 		confirmAction = null;
 		isTransitioning = true;
 		try {
-			const res = await fetch(`${API_BASE}/contracts/${contractId}/status`, {
+			const res = await apiFetch(`/contracts/${contractId}/status`, {
 				method: 'PATCH',
-				headers: getHeaders(),
 				body: JSON.stringify({ status: targetStatus }),
 			});
 			if (res.ok) {

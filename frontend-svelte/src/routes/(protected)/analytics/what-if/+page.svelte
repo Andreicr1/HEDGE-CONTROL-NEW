@@ -2,9 +2,8 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatNumber } from '$lib/utils/format';
+	import { apiFetch } from '$lib/api/fetch';
 	import EChart from '$lib/components/chart/EChart.svelte';
-
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
 	// Only risk_manager and auditor
 	let allowed = $derived(authStore.hasAnyRole('risk_manager', 'auditor'));
@@ -19,13 +18,8 @@
 	async function runScenario() {
 		isRunning = true;
 		try {
-			const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-			const auth = authStore.getAuthHeader();
-			if (auth) headers['Authorization'] = auth;
-
-			const res = await fetch(`${API_BASE}/scenario/what-if/run`, {
+			const res = await apiFetch('/scenario/what-if/run', {
 				method: 'POST',
-				headers,
 				body: JSON.stringify({
 					price_shock_pct: priceShock,
 					volume_change_pct: volumeChange,

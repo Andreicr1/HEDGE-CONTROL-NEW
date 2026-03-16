@@ -3,20 +3,13 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { formatNumber, formatDate } from '$lib/utils/format';
+	import { apiFetch } from '$lib/api/fetch';
 	import EChart from '$lib/components/chart/EChart.svelte';
 
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 	let prices = $state<any[]>([]);
 	let isLoading = $state(true);
 	let isIngesting = $state(false);
 	let isRiskManager = $derived(authStore.hasRole('risk_manager'));
-
-	async function apiFetch(path: string, init?: RequestInit) {
-		const headers: Record<string, string> = {};
-		const auth = authStore.getAuthHeader();
-		if (auth) headers['Authorization'] = auth;
-		return fetch(`${API_BASE}${path}`, { ...init, headers: { ...headers, ...init?.headers } });
-	}
 
 	async function loadPrices() {
 		isLoading = true;

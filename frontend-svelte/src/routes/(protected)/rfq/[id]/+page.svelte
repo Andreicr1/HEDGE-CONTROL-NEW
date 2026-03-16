@@ -4,6 +4,7 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { wsStore } from '$lib/stores/ws.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
+	import { apiFetch } from '$lib/api/fetch';
 	import {
 		formatDate,
 		formatCurrency,
@@ -15,7 +16,6 @@
 	} from '$lib/utils/format';
 	import type { QuoteReceivedEvent, StatusChangedEvent, InvitationDeliveredEvent, InvitationFailedEvent } from '$lib/api/types/ws-events';
 
-	const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 	const rfqId = $derived(page.params.id ?? '');
 	const isTrader = $derived(authStore.hasRole('trader'));
 
@@ -44,13 +44,6 @@
 
 	// ─── Data Fetching ──────────────────────────────────────────────────
 	let loadGeneration = 0;
-
-	async function apiFetch(path: string, init?: RequestInit) {
-		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-		const authHeader = authStore.getAuthHeader();
-		if (authHeader) headers['Authorization'] = authHeader;
-		return fetch(`${API_BASE}${path}`, { ...init, headers: { ...headers, ...init?.headers } });
-	}
 
 	async function loadAll() {
 		const gen = ++loadGeneration;

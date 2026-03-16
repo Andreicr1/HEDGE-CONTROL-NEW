@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { client } from '$lib/api/client';
+	import { apiFetch } from '$lib/api/fetch';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { wsStore } from '$lib/stores/ws.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
@@ -32,15 +32,7 @@
 			if (filterCommodity) params.commodity = filterCommodity;
 			if (cursor) params.cursor = cursor;
 
-			const response = await fetch(
-				`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/rfqs?` +
-				new URLSearchParams(params),
-				{
-					headers: {
-						...(authStore.getAuthHeader() ? { Authorization: authStore.getAuthHeader()! } : {}),
-					},
-				}
-			);
+			const response = await apiFetch(`/rfqs?${new URLSearchParams(params)}`);
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const data = await response.json();
 
