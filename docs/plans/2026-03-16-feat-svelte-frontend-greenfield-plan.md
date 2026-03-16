@@ -315,7 +315,7 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
 
 ##### 1A: Backend — WebSocket Endpoint + Security Fixes
 
-- [ ] `backend/app/api/routes/ws.py` — WebSocket endpoint
+- [x] `backend/app/api/routes/ws.py` — WebSocket endpoint
   - **Endpoint:** `GET /ws` (global, not per-RFQ)
   - **Auth: First-message authentication** (NOT query param — avoids token leakage in logs):
     ```
@@ -334,18 +334,18 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
   - **Connection manager:** async-compatible class (`asyncio.Lock`, not `threading.Lock`). Tracks active connections + subscriptions. Broadcast filters by subscription.
   - **Integration points:** RFQ service award/reject/refresh → `manager.broadcast()`. RFQ orchestrator → `manager.broadcast()` on quote creation.
   - **Token expiry:** Frontend proactively reconnects with fresh token before expiry. Backend does NOT re-validate after connect (MVP simplification — document this).
-- [ ] Middleware compatibility — extend `_StripApiPrefixMiddleware` in `main.py` to handle WebSocket scope for Azure SWA deployment
-- [ ] `backend/app/api/routes/rfqs.py` — Add missing transitions
+- [x] Middleware compatibility — extend `_StripApiPrefixMiddleware` in `main.py` to handle WebSocket scope for Azure SWA deployment
+- [x] `backend/app/api/routes/rfqs.py` — Add missing transitions
   - CREATED → CLOSED and SENT → CLOSED (cancel action): `POST /rfqs/{rfq_id}/actions/cancel`
-- [ ] `backend/app/api/routes/rfqs.py` — Award response enhancement
+- [x] `backend/app/api/routes/rfqs.py` — Award response enhancement
   - Include `created_contract_ids: list[str]` in award response body
-- [ ] Fix N+1 query in RFQ list endpoint (lines 84-92): add `joinedload(RFQ.invitations)` to eliminate 50 extra queries per page load
-- [ ] Register WS route in `main.py`
+- [x] Fix N+1 query in RFQ list endpoint (lines 84-92): add `joinedload(RFQ.invitations)` to eliminate 50 extra queries per page load
+- [x] Register WS route in `main.py`
 - [ ] Tests for WS endpoint (connection, first-message auth, subscribe/ack, event broadcast)
 
 ##### 1B: Frontend — WebSocket Infrastructure
 
-- [ ] WS event types (`src/lib/api/types/ws-events.ts`) — discriminated union:
+- [x] WS event types (`src/lib/api/types/ws-events.ts`) — discriminated union:
 
   ```typescript
   interface QuoteReceivedEvent extends BaseWsEvent {
@@ -359,7 +359,7 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
   function isWsEvent(value: unknown): value is WsEvent { ... }
   ```
 
-- [ ] `src/lib/stores/ws.svelte.ts` — WebSocket manager (class-based Svelte 5 store)
+- [x] `src/lib/stores/ws.svelte.ts` — WebSocket manager (class-based Svelte 5 store)
   - `status`: `$state<'connecting' | 'open' | 'authenticated' | 'closed' | 'error'>('closed')`
   - **First-message auth:** after `onopen`, send `{"action": "authenticate", "token": "..."}`. Mark as `authenticated` only after server ack.
   - **Subscription buffer:** subscriptions requested before WS is authenticated are buffered and flushed on auth success
@@ -386,7 +386,7 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
       this.#stopPollingFallback();
     }
     ```
-- [ ] Root layout integration
+- [x] Root layout integration
   - Initialize WS in `onMount` of root `+layout.svelte` when authenticated
   - Disconnect on logout / `onDestroy`
   - Show connection status in nav bar (green dot / yellow pulse / red X)
@@ -394,7 +394,7 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
 
 ##### 1C: Frontend — RFQ List
 
-- [ ] `src/routes/(protected)/rfq/+page.svelte`
+- [x] `src/routes/(protected)/rfq/+page.svelte`
   - Table of active RFQs (state, commodity, direction, quantity, counterparty count, quote count, created_at)
   - Filter by state, intent, direction, commodity
   - Cursor-based pagination
@@ -404,7 +404,7 @@ Without this, Vite merges ECharts into the common chunk (shared between `/analyt
 
 ##### 1D: Frontend — RFQ Creation
 
-- [ ] `src/routes/(protected)/rfq/new/+page.svelte`
+- [x] `src/routes/(protected)/rfq/new/+page.svelte`
   - Fields: commodity, quantity_mt, direction, intent, settlement month, counterparties (multi-select)
   - Counterparty picker with search, filter by type/KYC/sanctions
   - Preview WhatsApp text (POST `/rfqs/preview-text`) before submission
@@ -425,7 +425,7 @@ Define a formal state matrix for the board component:
 | RANKING_STALE | Award disabled, others allowed | Yes — but ranking re-fetch pending | Debounced ranking fetch |
 | DISCONNECTED | Read-only | No (WS down) | Yes (with stale data warning) |
 
-- [ ] `src/routes/(protected)/rfq/[id]/+page.svelte` — RFQ detail with trading board
+- [x] `src/routes/(protected)/rfq/[id]/+page.svelte` — RFQ detail with trading board
   - **Layout:** Fixed 3-column CSS Grid (`1fr 2fr 1fr`) — Invitations | Quotes + Ranking | Actions + Timeline. No resizable panels (defer until user feedback requests it).
   - **Per-RFQ state lives at page level** (not global store). Component `onMount` fetches via REST + subscribes to WS topic. `onDestroy` unsubscribes. Avoids stale state when navigating between RFQs.
   - **WS subscription in onMount with cleanup:**
@@ -507,7 +507,7 @@ Define a formal state matrix for the board component:
 
 ##### 1F: Frontend — RFQ Service Layer
 
-- [ ] `src/lib/api/services/rfq.ts` — only if it adds logic beyond forwarding to `openapi-fetch`
+- [x] `src/lib/api/services/rfq.ts` — only if it adds logic beyond forwarding to `openapi-fetch`
   - If service wraps WS subscription alongside REST (e.g., `getBoardState(rfqId)` fetches REST + subscribes WS), keep it
   - If service only maps `rfqService.list()` → `client.GET('/rfqs')`, remove it. Call typed client directly.
 
