@@ -1,0 +1,164 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Helper: create a fake JWT with given payload
+function fakeJwt(payload: Record<string, unknown>): string {
+	const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+	const body = btoa(JSON.stringify(payload));
+	const sig = btoa('fake-signature');
+	return `${header}.${body}.${sig}`;
+}
+
+describe('AuthStore', () => {
+	let authStore: typeof import('./auth.svelte').authStore;
+	let gotoMock: ReturnType<typeof vi.fn>;
+
+	beforeEach(async () => {
+		vi.useFakeTimers();
+		vi.resetModules();
+		// Import fresh goto mock (same instance that auth.svelte will use)
+		const navMod = await import('$app/navigation');
+		gotoMock = navMod.goto as ReturnType<typeof vi.fn>;
+		gotoMock.mockReset();
+		const mod = await import('./auth.svelte');
+		authStore = mod.authStore;
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	describe('login', () => {
+		it('sets authenticated state from valid JWT', () => {
+			const token = fakeJwt({
+				sub: 'user-1',
+				name: 'Test User',
+				roles: ['trader', 'risk_manager'],
+				exp: Math.floor(Date.now() / 1000) + 3600,
+			});
+
+			authStore.login(token);
+
+			expect(authStore.isAuthenticated).toBe(true);
+			expect(authStore.userName).toBe('Test User');
+			expect(authStore.userRoles).toEqual(['trader', 'risk_manager']);
+		});
+
+		it('falls back to sub when name is missing', () => {
+			const token = fakeJwt({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + 3600 });
+			authStore.login(token);
+			expect(authStore.userName).toBe('user-1');
+		});
+
+		it('throws on invalid JWT format', () => {
+			expect(() => authStore.login('not-a-jwt')).toThrow('Invalid token');
+			expect(authStore.isAuthenticated).toBe(false);
+		});
+
+		it('throws on malformed base64 payload', () => {
+			expect(() => authStore.login('a.!!!.c')).toThrow('Invalid token');
+		});
+	});
+
+	describe('logout', () => {
+		it('clears auth state and redirects to /login', () => {
+			const token = fakeJwt({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + 3600 });
+			authStore.login(token);
+			authStore.logout();
+
+			expect(authStore.isAuthenticated).toBe(false);
+			expect(authStore.userName).toBe('');
+			expect(authStore.userRoles).toEqual([]);
+			expect(gotoMock).toHaveBeenCalledWith('/login');
+		});
+
+		it('single-flight: multiple logouts only redirect once', () => {
+			const token = fakeJwt({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + 3600 });
+			authStore.login(token);
+			authStore.logout();
+			authStore.logout();
+			authStore.logout();
+
+			expect(gotoMock).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe('roles', () => {
+		it('hasRole returns true for matching role', () => {
+			const token = fakeJwt({ sub: 'u', roles: ['trader'], exp: Math.floor(Date.now() / 1000) + 3600 });
+			authStore.login(token);
+			expect(authStore.hasRole('trader')).toBe(true);
+			expect(authStore.hasRole('auditor')).toBe(false);
+		});
+
+		it('hasAnyRole checks multiple roles', () => {
+			const token = fakeJwt({ sub: 'u', roles: ['auditor'], exp: Math.floor(Date.now() / 1000) + 3600 });
+			authStore.login(token);
+			expect(authStore.hasAnyRole('trader', 'auditor')).toBe(true);
+			expect(authStore.hasAnyRole('trader', 'risk_manager')).toBe(false);
+		});
+
+		it('defaults to empty roles when not in JWT', () => {
+			const token = fakeJwt({ sub: 'u', exp: Math.floor(Date.now() / 1000) + 3600 });
+			authStore.login(token);
+			expect(authStore.userRoles).toEqual([]);
+		});
+	});
+
+	describe('getAuthHeader', () => {
+		it('returns Bearer token when authenticated', () => {
+			const token = fakeJwt({ sub: 'u', exp: Math.floor(Date.now() / 1000) + 3600 });
+			authStore.login(token);
+			expect(authStore.getAuthHeader()).toBe(`Bearer ${token}`);
+		});
+
+		it('returns null when not authenticated', () => {
+			expect(authStore.getAuthHeader()).toBeNull();
+		});
+	});
+
+	describe('expiry timers', () => {
+		it('shows warning 5min before expiry', () => {
+			const expInSec = Math.floor(Date.now() / 1000) + 600; // 10 min from now
+			const token = fakeJwt({ sub: 'u', exp: expInSec });
+			authStore.login(token);
+
+			expect(authStore.showExpiryWarning).toBe(false);
+
+			// Advance 5min + 1ms — should now be <5min remaining
+			vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+			expect(authStore.showExpiryWarning).toBe(true);
+		});
+
+		it('shows warning immediately when <5min remain', () => {
+			const expInSec = Math.floor(Date.now() / 1000) + 120; // 2min from now
+			const token = fakeJwt({ sub: 'u', exp: expInSec });
+			authStore.login(token);
+
+			expect(authStore.showExpiryWarning).toBe(true);
+		});
+
+		it('auto-logouts on token expiry', () => {
+			const expInSec = Math.floor(Date.now() / 1000) + 60; // 1min from now
+			const token = fakeJwt({ sub: 'u', exp: expInSec });
+			authStore.login(token);
+
+			vi.advanceTimersByTime(60 * 1000 + 1);
+			expect(authStore.isAuthenticated).toBe(false);
+			expect(gotoMock).toHaveBeenCalledWith('/login');
+		});
+
+		it('logouts immediately for expired token', () => {
+			const expInSec = Math.floor(Date.now() / 1000) - 10; // already expired
+			const token = fakeJwt({ sub: 'u', exp: expInSec });
+			authStore.login(token);
+			expect(authStore.isAuthenticated).toBe(false);
+		});
+
+		it('does not set timers when exp is absent', () => {
+			const token = fakeJwt({ sub: 'u' });
+			authStore.login(token);
+			expect(authStore.isAuthenticated).toBe(true);
+			expect(authStore.expiresAt).toBeNull();
+		});
+	});
+});
