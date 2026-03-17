@@ -645,6 +645,33 @@ class RFQService:
         return rfq
 
     @staticmethod
+    def cancel(session: Session, rfq_id: UUID, user_id: str) -> RFQ:
+        """Cancel an RFQ (CREATED/SENT → CLOSED).
+
+        The caller must ``session.commit()`` afterwards.
+        """
+        rfq = RFQService.get(session, rfq_id)
+        if rfq.state not in (RFQState.created, RFQState.sent):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="RFQ must be in CREATED or SENT state to cancel",
+            )
+
+        prev_state = rfq.state
+        rfq.state = RFQState.closed
+        session.add(
+            RFQStateEvent(
+                rfq_id=rfq.id,
+                from_state=prev_state,
+                to_state=RFQState.closed,
+                user_id=user_id,
+                reason="USER_CANCELLED",
+                event_timestamp=now_utc(),
+            )
+        )
+        return rfq
+
+    @staticmethod
     def refresh(session: Session, rfq_id: UUID, user_id: str) -> RFQ:
         """Re-send invitations for an RFQ in SENT or QUOTED state.
 

@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+@theme {
+	/* Base surfaces — trading dark (GitHub Dark-inspired) */
+	--color-surface-50: #e6edf3;
+	--color-surface-100: #c9d1d9;
+	--color-surface-200: #b1bac4;
+	--color-surface-300: #8b949e;
+	--color-surface-400: #6e7681;
+	--color-surface-500: #484f58;
+	--color-surface-600: #30363d;
+	--color-surface-700: #21262d;
+	--color-surface-800: #161b22;
+	--color-surface-900: #0d1117;
+	--color-surface-950: #090c10;
+
+	/* Brand accents */
+	--color-accent: #c9a84c;
+	--color-accent-hover: #b8953f;
+	--color-gold: #c9a84c;
+	--color-teal: #1a7f6e;
+	--color-teal-bright: #26a88f;
+
+	/* Trading semantic colors */
+	--color-success: #3fb950;
+	--color-success-hover: #2ea043;
+	--color-danger: #f85149;
+	--color-danger-hover: #da3633;
+	--color-warning: #e3b341;
+	--color-warning-hover: #d29922;
+	--color-blue: #58a6ff;
+
+	/* Typography — IBM Plex (no Inter slop) */
+	--font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+	--font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+}
+
+/* Dark mode defaults */
+:root {
+	color-scheme: dark;
+}
+
+body {
+	@apply bg-surface-950 text-surface-200 font-sans antialiased;
+}
+
+/* Trading density — tighter defaults */
+* {
+	@apply leading-tight;
+}

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.auth import require_any_role, require_role
 from app.core.database import get_session
@@ -17,6 +17,7 @@ from app.schemas.rfq import (
     RFQCreate,
     RFQAwardRequest,
     RFQAwardQuoteRequest,
+    RFQCancelRequest,
     RFQListResponse,
     RFQQuoteCreate,
     RFQQuoteRead,
@@ -33,6 +34,7 @@ from app.schemas.rfq import (
     TradeRankingFailureCode,
     TradeRankingRead,
 )
+from app.api.routes.ws import manager as ws_manager
 from app.services.rfq_service import RFQService
 
 router = APIRouter()
@@ -63,7 +65,9 @@ def list_rfqs(
     _: None = Depends(require_any_role("trader", "risk_manager", "auditor")),
     session: Session = Depends(get_session),
 ) -> RFQListResponse:
-    query = session.query(RFQ)
+    from app.models.rfqs import RFQInvitation
+
+    query = session.query(RFQ).options(joinedload(RFQ.invitations))
     if not include_deleted:
         query = query.filter(RFQ.deleted_at.is_(None))
     if state:
@@ -84,9 +88,8 @@ def list_rfqs(
     rfq_reads = []
     for rfq in items:
         rfq_read = RFQRead.model_validate(rfq)
-        invitations = RFQService.get_invitations(session, rfq.id)
         rfq_read.invitations = [
-            RFQInvitationRead.model_validate(i) for i in invitations
+            RFQInvitationRead.model_validate(i) for i in rfq.invitations
         ]
         rfq_reads.append(rfq_read)
     return RFQListResponse(items=rfq_reads, next_cursor=next_cursor)
@@ -317,6 +320,35 @@ def reject_rfq(
     session.commit()
     mark_audit_success(request, rfq_id)
     request.state.audit_commit()
+    return _build_rfq_read(session, rfq_id)
+
+
+@router.post("/{rfq_id}/actions/cancel", response_model=RFQRead)
+@limiter.limit(RATE_LIMIT_MUTATION)
+async def cancel_rfq(
+    rfq_id: UUID,
+    payload: RFQCancelRequest,
+    request: Request,
+    _: None = Depends(
+        audit_event(
+            entity_type="rfq",
+            event_type="cancelled",
+        )
+    ),
+    __: None = Depends(require_role("trader")),
+    session: Session = Depends(get_session),
+) -> RFQRead:
+    """Cancel an RFQ in CREATED or SENT state."""
+    RFQService.cancel(session, rfq_id, payload.user_id)
+    session.commit()
+    mark_audit_success(request, rfq_id)
+    request.state.audit_commit()
+    await ws_manager.broadcast(
+        "rfq",
+        str(rfq_id),
+        "status_changed",
+        {"status": "CLOSED", "reason": "cancelled"},
+    )
     return _build_rfq_read(session, rfq_id)
 
 

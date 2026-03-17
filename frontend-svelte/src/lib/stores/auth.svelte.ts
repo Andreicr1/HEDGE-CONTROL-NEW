@@ -1,0 +1,110 @@
+import { goto } from '$app/navigation';
+
+export type UserRole = 'trader' | 'risk_manager' | 'auditor';
+
+interface JwtClaims {
+	sub: string;
+	name?: string;
+	roles?: UserRole[];
+	exp?: number;
+	iat?: number;
+}
+
+function decodeJwtPayload(token: string): JwtClaims {
+	const parts = token.split('.');
+	if (parts.length !== 3) throw new Error('Invalid JWT format');
+	const payload = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+	return JSON.parse(payload);
+}
+
+class AuthStore {
+	#token = $state<string | null>(null);
+	#claims = $state<JwtClaims | null>(null);
+	#expiryTimer: ReturnType<typeof setTimeout> | null = null;
+	#expiryWarningTimer: ReturnType<typeof setTimeout> | null = null;
+	#redirecting = false;
+
+	readonly isAuthenticated = $derived(this.#token !== null);
+	readonly userRoles = $derived<UserRole[]>(this.#claims?.roles ?? []);
+	readonly userName = $derived(this.#claims?.name ?? this.#claims?.sub ?? '');
+	readonly expiresAt = $derived(this.#claims?.exp ? this.#claims.exp * 1000 : null);
+
+	/** Session expiry warning flag — true when <5min remain */
+	showExpiryWarning = $state(false);
+
+	login(token: string) {
+		try {
+			const claims = decodeJwtPayload(token);
+			this.#token = token;
+			this.#claims = claims;
+			this.showExpiryWarning = false;
+			this.#redirecting = false;
+			this.#setupExpiryTimers(claims);
+		} catch {
+			this.logout();
+			throw new Error('Invalid token');
+		}
+	}
+
+	logout() {
+		this.#clearTimers();
+		this.#token = null;
+		this.#claims = null;
+		this.showExpiryWarning = false;
+
+		if (!this.#redirecting) {
+			this.#redirecting = true;
+			goto('/login');
+		}
+	}
+
+	getAuthHeader(): string | null {
+		return this.#token ? `Bearer ${this.#token}` : null;
+	}
+
+	hasRole(role: UserRole): boolean {
+		return this.userRoles.includes(role);
+	}
+
+	hasAnyRole(...roles: UserRole[]): boolean {
+		return roles.some((r) => this.userRoles.includes(r));
+	}
+
+	#setupExpiryTimers(claims: JwtClaims) {
+		this.#clearTimers();
+		if (!claims.exp) return;
+
+		const now = Date.now();
+		const expiresAt = claims.exp * 1000;
+		const msUntilExpiry = expiresAt - now;
+
+		if (msUntilExpiry <= 0) {
+			this.logout();
+			return;
+		}
+
+		// Warning 5 min before expiry
+		const msUntilWarning = msUntilExpiry - 5 * 60 * 1000;
+		if (msUntilWarning > 0) {
+			this.#expiryWarningTimer = setTimeout(() => {
+				this.showExpiryWarning = true;
+			}, msUntilWarning);
+		} else {
+			this.showExpiryWarning = true;
+		}
+
+		// Auto-logout on expiry
+		this.#expiryTimer = setTimeout(() => {
+			this.logout();
+		}, msUntilExpiry);
+	}
+
+	#clearTimers() {
+		if (this.#expiryTimer) clearTimeout(this.#expiryTimer);
+		if (this.#expiryWarningTimer) clearTimeout(this.#expiryWarningTimer);
+		this.#expiryTimer = null;
+		this.#expiryWarningTimer = null;
+	}
+}
+
+export const authStore = new AuthStore();
